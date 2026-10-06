@@ -94,6 +94,8 @@ class StudioProjectModeTest(unittest.TestCase):
             return json.loads(response.read().decode("utf-8"))
 
     def _post(self, server, path: str, payload: dict | None = None, **headers):
+        if path == "api/script" and isinstance(payload, dict):
+            payload = {**payload, "expected_revision": server.get_python_script()["source_revision"]}
         request = Request(
             server.base_url + path,
             data=json.dumps(payload or {}).encode("utf-8"),
@@ -141,7 +143,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertEqual(self._post(server, "api/solve"), (202, {"ok": True}))
         self._wait(lambda: self._events(server, "solve_finished") == 1 and self._idle(server), "the solve never finished")
         # Nothing had to be solved, so nothing was claimed, staged or promoted.
-        self.assertEqual(sorted(path.name for path in (root / "project").iterdir()), ["model.py", "study.py"])
+        self.assertEqual(sorted(path.name for path in (root / "project").iterdir()), [".tuba", "model.py", "study.py"])
 
         # This study's review carries no solver evidence, so nothing in it can go stale (spec decision 15).
         status, payload = self._post(server, "api/script", {"code": MODEL.replace("run(2.0)", "run(3.0)")})
@@ -158,7 +160,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertTrue(comm["ok"], comm)
         self.assertIn("DEBUT", comm["code"])
         # Generated on request, never written into the project folder.
-        self.assertEqual(sorted(path.name for path in (root / "project").iterdir()), ["model.py", "study.py"])
+        self.assertEqual(sorted(path.name for path in (root / "project").iterdir()), [".tuba", "model.py", "study.py"])
 
         # It follows model.py: the next request compiles the saved model.
         status, payload = self._post(server, "api/script", {"code": MODEL.replace("pressure=1.0e6", "pressure=2.5e6")})
@@ -183,6 +185,7 @@ class StudioProjectModeTest(unittest.TestCase):
 
         root = Path(self.enterContext(TemporaryDirectory()))
         server = self._start(root)
+        self._wait(lambda: self._idle(server), "the startup review never settled")
         before = server.revision
 
         with mock.patch.object(Path, "read_bytes", side_effect=PermissionError("locked mid-save")):
@@ -190,6 +193,7 @@ class StudioProjectModeTest(unittest.TestCase):
             self.assertTrue(server._watch_thread.is_alive())
         (root / "project" / "model.py").write_text(MODEL.replace("run(2.0)", "run(3.0)"), encoding="utf-8")
         self._wait(lambda: server.revision > before, "the watcher never recovered to rerun the model")
+        self._wait(lambda: self._idle(server), "the recovered review never settled")
 
     def test_an_imported_review_goes_stale_only_when_its_solver_input_changes(self):
         root = Path(self.enterContext(TemporaryDirectory()))
@@ -227,6 +231,7 @@ class StudioProjectModeTest(unittest.TestCase):
         status, payload = self._post(server, "api/script", {"code": (project / "model.py").read_text(encoding="utf-8")})
         self.assertEqual(status, 200, payload)
         self.assertTrue(payload["review_stale"])
+        self._wait(lambda: self._idle(server), "the edited study review never settled")
 
     def test_attested_evidence_imports_after_startup_without_holding_it_up(self):
         tmpdir = self.enterContext(TemporaryDirectory())
@@ -315,6 +320,94 @@ class StudioProjectModeTest(unittest.TestCase):
         info = self._get(server, "api/project")
         self.assertEqual(info["unverified"], ["Operating"])
         self.assertIn("result_trust == 'verified'", info["review_error"])
+
+    def test_existing_receipts_recover_after_source_fix_and_reversion(self):
+        from tuba.visualization.preview.server import ProjectStudioServer
+
+        root = Path(self.enterContext(TemporaryDirectory()))
+        project = root / "project"
+        shutil.copytree(SUPPORT_RACK, project)
+        script = project / "model.py"
+        original = script.read_bytes()
+        script.write_bytes(b"invalid Python!\n")
+        server = ProjectStudioServer(project, root / "out", port=0, poll_interval_s=0.05, debounce_s=0.05)
+        server._recorder = _RecordingClient()
+        server.broker.add(server._recorder)
+        self.addCleanup(server.stop)
+        server.start()
+        self.assertFalse(self._get(server, "api/project")["has_review"])
+        script.write_bytes(original)
+        server.run_once()
+        self._wait(lambda: self._events(server, "review_ready") == 1 and self._idle(server),
+                   "fixed source did not import unchanged evidence", timeout=120)
+        script.write_bytes(original + b"\nmodel.add_node([99, 99, 99])\n")
+        server.run_once()
+        self._wait(lambda: self._events(server, "review_failed") == 1 and self._idle(server),
+                   "changed model did not refuse old evidence", timeout=120)
+        script.write_bytes(original)
+        server.run_once()
+        self._wait(lambda: self._events(server, "review_ready") == 2 and self._idle(server),
+                   "reverted source did not recover unchanged evidence", timeout=120)
+        self.assertFalse(self._get(server, "api/project")["review_stale"])
+
+    def test_external_solve_refreshes_review_after_completed_unclaimed_promotion(self):
+        from tests.project_replay import ReplaySolver
+        from tuba.project.claim import claim_solve
+        from tuba.project.solve import solve_project
+
+        root = Path(self.enterContext(TemporaryDirectory()))
+        server, project = self._rack_server(
+            root, evidence=False,
+            study_edit=lambda text: text.replace('ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence" / LOAD_CASES[0]',
+                                                 "ARTIFACT_DIR = None"),
+        )
+        evidence = project / "evidence" / "Operating"
+        evidence.mkdir(parents=True)
+        receipt = evidence / "study_execution.json"
+        committed = SUPPORT_RACK / "evidence" / "Operating"
+        shutil.copy2(committed / "study_depl.csv", evidence / "study_depl.csv")
+        time.sleep(0.3)
+        self.assertEqual(self._events(server, "review_ready"), 0)
+        self.assertFalse((server.out_dir / "review" / "scene.json").exists())
+        with claim_solve(project):
+            shutil.copy2(committed / "study_execution.json", receipt)
+            time.sleep(0.3)
+            self.assertEqual(self._events(server, "review_ready"), 0)
+            self.assertFalse((server.out_dir / "review" / "scene.json").exists())
+            receipt.unlink()  # interrupted promotion is incomplete after the claim ends
+        time.sleep(0.3)
+        self.assertEqual(self._events(server, "review_ready"), 0)
+
+        # The public project solve path promotes actual committed Code_Aster evidence.
+        solved = solve_project(server.project, solver=ReplaySolver(SUPPORT_RACK / "evidence"))
+        self.assertEqual(solved.solved, ("Operating",))
+        self._wait(lambda: self._events(server, "review_ready") == 1 and self._idle(server),
+                   "the external solve did not reach the open Studio", timeout=120)
+        info = self._get(server, "api/project")
+        self.assertEqual((info["has_review"], info["review_stale"], info["review_error"]), (True, False, None))
+        previous_scene = (server.out_dir / "review" / "scene.json").read_bytes()
+
+        from unittest.mock import patch
+        from tuba.visualization.preview.server import ProjectStudioServer
+
+        with patch("examples.code_aster_artifact_review.solve_or_import", side_effect=AssertionError("must import existing evidence")):
+            reopened = ProjectStudioServer(project, root / "reopened", port=0).start()
+            try:
+                self._wait(lambda: not reopened._solving, "existing evidence did not import on Open", timeout=120)
+                self.assertTrue((reopened.out_dir / "review" / "scene.json").is_file(), reopened.review_error)
+                self.assertIsNone(reopened.review_error)
+            finally:
+                reopened.stop()
+
+        # A changed receipt whose artifacts fail validation keeps the last good review.
+        damaged = json.loads(receipt.read_text(encoding="utf-8"))
+        damaged["artifacts"]["study.rmed"]["sha256"] = "0" * 64
+        receipt.write_text(json.dumps(damaged), encoding="utf-8")
+        self._wait(lambda: self._events(server, "review_failed") == 1 and self._idle(server),
+                   "a damaged external solve was not refused", timeout=120)
+        self.assertEqual(self._events(server, "review_ready"), 1)
+        self.assertEqual((server.out_dir / "review" / "scene.json").read_bytes(), previous_scene)
+        self.assertTrue(self._get(server, "api/project")["review_stale"])
 
 
 if __name__ == "__main__":

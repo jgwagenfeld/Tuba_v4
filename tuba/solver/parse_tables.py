@@ -23,10 +23,11 @@ from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NSEC,
     DISPLAY_GENERATRICE,
     Generatrice,
+    read_gene_tuyau_factors,
     solve_generatrice,
     subpoint_station,
 )
-from tuba.model import Element, PipeSection, TubaModel
+from tuba.model import BarSection, Element, IBeamSection, PipeSection, TubaModel
 from tuba.solver.aster_sidecar import load_and_attest_artifact_chain
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 from tuba.solver.modelisation import PipeModelization
@@ -52,6 +53,92 @@ def read_work_dir_generatrice(work_dir: Path) -> Generatrice:
     except OSError:
         return Generatrice(DISPLAY_GENERATRICE, "display_generatrice_fallback")
     return solve_generatrice(comm)
+
+
+def read_work_dir_generatrices(model: TubaModel, work_dir: Path) -> dict[str, Generatrice]:
+    """Resolve actual endpoint seeds onto the authored connected pipe chains.
+
+    The public import path attests the command file, sidecar and manifest before
+    this reader uses their mappings. A legacy global seed remains global; scoped
+    studies require complete, unambiguous endpoint and analysis-node lineage.
+    """
+    manifest_path = work_dir / "study_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    inputs = manifest.get("study", {}).get("metadata", {}).get("compiler_inputs", {})
+    recorded = inputs.get("pipe_generatrices", inputs.get("resolved_loads", {}).get("pipe_generatrices"))
+    pipes = [element for element in model.elements
+             if element.type in {"pipe_straight", "pipe_bend"}
+             and ("line_element_ids" not in inputs or element.id in inputs["line_element_ids"])]
+    if not pipes:
+        return {}
+    try:
+        comm = (work_dir / "study.comm").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        if recorded is not None:
+            raise RuntimeError("GENE_TUYAU endpoint seeds are missing from the attested study.")
+        return {element.id: read_work_dir_generatrice(work_dir) for element in pipes}
+    try:
+        factors = read_gene_tuyau_factors(comm)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+    reverse = read_solver_name_reverse_map(work_dir)
+    if not factors:
+        if recorded is not None:
+            raise RuntimeError("GENE_TUYAU endpoint seeds are missing from the attested study.")
+        return {element.id: solve_generatrice(comm) for element in pipes}
+    # Before chain metadata existed, the pipe-volume writer repeated the same
+    # global vector at each member's start. Identical old factors are unambiguous.
+    if recorded is None and len(factors) > 1 and all(seed == factors[0][1] for _groups, seed in factors):
+        return {element.id: factors[0][1] for element in pipes}
+    if len(factors) == 1 and recorded is None:
+        groups, generatrice = factors[0]
+        original = reverse.get(groups[0], groups[0]) if groups else None
+        legacy = original in {None, "PipeOrientationNodes"} or (
+            not (work_dir / "study_tuba_fem.json").exists()
+            and not original.startswith(("G_NODE_", "G_LINE_"))
+        )
+        if legacy:
+            return {element.id: generatrice for element in pipes}
+
+    # Reuse the exact compiler policy, including its unsupported-topology guards.
+    from tuba.solver.aster_volume import mixed_pipe_generatrices
+    try:
+        chains = mixed_pipe_generatrices(model, pipes)
+    except ValueError as exc:
+        raise RuntimeError(f"GENE_TUYAU chain cannot be resolved: {exc}") from exc
+    if recorded is not None and recorded != chains:
+        raise RuntimeError("GENE_TUYAU chain metadata does not match the authored pipe elements.")
+    by_start = {chain["start_node"]: chain for chain in chains}
+    resolved = {}
+    mesh = manifest.get("analysis_mesh", {})
+    for groups, generatrice in factors:
+        if groups is None:
+            raise RuntimeError("GENE_TUYAU scoped study requires one GROUP_NO endpoint seed per chain.")
+        original = reverse.get(groups[0], groups[0])
+        if not original.startswith("G_NODE_"):
+            raise RuntimeError(f"GENE_TUYAU GROUP_NO {groups[0]!r} has no authored endpoint mapping.")
+        node_id = original.removeprefix("G_NODE_")
+        if node_id not in by_start:
+            raise RuntimeError(f"GENE_TUYAU GROUP_NO {original!r} is not an oriented pipe-chain endpoint.")
+        chain = by_start[node_id]
+        if "groups" in mesh:
+            members = mesh["groups"].get(original, ())
+            source = mesh.get("node_sources", {}).get(members[0], {}) if len(members) == 1 else {}
+            if source.get("source_ref") != {"kind": "node", "id": node_id}:
+                raise RuntimeError(f"GENE_TUYAU GROUP_NO {original!r} lacks one actual endpoint node with matching lineage.")
+        if recorded is not None and not all(
+            math.isclose(actual, expected, rel_tol=5e-9, abs_tol=5e-12)
+            for actual, expected in zip(generatrice.vector, chain["vector"])
+        ):
+            raise RuntimeError(f"GENE_TUYAU seed for {original!r} differs from the attested compiler orientation.")
+        for element_id in chain["element_ids"]:
+            if element_id in resolved:
+                raise RuntimeError(f"GENE_TUYAU conflict: pipe chain {chain['element_ids']!r} has multiple endpoint seeds.")
+            resolved[element_id] = generatrice
+    missing = {element.id for element in pipes} - set(resolved)
+    if missing:
+        raise RuntimeError(f"GENE_TUYAU scoped study is missing endpoint seeds for pipes {sorted(missing)!r}.")
+    return resolved
 
 
 # Result parsing
@@ -204,6 +291,8 @@ def parse_results(
             f"{labels} in {work_dir}. Refusing to substitute zeros."
         )
     parse_reac_table(model, work_dir, results, node_label_map, instant=instant)
+    if inputs.get("beam_stress") == "SIPO_ELNO":
+        parse_sipo_table(model, work_dir, results, element_label_map, instant=instant)
     if pipe_modelization is PipeModelization.TUYAU_3M:
         parse_sieq_table(
             model,
@@ -588,16 +677,22 @@ def parse_sieq_table(
     node_label_map: dict[str, str],
     element_label_map: dict[str, str],
     instant: float | None = None,
+    rows: list[dict[str, str]] | None = None,
 ) -> None:
-    """Parse Von Mises stress table (unit 41, ``SIEQ_ELNO``)."""
+    """Parse Von Mises stress table (unit 41, ``SIEQ_ELNO``).
+
+    *rows* are the table's rows when a caller has already streamed it (a mixed
+    volume run hands over its line-element rows); otherwise the file is read.
+    """
     if not any(elem.type in {"pipe_straight", "pipe_bend"} for elem in model.elements):
         return
-    rows = parse_result_table(work_dir / "study_sieq.csv", instant=instant)
+    if rows is None:
+        rows = parse_result_table(work_dir / "study_sieq.csv", instant=instant)
+    elif instant is not None:
+        rows = [row for row in rows if abs(float(row["INST"]) - instant) < 1e-12]
     element_lookup = result_element_lookup(model, work_dir)
     analysis_tangents = read_analysis_element_tangents(work_dir)
-    # Read once, for the whole table: every sub-point in the study shares one
-    # generatrice, because Code_Aster takes one orientation for the whole run.
-    generatrice = read_work_dir_generatrice(work_dir)
+    generatrices = read_work_dir_generatrices(model, work_dir)
 
     for row in rows:
         raw_eid = row.get("MAILLE", "").strip()
@@ -606,9 +701,10 @@ def parse_sieq_table(
         nid = node_label_map.get(raw_nid, raw_nid)
 
         elem = element_lookup.get(eid)
-        if elem is None:
+        if elem is None or elem.id not in generatrices:
             continue
         orig_eid = elem.id
+        generatrice = generatrices[orig_eid]
         try:
             vmis = float(row.get("VMIS", ""))
         except (ValueError, TypeError) as exc:
@@ -688,6 +784,63 @@ def parse_sieq_table(
             vmis if not np.isfinite(er.max_von_mises)
             else max(er.max_von_mises, vmis)
         )
+
+BEAM_STRESS_TABLE = "study_sipo.csv"
+
+
+def parse_sipo_table(
+    model: TubaModel,
+    work_dir: Path,
+    results: FEAResults,
+    element_label_map: dict[str, str],
+    instant: float | None = None,
+) -> None:
+    """A beam's extreme fibre normal stress (unit 43, ``SIPO_ELNO``).
+
+    Code_Aster's SIPM_ELNO is this number directly, but it is zero in a
+    STAT_NON_LINE run and for SECTION='GENERALE'. SIPO_ELNO is right in both,
+    so its parts are combined the way SIPM_ELNO combines them, which a linear
+    run reproduces exactly: SN +/- (|SMFY| + |SMFZ|) for a rectangle or an
+    I-section, whose extreme fibres in y and z meet at a corner, and
+    SN +/- sqrt(SMFY^2 + SMFZ^2) for a circle. Shear and torsion are not part
+    of it. The maximum is over every solver node of the member, interior ones
+    included, since bending peaks between the ends.
+    """
+    # A general section without its fibre distances RY and RZ gets SIPO bending
+    # parts of zero: it has no value here rather than a false one.
+    beams = {
+        element.id for element in model.elements
+        if element.type == "beam" and not (
+            isinstance(section := model.sections.get(element.section), IBeamSection)
+            and not all(float(section.properties.get(key, 0.0)) > 0.0 for key in ("RY", "RZ"))
+        )
+    }
+    rows = parse_result_table(work_dir / BEAM_STRESS_TABLE, instant=instant)
+    element_lookup = result_element_lookup(model, work_dir)
+    covered: set[str] = set()
+    for row in rows:
+        raw_eid = row.get("MAILLE", "").strip()
+        elem = element_lookup.get(element_label_map.get(raw_eid, raw_eid))
+        if elem is None or elem.id not in beams:
+            continue
+        try:
+            sn, my, mz = (float(row[component]) for component in ("SN", "SMFY", "SMFZ"))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError(f"Code_Aster row has an invalid SIPO_ELNO component for beam {elem.id!r}.") from exc
+        circle = isinstance(model.sections.get(elem.section), (PipeSection, BarSection))
+        value = abs(sn) + (math.hypot(my, mz) if circle else abs(my) + abs(mz))
+        if not math.isfinite(value):
+            raise RuntimeError(f"Code_Aster row has a non-finite SIPO_ELNO component for beam {elem.id!r}.")
+        er = results.element_results[elem.id]
+        er.max_normal_stress = value if not np.isfinite(er.max_normal_stress) else max(er.max_normal_stress, value)
+        covered.add(elem.id)
+    missing = sorted(beams - covered)
+    if missing:
+        raise RuntimeError(
+            f"Code_Aster output is missing beam normal stress for {missing} in {work_dir} "
+            f"({BEAM_STRESS_TABLE}). Refusing to leave them without a value."
+        )
+
 
 def read_analysis_element_tangents(work_dir: Path) -> dict[str, np.ndarray]:
     manifest_path = work_dir / "study_manifest.json"

@@ -31,6 +31,15 @@ MAT_STEEL = DEFI_MATERIAU(
         RHO=7.850000E+03,
         ALPHA=1.200000E-05,
     ),
+);
+
+MC0 = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.000000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
     CABLE=_F(EC_SUR_E=0.0001),
 );
 
@@ -42,6 +51,9 @@ CHMAT = AFFE_MATERIAU(
             TOUT='OUI',
             MATER=MAT_STEEL,
         ),
+        _F(GROUP_MA='cable_0', MATER=MC0),
+        _F(GROUP_MA='cable_1', MATER=MC0),
+        _F(GROUP_MA='cable_2', MATER=MC0),
     ),
 );
 
@@ -178,6 +190,13 @@ RESU = CALC_CHAMP(
     FORCE='REAC_NODA',
 );
 
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    GROUP_MA=('G_TUBE',),
+    CONTRAINTE=('SIPO_ELNO',),
+);
+
 # ----- Write MED results file -----
 IMPR_RESU(
     FORMAT='MED',
@@ -240,6 +259,25 @@ TAB_REAC = CREA_TABLE(
 IMPR_TABLE(
     TABLE=TAB_REAC,
     UNITE=40,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIPO_ELNO -----
+TAB_SIPO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIPO_ELNO',
+        GROUP_MA=('G_TUBE',),
+        NOM_CMP=('SN', 'SMFY', 'SMFZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIPO,
+    UNITE=43,
     FORMAT='TABLEAU',
     FORMAT_R='1PE24.16',
     SEPARATEUR=',',

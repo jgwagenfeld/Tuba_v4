@@ -1022,11 +1022,12 @@ def _displacement_rows(
             if state.metadata.get("volume_analysis")
             else None
         )
+        analysis_node_ids = _analysis_node_ids(state)
         for node_id, values in sorted(state.node_displacements.items()):
             if surface_nodes is not None and node_id not in surface_nodes:
                 continue
             dx, dy, dz, drx, dry, drz = values
-            entity_ref, location_kind = _node_location(state, node_id)
+            entity_ref, location_kind = _node_location(analysis_node_ids, node_id)
             yield {
                 **identity,
                 "entity_ref": entity_ref,
@@ -1057,9 +1058,10 @@ def _reaction_rows(
 
     for state in result_states:
         identity = _solver_identity(studies_by_id[state.study_id], state)
+        analysis_node_ids = _analysis_node_ids(state)
         for node_id, values in sorted(state.node_reactions.items()):
             fx, fy, fz, mx, my, mz = values
-            entity_ref, location_kind = _node_location(state, node_id)
+            entity_ref, location_kind = _node_location(analysis_node_ids, node_id)
             yield {
                 **identity,
                 "entity_ref": entity_ref,
@@ -1077,8 +1079,14 @@ def _reaction_rows(
             }
 
 
-def _node_location(state: ResultState, node_id: str) -> tuple[str, str]:
-    analysis_node_ids = set(state.metadata.get("analysis_node_ids", ()))
+# Built once per result state: rebuilt per node it made the displacement table
+# quadratic - 28,000 surface nodes x 96,000 analysis nodes held the header
+# tower's review build for half an hour.
+def _analysis_node_ids(state: ResultState) -> frozenset[str]:
+    return frozenset(state.metadata.get("analysis_node_ids", ()))
+
+
+def _node_location(analysis_node_ids: frozenset[str], node_id: str) -> tuple[str, str]:
     if node_id in analysis_node_ids:
         return f"analysis_node:{node_id}", "analysis_node"
     return f"node:{node_id}", "model_node"

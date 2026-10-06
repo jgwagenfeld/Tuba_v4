@@ -17,5 +17,6 @@ F depl study_depl.csv R 39
 F reac study_reac.csv R 40
 F sieq study_sieq.csv R 41
 F libr study_contact.json R 42
-F modes study_buckling_modes.csv R 43
+F sipo study_sipo.csv R 43
+F modes study_buckling_modes.csv R 45
 F crit study_buckling.json R 44

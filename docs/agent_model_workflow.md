@@ -1,5 +1,11 @@
 # Agent Model Workflow
 
+Work against a local project folder shared with Studio and the CLI. For received
+projects, extract the archive, retain every imported helper and CAD/data file,
+then bind MCP with `init_session(file_path="/path/to/project/model.py", load_existing=True)`.
+The [project sharing guide](content/project-sharing.md) explains folder opening,
+generated meshes, saved Code_Aster evidence and complete review bundles.
+
 Agents should not mutate `TubaModel` by directly calling low-level model methods.
 
 Preferred workflow:

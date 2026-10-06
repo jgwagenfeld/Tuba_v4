@@ -35,14 +35,14 @@ test("review keeps technical details optional and stress fields distinguishable"
   const fields = page.getByRole("combobox", { name: "Colour the scene by" });
   await fields.selectOption({ label: "Von Mises stress (wall points)" });
   await expect(page.locator("[data-viewport-legend]")).toContainText("Von Mises stress (wall points)");
-  await expect(page.locator("[data-compliance-notice]")).toBeVisible();
+  await expect(page.locator("[data-applicability-fact]")).toBeVisible();
   await page.locator("[data-field-details] > summary").click();
   await expect(page.locator("[data-field-description]")).toContainText("Support: subpoint");
   await page.locator("[data-analysis-summary]").press("Enter");
   await expect(page.locator("[data-solver-fact]")).toContainText("Code_Aster");
   await expect(page.locator("[data-discretisation-check]")).toBeVisible();
   await fields.selectOption({ label: "Displacement" });
-  await expect(page.locator("[data-compliance-notice]")).toHaveCount(0);
+  await expect(page.locator("[data-applicability-fact]")).toBeHidden();
   await expect(page.locator("[data-field-description]")).toContainText("Support: node");
   await expect(page.locator("[data-projection-note]")).toBeHidden();
 });
@@ -72,8 +72,8 @@ test("gallery Build edits stay drafts and invalidate the published review", asyn
   await editor.fill(draft);
   await expect(badge).toHaveAttribute("data-status", "stale");
   await expect(page.locator("[data-code-case-status]")).toHaveText("Review outdated");
-  await expect(page.locator("[data-code-foot]")).toContainText("Python in your browser");
-  await expect(page.locator("[data-code-foot]")).toContainText("published Code_Aster results");
+  await expect(page.locator("[data-code-foot]")).toContainText("edits require a new Code_Aster solve");
+  await expect(page.locator("[data-code-foot] span")).toHaveAttribute("title", /Review uses published Code_Aster results/);
   expect(await wouldLoseDraft()).toBe(true);
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(objects);
   await page.screenshot({ path: "../.build/gallery-edit-build.png" });
@@ -119,8 +119,8 @@ test("gallery Build edits stay drafts and invalidate the published review", asyn
   await expect(badge).toHaveAttribute("data-status", "not_solved");
   expect(await wouldLoseDraft()).toBe(true);
   await page.getByRole("button", { name: "Exchange", exact: true }).click();
-  await page.getByText("Example actions", { exact: true }).click();
-  await page.getByRole("button", { name: "Reset example", exact: true }).click();
+  await page.getByText("Reset example", { exact: true }).click();
+  await page.getByRole("button", { name: "Discard edits", exact: true }).click();
   expect(errors).toEqual([]);
 });
 
@@ -490,9 +490,10 @@ test("assembled Pages renders the native 3D tee result fields", async ({ page, r
   }
   const overlays = new Map(scene.overlays.map((overlay) => [overlay.id, overlay]));
   expect(new Set(scene.result_fields.map((field) => overlays.get(field.overlay_id)?.data?.result_type))).toEqual(
-    // tuyau_subpoints is the 1D remainder's wall stress: this is a mixed study,
-    // so the TUYAU_3M extensions report subpoints beside the solid's cell field.
-    new Set(["stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"])
+    // tuyau_subpoints and internal_forces are the 1D remainder's: this is a mixed
+    // study, so the TUYAU_3M extensions report wall subpoints and section forces
+    // beside the solid's cell field.
+    new Set(["stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints", "internal_forces"])
   );
   expect(JSON.stringify(scene)).toContain("visualization_only_not_asme_code_stress");
 });

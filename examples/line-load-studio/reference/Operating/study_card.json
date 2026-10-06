@@ -2,13 +2,13 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "7c1d55b7db2a236eaea6376feea80f86fa8a3fd87b8129c7ff692bfa51f8276a",
-      "size_bytes": 9263
+      "sha256": "80c970f998616e3695c19a857d4c44e65b88ffaae6de9d2e512b4ae927748fdd",
+      "size_bytes": 9722
     },
     {
       "name": "study.export",
-      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
-      "size_bytes": 377
+      "sha256": "85dc46238025a16f78479122b6a833c2b8bf49ec20bf72cbcd8cd0338cbcb7fc",
+      "size_bytes": 404
     },
     {
       "name": "study.mail",
@@ -17,12 +17,12 @@
     },
     {
       "name": "study.mess",
-      "sha256": "6bee4831d0f6c40a88b03a165545db8f0d2003f4299445a8fbb0d6190dafea02",
-      "size_bytes": 79977
+      "sha256": "e4c0980da72553baf5f0f03a28ed6efcf8566c070d41b6d64c7d4afa6a21d018",
+      "size_bytes": 86528
     },
     {
       "name": "study.rmed",
-      "sha256": "c8e7705ab142e3048d2a807980aca19eae3fb37f1c4bcc5df629d89a19b5b2e8",
+      "sha256": "e165c552e0adc954d1c35d60718eebb4cd88ac85d3cbe7587d8243c052b7ff93",
       "size_bytes": 1296364
     },
     {
@@ -32,32 +32,37 @@
     },
     {
       "name": "study_depl.csv",
-      "sha256": "38119e2e7c8e7aeb73dfb89a64340dd7fa57cbb59c7b8bfa1903c0d5179cae62",
+      "sha256": "dcd13a3789f22bc74b815f7e0c9fa97f0654a90a4ee14831edc7523592a86054",
       "size_bytes": 19003
     },
     {
       "name": "study_effo.csv",
-      "sha256": "99626876efa5bca68393d6abd468f53074836abfd171d75a4d80971f02b111fa",
+      "sha256": "769d724b5cfa1c0b38709b6ddebfa114fd10dd23a6cfd357ca987d95cb60affa",
       "size_bytes": 33390
     },
     {
       "name": "study_manifest.json",
-      "sha256": "dc4afd5c906b143f625ea3266787a87044119d616ce3fd4dd8b34c56452129b2",
-      "size_bytes": 53846
+      "sha256": "32f49736a9d597dbfd2b4a6409e7004f7b50e34bcb385773896370dff00a7a0f",
+      "size_bytes": 53882
     },
     {
       "name": "study_reac.csv",
-      "sha256": "423b02a470a980d6cd0477d608b3190124b07cd070875eeb3c057e44d392bd99",
+      "sha256": "3cd27acb2b3696c3904a5a9942c8f54230c54301b43b613e28fb1addc3d6706e",
       "size_bytes": 19003
     },
     {
       "name": "study_sieq.csv",
-      "sha256": "98cea3061daaa4888c095e088e03f18cbf43f38b647a75789d8fb2448422d46c",
+      "sha256": "d69a2d98eef604580824b4c3140a30a6a0217f56f41b6895e31253c39a46a573",
       "size_bytes": 3081330
     },
     {
+      "name": "study_sipo.csv",
+      "sha256": "eab5e84624dc73327853d776747e1043e42fe22af5facdb31fd1408cc2405274",
+      "size_bytes": 9412
+    },
+    {
       "name": "study_tuba_fem.json",
-      "sha256": "445693e59a057375f21954a8d43d938d6ae1a3579e83620fede7083ab8b5eba5",
+      "sha256": "e9d6b57b5ae1a3e9aa06918fdc4286900b623b19e0d83d642cac4d82cdf5ba53",
       "size_bytes": 5150
     }
   ],
@@ -79,7 +84,7 @@
       "name": "AFFE_MODELE"
     },
     {
-      "count": 1,
+      "count": 2,
       "name": "CALC_CHAMP"
     },
     {
@@ -91,7 +96,7 @@
       "name": "CREA_RESU"
     },
     {
-      "count": 6,
+      "count": 7,
       "name": "CREA_TABLE"
     },
     {
@@ -119,7 +124,7 @@
       "name": "IMPR_RESU"
     },
     {
-      "count": 4,
+      "count": 5,
       "name": "IMPR_TABLE"
     },
     {
@@ -203,6 +208,13 @@
       "logical": "libr",
       "meaning": "contact history",
       "unit": "42"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sipo.csv",
+      "logical": "sipo",
+      "meaning": "frame member normal stress (SIPO_ELNO)",
+      "unit": "43"
     }
   ],
   "keyword_inventory_is_lower_bound": false,
@@ -210,14 +222,14 @@
   "source": "evidence/Operating",
   "study": {
     "element_count": 36,
-    "execution_method": "python_bridge",
+    "execution_method": "wsl",
     "id": "analysis_study:Operating",
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "model_revision": 0,
     "node_count": 57,
     "project_name": "LineLoadStudioProject",
-    "solved_at": "2026-09-30T13:43:46.894362Z",
+    "solved_at": "2026-10-04T17:04:42.455329Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

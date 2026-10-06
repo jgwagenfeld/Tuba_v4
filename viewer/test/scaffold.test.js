@@ -119,6 +119,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "field-description",
     "analysis-details",
     "analysis-summary",
+    "mesh-review",
     "hotspot-list",
     "issue-list",
     "search",
@@ -142,7 +143,13 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<\/section>\s*(?:<!--[\s\S]*?-->\s*)*<footer[^>]*class="status-strip"[^>]*data-status-strip/);
   // The verdict, the unit chip and the runtime line live there, not in the
   // header and not in the rail foot, so every mode keeps all three.
-  assert.match(html, /data-status-strip[\s\S]*?data-status-chip[\s\S]*?data-discretisation-check[\s\S]*?data-strip-units[\s\S]*?data-runtime-status[\s\S]*?<\/footer>/);
+  assert.match(html, /data-status-strip[\s\S]*?data-status-chip[\s\S]*?data-analysis-summary[\s\S]*?data-strip-units[\s\S]*?data-runtime-status[\s\S]*?<\/footer>/);
+  // Mesh diagnostics open from the strip's toggle into a dock: a shell row of
+  // its own just above the strip, so it pushes the workspace up instead of
+  // floating over model.py. Mounted in the script pane and the rail, they
+  // squeezed model.py to three lines and gave the rail a second scrollbar.
+  assert.match(html, /<button[^>]*class="analysis-toggle"[^>]*data-analysis-summary[^>]*aria-expanded="false"[^>]*aria-controls="analysis-dock"/);
+  assert.match(html, /<section[^>]*class="analysis-dock"[^>]*id="analysis-dock"[^>]*data-analysis-details[\s\S]*?data-analysis-close[\s\S]*?data-discretisation-check[\s\S]*?data-mesh-review[\s\S]*?<\/section>\s*<\/div>\s*<\/section>\s*<footer/);
   const headerActions = html.slice(html.indexOf('class="header-actions"'), html.indexOf("</header>"));
   assert.doesNotMatch(headerActions, /data-(?:status-chip|runtime-status)/);
   assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
@@ -163,7 +170,12 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /data-find-pane[\s\S]*?data-object-list/);
   assert.doesNotMatch(html, /data-tree(?:=|[\s>])/);
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
-  assert.match(html, /<div[^>]*data-section-box-controls[^>]*><\/div>/);
+  // Cut view lives in the Display palette; the context menu switches it on.
+  assert.match(html, /data-display-palette[\s\S]*<div data-cut-view><\/div>/);
+  assert.match(html, /data-selection-action="cut">Cut view around selection</);
+  assert.doesNotMatch(html, /data-section-box-controls|Section around selection/);
+  // Show values names every badge it hides, the imposed-displacement Δ too.
+  assert.match(html, /class="value-labels-toggle" title="[^"]*&#916; =[^"]*imposed displacement/);
   assert.match(
     html,
     /<div[^>]*class="camera-controls"[^>]*role="group"[^>]*aria-label="Standard camera views"[^>]*data-camera-controls[^>]*><\/div>/

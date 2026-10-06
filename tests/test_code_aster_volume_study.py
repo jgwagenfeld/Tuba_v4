@@ -280,14 +280,18 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
             "VN10": model.nodes[nodes[0]].coords,
             "VN11": model.nodes[nodes[1]].coords,
             "VN12": (-0.05, 0.0, 0.0),
+            "VN13": model.nodes[nodes[2]].coords,
+            "VN14": model.nodes[nodes[3]].coords,
+            "VN15": (0.15, 0.0, 0.0),
         },
         elements={
             "VM200": ("VN1", "VN2", "VN1", "VN2"),
             "LM100": ("VN10", "VN11", "VN12"),
+            "LM101": ("VN13", "VN14", "VN15"),
         },
         groups={
             "G_SOLID_region_0": ("VM200",),
-            "G_TUBE": ("LM100",),
+            "G_TUBE": ("LM100", "LM101"),
             f"G_NODE_{nodes[0]}": ("VN10",),
         },
         node_sources={
@@ -296,10 +300,14 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
             "VN10": MeshNodeSource("VN10", EntityRef("node", nodes[0]), "native_node"),
             "VN11": MeshNodeSource("VN11", EntityRef("node", nodes[1]), "native_node"),
             "VN12": MeshNodeSource("VN12", EntityRef("element", "left"), "generated_element_node"),
+            "VN13": MeshNodeSource("VN13", EntityRef("node", nodes[2]), "native_node"),
+            "VN14": MeshNodeSource("VN14", EntityRef("node", nodes[3]), "native_node"),
+            "VN15": MeshNodeSource("VN15", EntityRef("element", "right"), "generated_element_node"),
         },
         element_sources={
             "VM200": MeshElementSource("VM200", EntityRef("element", "solid"), "volume_cell"),
             "LM100": MeshElementSource("LM100", EntityRef("element", "left"), "native_element"),
+            "LM101": MeshElementSource("LM101", EntityRef("element", "right"), "native_element"),
         },
         modelisations={"G_SOLID_region_0": "3D", "G_TUBE": "TUYAU_3M"},
         solver_input_identity=identity,
@@ -327,7 +335,7 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
     _write_table(
         tmp_path / "study_depl.csv",
         "NOEUD,DX,DY,DZ,DRX,DRY,DRZ",
-        [f"{node},0.001,0,0,0,0,0" for node in (1, 2, 10, 11, 12)],
+        [f"{node},0.001,0,0,0,0,0" for node in (1, 2, 10, 11, 12, 13, 14, 15)],
     )
     _write_table(
         tmp_path / "study_reac.csv",
@@ -341,6 +349,7 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
             "200,1,,0,0.05,0,10",
             "200,2,,0,-0.05,0,20",
             "100,10,1,-0.1,0,0,100",
+            "101,13,1,0.1,0,0,80",
         ],
     )
     _write_table(
@@ -349,6 +358,8 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
         [
             "100,10,1,2,3,4,5,6",
             "100,11,-1,-2,-3,-4,-5,-6",
+            "101,13,7,8,9,10,11,12",
+            "101,14,-7,-8,-9,-10,-11,-12",
         ],
     )
 
@@ -358,9 +369,11 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
     assert results.element_results["solid"].max_von_mises == 20.0
     assert results.element_results["left"].max_von_mises == 100.0
     assert results.element_results["left"].forces_n1.tolist() == [1, 2, 3, 4, 5, 6]
+    assert results.element_results["right"].max_von_mises == 80.0
+    assert results.element_results["right"].forces_n2.tolist() == [-7, -8, -9, -10, -11, -12]
     assert results.node_results[nodes[0]].displacement[0] == 0.001
     assert results.node_results[nodes[0]].reaction_force[0] == 100.0
-    assert len(results.tuyau_subpoints) == 1
+    assert len(results.tuyau_subpoints) == 2
     state = result_state_from_fea_results(
         model=model,
         study=study,
@@ -370,7 +383,7 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
     assert state.metadata["mixed_analysis"] is True
     reconstructed = fea_results_from_result_state(model=model, result_state=state)
     assert reconstructed.volume_von_mises == results.volume_von_mises
-    assert len(reconstructed.tuyau_subpoints) == 1
+    assert len(reconstructed.tuyau_subpoints) == 2
     scene = build_visualization_scene(SceneRequest(model, result_states=[state], analysis_meshes=[mesh]))
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "tuyau_subpoint_field" for obj in scene.objects)

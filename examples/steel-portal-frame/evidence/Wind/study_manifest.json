@@ -12890,7 +12890,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "a49b9700c676148dafc23345da3514132d14d207541b1a2338d0243b86777548",
+      "fingerprint": "de2150c2d4e0a384f9fb5ca727aead913e60a39933210ac259e3f70655a71b5c",
       "load_case": "Wind",
       "schema_id": "tuba.model.v4"
     },
@@ -12908,13 +12908,16 @@
     "load_case": "Wind",
     "mesh_id": "analysis_mesh:Wind",
     "metadata": {
+      "compiler_inputs": {
+        "beam_stress": "SIPO_ELNO"
+      },
       "pipe_stress_exported": false,
       "project_name": "Steel_Portal_Frame_Hall"
     },
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "a49b9700c676148dafc23345da3514132d14d207541b1a2338d0243b86777548",
+      "fingerprint": "de2150c2d4e0a384f9fb5ca727aead913e60a39933210ac259e3f70655a71b5c",
       "load_case": "Wind",
       "schema_id": "tuba.model.v4"
     },

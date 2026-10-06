@@ -13,8 +13,8 @@ from tuba.model import resolve_buckling_options
 
 MODEL_SCHEMA_ID = "tuba.model.v4"
 CODE_ASTER_COMPILER_ID = "tuba.code_aster.v2"
-MIXED_CODE_ASTER_COMPILER_ID = "tuba.code_aster.mixed.v2"
-VOLUME_CODE_ASTER_COMPILER_ID = "tuba.code_aster.volume.v2"
+MIXED_CODE_ASTER_COMPILER_ID = "tuba.code_aster.mixed.v3"
+VOLUME_CODE_ASTER_COMPILER_ID = "tuba.code_aster.volume.v3"
 
 _SOLVER_MODEL_KEYS = (
     "materials",
@@ -86,7 +86,24 @@ def build_solver_input_identity(
         else ()
     )
     model_payload = {key: model_data.get(key) for key in model_keys}
+    # Absent policy contributes no new keys to legacy identities.
+    for key in ("mesh_settings", "mesh_refinements"):
+        if model_data.get(key):
+            model_payload[key] = model_data[key]
     model_payload["groups"] = _solver_groups_projection(model_data.get("groups") or {})
+    # Tessellation ownership is inspection data; the CAD digest and engineering
+    # selectors still participate in the solver identity. A digest names the
+    # content, so the absolute path it was read from does not: with it, a project
+    # copied to another folder could not read its own Code_Aster results.
+    model_payload["cad_assets"] = {
+        key: {**{name: value for name, value in asset.items()
+                 if not (name == "source_path" and asset.get("content_digest"))},
+              "metadata": {
+            name: value for name, value in asset.get("metadata", {}).items()
+            if name != "display_face_partitions"
+        }}
+        for key, asset in (model_data.get("cad_assets") or {}).items()
+    }
     payload = {
         "schema_id": MODEL_SCHEMA_ID,
         "compiler_id": compiler_id,
@@ -135,11 +152,16 @@ def build_solver_input_identity(
 
 
 def attached_support_coupling(model: Any) -> str | None:
-    """The compiler semantics required by a noncoincident attached support."""
-    if any(s.attached_to is not None and math.dist(model.nodes[s.node].coords, model.nodes[s.attached_to].coords) > 0
-           for s in model.supports):
-        return "rotation_offset"
-    return None
+    """The attachment conventions required by this model's node links."""
+    modes = set()
+    for support in model.supports:
+        if support.attached_to is None:
+            continue
+        if support.attachment_mode == "dof_equality":
+            modes.add("dof_equality")
+        elif math.dist(model.nodes[support.node].coords, model.nodes[support.attached_to].coords) > 0:
+            modes.add("rotation_offset")
+    return "+".join(mode for mode in ("rotation_offset", "dof_equality") if mode in modes) or None
 
 
 def validate_solver_input_identity(
@@ -166,7 +188,7 @@ def validate_solver_input_identity(
         )
     if expected_compiler_id == CODE_ASTER_COMPILER_ID and (coupling := attached_support_coupling(model)):
         if (compiler_inputs or {}).get("attached_support_coupling") != coupling:
-            raise ValueError(f"{context} predates rotation coupling for offset supports; re-solve the model with Code_Aster.")
+            raise ValueError(f"{context} uses different support attachment conventions; re-solve the model with Code_Aster.")
     current = build_solver_input_identity(
         model,
         expected_load_case,

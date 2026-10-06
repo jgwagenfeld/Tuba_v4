@@ -17,10 +17,11 @@ export const CATEGORICAL_PALETTE = Object.freeze([
 ]);
 
 export const MODEL_COLOR_MODES = Object.freeze([
-  { id: "default", label: "Default (Role)" },
+  { id: "default", label: "Role" },
   { id: "section", label: "Section" },
   { id: "material", label: "Material" },
   { id: "group", label: "Group" },
+  { id: "route", label: "Pipe run" },
   { id: "insulation", label: "Insulation" }
 ]);
 
@@ -35,6 +36,7 @@ export function getModelObjectPropertyValue(obj, mode) {
   if (mode === "group") {
     return obj.group_ids?.[0] || obj.metadata?.groups?.[0] || obj.metadata?.group || null;
   }
+  if (mode === "route") return obj.metadata?.route_id || null;
   if (mode === "insulation") {
     const spec = obj.metadata?.insulation;
     if (!spec) return "Uninsulated / Bare";
@@ -102,13 +104,21 @@ export function getModelColoring(state, mode = state?.modelColorBy || "default")
 }
 
 export function getModelObjectColor(state, objectIds = []) {
-  const mode = state?.modelColorBy;
-  if (!mode || mode === "default") return null;
+  const mode = state?.modelColorBy ?? "default";
   // The model channel owns the tint only while it is the chosen channel. A
   // result field governs otherwise, whichever lens the rail happens to show.
   if (colorChannelOf(state) !== "model") return null;
 
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
+  if (mode === "default") {
+    for (const id of ids) {
+      const object = state.objects?.find(candidate => candidate.id === id);
+      const source = state.objects?.find(candidate => isModelColorable(candidate) && selectionKey(candidate) === selectionKey(object));
+      if (source?.kind === "rack_member" || source?.metadata?.element_type === "beam") return "#64748b";
+      if (source?.metadata?.route_id) return getModelColoring(state, "route").colorByObjectId.get(source.id) ?? null;
+    }
+    return null;
+  }
   const coloring = getModelColoring(state, mode);
 
   for (const id of ids) {

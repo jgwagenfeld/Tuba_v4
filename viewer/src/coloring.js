@@ -10,23 +10,17 @@ import {
   buildEnvelope,
   envelopeAvailable,
   envelopeResultStates,
+  envelopeSourceOverlays,
   isEnvelopeField
 } from "./envelope.js";
 
 const AXES = ["loadCase", "fieldId", "component"];
+const EMPTY_VALUES = Object.freeze({});
+const scalarCache = new WeakMap();
+const fieldCache = new WeakMap();
 
 export function getResultFields(state) {
   return state.resultFields ?? [];
-}
-
-export function getLoadCaseOptionsFromFields(state) {
-  const seen = new Map();
-  for (const field of getResultFields(state)) {
-    if (field.load_case && !seen.has(field.load_case)) {
-      seen.set(field.load_case, { id: field.load_case, label: field.load_case });
-    }
-  }
-  return [...seen.values()];
 }
 
 export function getFieldOptions(state, loadCase = getActiveLoadCase(state)) {
@@ -62,6 +56,7 @@ function envelopeOption(state, loadCase) {
   if (sources.length === 0) {
     return null;
   }
+  const quantity = envelopeQuantity(state, { load_case: loadCase });
   return {
     id: ENVELOPE_FIELD_ID,
     label: `Envelope — worst of ${steps} result steps`,
@@ -74,15 +69,12 @@ function envelopeOption(state, loadCase) {
       support: "envelope",
       components: ["magnitude"],
       load_case: loadCase ?? null,
-      unit: sources[0]?.unit ?? "",
+      unit: quantity?.unit ?? "",
       // Set on the field as well as the legend: the compliance notice reads the
       // field, and a derived maximum that skipped the disclaimer because the
       // disclaimer was attached one layer over would be the worst kind of bug
       // this product has.
-      compliance_role: "derived_envelope_not_a_solver_result",
-      // Which declared quantities this maximum is taken over, so the legend can
-      // say what was enveloped instead of leaving the reviewer to infer it.
-      envelope_source: sources
+      compliance_role: "derived_envelope_not_a_solver_result"
     }
   };
 }
@@ -99,7 +91,7 @@ export function getActiveField(state) {
     // The envelope disappears when the load case narrows to a single result
     // step. Falling through to the catalogue rather than yielding null is what
     // keeps a load-case switch from blanking the whole colouring channel.
-    return envelope ?? fields.find((field) => field.load_case === getActiveLoadCase(state)) ?? fields[0] ?? null;
+    return envelope?.field ?? fields.find((field) => field.load_case === getActiveLoadCase(state)) ?? fields[0] ?? null;
   }
   const byId = fields.find((field) => field.id === requested?.id);
   if (byId) return byId;
@@ -129,7 +121,12 @@ export function getActiveComponent(state) {
   const field = getActiveField(state);
   const components = field?.components ?? ["magnitude"];
   const requested = state.coloring?.component;
-  return components.includes(requested) ? requested : components[0];
+  if (components.includes(requested)) return requested;
+  // A DX/DY/DZ vector opens on how far, not on whichever axis the solver listed
+  // first: DX alone hid a riser that moves almost entirely in Z. Section forces
+  // keep their first, N - the resultant of N, VY and VZ would hide the sign that
+  // tells tension from compression.
+  return components[0] === "DX" && components.includes("magnitude") ? "magnitude" : components[0];
 }
 
 export function componentIsSelectable(state) {
@@ -145,11 +142,16 @@ export function setColoringLoadCase(state, loadCase) {
 
 export function setColoringField(state, fieldId) {
   const field = getResultFields(state).find((candidate) => candidate.id === fieldId);
+  // Only a component the reader could have chosen is carried to the new field.
+  // A scalar field's lone "magnitude" was never a choice, and carrying it turned
+  // section forces into the resultant of N, VY and VZ instead of opening on N.
+  const carried = componentIsSelectable(state) ? state.coloring?.component ?? null : null;
   return {
     ...withCoherentColoring({
       ...state,
       coloring: {
         ...(state.coloring ?? {}),
+        component: carried,
         fieldId: fieldId ?? null,
         loadCase: field?.load_case ?? state.coloring?.loadCase ?? null
       }
@@ -188,36 +190,57 @@ export function createColoringState(state) {
   return withCoherentColoring({ ...state, coloring: state.coloring ?? {} }).coloring;
 }
 
-export function getColoringLegend(state) {
+// One resolved field for every reader: a derived envelope has values and source
+// metadata without pretending to be a separate solver overlay. Payloads are
+// immutable, and reload replaces the catalogue and overlays together.
+export function getColoringField(state) {
+  const dependencies = [state.resultFields, state.overlays, state.resultStates, state.activeLoadCase,
+    state.activeResultStateId, state.coloring?.loadCase, state.coloring?.fieldId, state.coloring?.component];
+  let cached = fieldCache.get(state);
+  if (!cached || dependencies.some((value, index) => value !== cached.dependencies[index])) {
+    cached = { dependencies, value: resolveColoringField(state) };
+    fieldCache.set(state, cached);
+  }
+  return cached.value;
+}
+
+function resolveColoringField(state) {
   const field = getActiveField(state);
   if (!field) return null;
+  const component = getActiveComponent(state);
   if (isEnvelopeField(field)) {
-    const envelope = buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor);
-    if (!envelope.range) return null;
-    return {
+    const quantity = envelopeQuantity(state, field);
+    const sources = envelopeSourceOverlays(state, quantity);
+    const unit = componentUnit(quantity ?? field, component);
+    const envelope = { ...buildEnvelope(state, quantity, component, scalarFor),
+      sources: quantity ? [{ field: quantity.id, label: fieldLabel(quantity), unit }] : [],
+      resultStates: envelopeResultStates(state) };
+    const legend = envelope.range ? {
       fieldId: field.id,
       field: "Envelope",
       component: envelope.component,
       support: "envelope",
-      unit: field.unit ?? "",
+      unit,
       loadCase: field.load_case ?? null,
       range: envelope.range,
       // Derived arithmetic over solved results, and the disclaimer has to say so
       // in the same breath as the number, exactly as the FE-stress field does.
       complianceRole: "derived_envelope_not_a_solver_result",
-      envelope: { ...envelope, sources: field.envelope_source ?? [], resultStates: envelopeResultStates(state) },
+      envelope,
       overlay: null
-    };
+    } : null;
+    return { field, component, values: envelope.values, legend, overlay: null, envelope,
+      resultType: sources[0]?.data?.result_type ?? quantity?.result_type ?? null,
+      vectors: sources.flatMap(source => source.data?.vectors ?? []) };
   }
   const overlay = (state.overlays ?? []).find((candidate) => candidate.id === field.overlay_id);
   // A declared range describes the field's own scalar. For a multi-component
   // field the displayed scalar depends on the chosen component, so the range
   // has to come from the values as actually resolved.
   const declared = (field.components ?? ["magnitude"]).length === 1 ? field.range : null;
-  const range = declared ?? rangeOf(Object.values(getColoringValues(state)));
-  if (!range) return null;
-  const component = getActiveComponent(state);
-  return {
+  const scalars = resolvedScalars(overlay?.data?.values, component);
+  const range = declared ?? scalars.range;
+  const legend = range ? {
     fieldId: field.id,
     field: fieldLabel(field),
     component,
@@ -227,7 +250,13 @@ export function getColoringLegend(state) {
     range: { min: range[0], max: range[1] },
     complianceRole: field.compliance_role ?? null,
     overlay
-  };
+  } : null;
+  return { field, component, values: scalars.values, legend, overlay, envelope: null,
+    resultType: overlay?.data?.result_type ?? field.result_type ?? null, vectors: overlay?.data?.vectors };
+}
+
+export function getColoringLegend(state) {
+  return getColoringField(state)?.legend ?? null;
 }
 
 function componentUnit(field, component) {
@@ -261,59 +290,59 @@ export function getComplianceNotice(state) {
   return role.replace(/_/g, " ");
 }
 
-// The notice belongs wherever a compliance-flagged field is actually tinting
-// the scene. The result panel is detached under the Review/Model/Issues tasks
-// while the scene stays colour-mapped, so this is driven by the Results layer
-// being visible rather than by which task is open.
-export function shouldShowComplianceNotice(state, categories) {
-  if (!getComplianceNotice(state)) return false;
-  const results = (categories ?? []).find((category) => category.id === "results");
-  return Boolean(results?.layerIds.some((id) => state.layers?.[id]?.visible !== false));
-}
-
 export function getColoringValues(state) {
-  const field = getActiveField(state);
-  if (!field) return {};
-  if (isEnvelopeField(field)) {
-    return buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor).values;
-  }
-  const overlay = (state.overlays ?? []).find((candidate) => candidate.id === field.overlay_id);
-  const values = overlay?.data?.values ?? {};
-  const component = getActiveComponent(state);
-  const resolved = {};
-  for (const [key, value] of Object.entries(values)) {
-    const scalar = scalarFor(value, component);
-    if (Number.isFinite(scalar)) {
-      resolved[key] = scalar;
-    }
-  }
-  return resolved;
+  return getColoringField(state)?.values ?? EMPTY_VALUES;
 }
 
 // Which result states produced each object's envelope value. The hotspot list
 // reads this to name the governing step beside the number, which is the
 // difference between a maximum and an answer.
 export function getEnvelopeWinners(state) {
-  const field = getActiveField(state);
-  if (!isEnvelopeField(field)) {
-    return null;
+  return getColoringField(state)?.envelope ?? null;
+}
+
+// Scene payloads are immutable: reload replaces their value maps. Resolve each
+// component once, retaining its range beside it rather than rescanning it for
+// every object's tint. Weak keys release old results after a reload.
+function resolvedScalars(raw = EMPTY_VALUES, component) {
+  raw = raw ?? EMPTY_VALUES;
+  let components = scalarCache.get(raw);
+  if (!components) {
+    components = new Map();
+    scalarCache.set(raw, components);
   }
-  const envelope = buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor);
-  return { ...envelope, resultStates: envelopeResultStates(state) };
+  if (!components.has(component)) {
+    const values = {};
+    let min = Infinity, max = -Infinity;
+    for (const [key, value] of Object.entries(raw)) {
+      const scalar = scalarFor(value, component);
+      if (!Number.isFinite(scalar)) continue;
+      values[key] = scalar;
+      min = Math.min(min, scalar);
+      max = Math.max(max, scalar);
+    }
+    components.set(component, { values, range: min === Infinity ? null : [min, max] });
+  }
+  return components.get(component);
 }
 
 // The envelope option is synthetic and carries no overlay_id, so the declared
-// quantity it envelopes is taken from the catalogue entry it was built over -
-// the first field of the same load case, which is the one the reviewer was
-// looking at a moment before they chose the envelope.
+// quantity it envelopes is taken from the same-case catalogue: prefer the
+// declared element field, then another non-nodal field, then the first field.
 function envelopeQuantity(state, field) {
   const loadCase = field.load_case ?? getActiveLoadCase(state);
   const catalogue = fieldsForActiveResult(state)
     .filter((candidate) => !loadCase || !candidate.load_case || candidate.load_case === loadCase);
-  return catalogue.find((candidate) => candidate.support === "cell")
+  const quantity = catalogue.find((candidate) => candidate.support === "cell")
     ?? catalogue.find((candidate) => candidate.support !== "node")
     ?? catalogue[0]
     ?? null;
+  if (!quantity) return null;
+  const source = (state.overlays ?? []).find(overlay => overlay.id === quantity.overlay_id)?.data;
+  // Catalogue labels are display text ("Section Forces (EFGE_ELNO)"), not
+  // solver quantity identifiers. Match other steps through the owning overlay.
+  return { ...quantity, field: source?.field ?? source?.result_type ?? quantity.field ?? quantity.label,
+    result_type: source?.result_type ?? quantity.result_type };
 }
 
 const COMPONENT_INDEX = {
@@ -340,11 +369,6 @@ function numericScalar(value) {
   return typeof value === "number" || (typeof value === "string" && value.trim()) ? Number(value) : NaN;
 }
 
-function rangeOf(values) {
-  const numeric = values.filter((value) => Number.isFinite(value));
-  return numeric.length > 0 ? [Math.min(...numeric), Math.max(...numeric)] : null;
-}
-
 export function fieldLabel(field) {
   const supportName = { cell: "elements", subpoint: "wall points" }[field.support] ?? field.support;
   const support = supportName && supportName !== "node" ? ` (${supportName})` : "";
@@ -356,7 +380,8 @@ export function fieldLabel(field) {
     reaction_moment: "Reaction moment",
     "fe vmis": "Von Mises stress",
     "fe vmis (not code stress)": "Von Mises stress",
-    stress: "Stress"
+    stress: "Stress",
+    "section forces (efge_elno)": "Section forces"
   }[normalized] ?? String(raw).replaceAll("_", " ").replace(/^[a-z]/, (letter) => letter.toUpperCase());
   return `${readable}${support}`;
 }

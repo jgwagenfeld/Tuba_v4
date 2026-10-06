@@ -37,6 +37,7 @@ from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeConfig,
     run_code_aster_export,
+    export_text,
     write_artifact_text,
     write_code_aster_execution_attestation,
 )
@@ -102,7 +103,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     #: choice and not part of the solver input identity. ``timeout_seconds`` is not here,
     #: because no environment variable or command-line flag sets a solve's timeout.
     RUNTIME_OPTIONS = frozenset(
-        {"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python"}
+        {"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python", "execution_controller"}
     )
 
     def __init__(
@@ -118,12 +119,14 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         load_path=None,
         load_step: float = 0.1,
         line_segments: int = 8,
+        execution_controller=None,
     ) -> None:
         if isinstance(line_segments, bool) or not isinstance(line_segments, int) or line_segments < 1:
             raise ValueError("line_segments must be a positive integer.")
         if isinstance(load_step, bool) or not isinstance(load_step, (int, float)) or not math.isfinite(load_step) or not 0 < load_step <= 1:
             raise ValueError("load_step must be finite and in (0, 1].")
         self.line_segments = line_segments
+        self.execution_controller = execution_controller
         self.pipe_modelization = PipeModelization(pipe_modelization)
         if isinstance(load_path, str):
             raise ValueError("load_path must be a sequence of names, not a string.")
@@ -180,6 +183,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         RuntimeError
             If Code_Aster returns a non-zero exit code.
         """
+        if any(region.role in {"solid_3d", "shell_2d", "reference"} for region in model.analysis_regions.values()):
+            return self.solve_mixed_study(model, load_case_name, force=force)
         study = self.export_analysis_study(model, load_case_name)
         return self.solve_exported_study(model, study, force=force)
 
@@ -206,7 +211,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             The path to the output directory containing the study files.
         """
         self._bend_node_cache.clear()
-        load_case_name, load_case, _, _ = self.analysis_study_inputs(model, load_case_name)
+        load_case_name, load_case, compiler_inputs, _ = self.analysis_study_inputs(model, load_case_name)
+        beam_stress = bool((compiler_inputs or {}).get("beam_stress"))
 
         # Prepare directory ------------------------------------------------
         if output_dir is not None:
@@ -223,8 +229,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         comm_path = wdir / "study.comm"
 
         self._write_mail(model, mail_path)
-        self._write_comm(model, load_case, comm_path)
-        self._write_export(wdir)
+        self._write_comm(model, load_case, comm_path, beam_stress=beam_stress)
+        self._write_export(wdir, beam_stress=beam_stress)
 
         return wdir
 
@@ -234,6 +240,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         It writes, meshes and solves nothing, so a caller can ask which identity an export
         of the current model would attest (spec decision 15) without exporting.
         """
+        if any(region.role in {"solid_3d", "shell_2d", "reference"} for region in model.analysis_regions.values()):
+            raise ValueError("Imported solids require export_mixed_analysis_study or model.solve, as do shell regions and reference carriers; a line-only export would omit their mechanics.")
         if self.pipe_modelization is PipeModelization.SOLID_3D:
             raise ValueError("Use export_volume_study for SOLID_3D.")
         if self.load_path is not None:
@@ -328,8 +336,9 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             solver_input_identity=solver_input_identity,
         )
         self._write_mail(model, mail_path, name_map=solver_name_map)
-        self._write_comm(model, load_case, comm_path, name_map=solver_name_map)
-        self._write_export(wdir, buckling=load_case.buckling is not None)
+        beam_stress = bool((compiler_inputs or {}).get("beam_stress"))
+        self._write_comm(model, load_case, comm_path, name_map=solver_name_map, beam_stress=beam_stress)
+        self._write_export(wdir, buckling=load_case.buckling is not None, beam_stress=beam_stress)
 
         study = AnalysisStudy(
             id=f"analysis_study:{load_case_name}",
@@ -362,13 +371,52 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         model: TubaModel,
         load_case_name: str,
         output_dir: str | Path,
+        *,
+        max_element_size: float | None = None,
     ) -> AnalysisStudy:
         """Generate a MED-backed mixed Code_Aster study without running the solver."""
         if self.load_path is not None:
             raise ValueError('Native contact load paths require POU_D_T; volume/mixed paths are unsupported.')
         from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
 
-        return MixedCodeAsterStudyExporter().export_analysis_study(model, load_case_name, output_dir)
+        self._require_step_study_options(model, max_element_size)
+        return MixedCodeAsterStudyExporter().export_analysis_study(
+            model, load_case_name, output_dir, max_element_size=max_element_size,
+        )
+
+    def _require_step_study_options(self, model, max_element_size=None):
+        """STEP compilation owns its line model and meshing; refuse ignored options."""
+        from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
+
+        if max_element_size is None and not MixedCodeAsterStudyExporter._has_native_step_request(model):
+            return
+        if self.load_path is not None or self.load_step != 0.1:
+            raise ValueError("STEP mixed studies do not support contact load paths or load stepping.")
+        if self.pipe_modelization != PipeModelization.TUYAU_3M or self.line_segments != 8:
+            raise ValueError("STEP mixed studies select line models from element types and use mesh size for refinement.")
+
+    def mixed_study_inputs(self, model, load_case_name=None, *, max_element_size=None):
+        """Resolve the mixed export's validated input identity without generating a mesh."""
+        from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
+
+        self._require_step_study_options(model, max_element_size)
+        return MixedCodeAsterStudyExporter().analysis_study_inputs(
+            model, load_case_name, max_element_size=max_element_size,
+        )
+
+    def solve_mixed_study(
+        self, model: TubaModel, load_case_name: str | None, *,
+        max_element_size: float | None = None, force: bool = False,
+    ) -> AnalysisRun:
+        """Mesh, solve and import authored solid/shell regions and native line elements."""
+        self._require_step_study_options(model, max_element_size)
+        model.validate()
+        load_case_name, _ = model.resolve_load_case(load_case_name)
+        output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_step_"))
+        study = self.export_mixed_analysis_study(
+            model, load_case_name, output_dir, max_element_size=max_element_size,
+        )
+        return self.solve_exported_study(model, study, force=force)
 
     def export_volume_study(
         self,
@@ -377,7 +425,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         output_dir: str | Path,
         *,
         element_ids,
-        max_element_size: float,
+        max_element_size: float | None = None,
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
@@ -402,7 +450,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         load_case_name: str | None,
         *,
         element_ids,
-        max_element_size: float,
+        max_element_size: float | None = None,
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ):
@@ -426,7 +474,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         load_case_name: str | None,
         *,
         element_ids,
-        max_element_size: float,
+        max_element_size: float | None = None,
         element_order: int = 2,
         export_tensor_stress: bool = False,
         force: bool = False,
@@ -477,6 +525,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         identity = (manifest_study or study).solver_input_identity
         if force or not exported_study_matches(work_dir, identity):
             execution = self._execute(work_dir)
+            if self.execution_controller is not None:
+                self.execution_controller.check_cancelled()
             write_code_aster_execution_attestation(work_dir, execution, identity)
         else:
             logger.info("Reusing attested Code_Aster solve in %s", work_dir)
@@ -508,7 +558,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     # Export file generation
     # ==================================================================
 
-    def _write_export(self, work_dir: Path, *, buckling: bool = False) -> None:
+    def _write_export(self, work_dir: Path, *, buckling: bool = False, beam_stress: bool = False) -> None:
         """Generate the ``.export`` file mapping logical units to files.
 
         The export file tells ``as_run`` where to find the mesh, command
@@ -537,6 +587,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             "F sieq study_sieq.csv R 41",
             "F libr study_contact.json R 42",
         ]
+        if beam_stress:
+            lines.append("F sipo study_sipo.csv R 43")
         if buckling:
             from tuba.solver.aster_buckling import (
                 BUCKLING_FACTORS_UNIT,
@@ -549,7 +601,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             ]
 
         export_path = work_dir / "study.export"
-        write_artifact_text(export_path, "\n".join(lines))
+        write_artifact_text(export_path, export_text(lines))
         logger.info("Wrote export file: %s", export_path)
 
     # ==================================================================
@@ -567,7 +619,9 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             bridge_python=self.bridge_python,
             timeout_seconds=self.timeout_seconds,
         )
-        return run_code_aster_export(export_file, work_dir, config)
+        if self.execution_controller is None:
+            return run_code_aster_export(export_file, work_dir, config)
+        return run_code_aster_export(export_file, work_dir, config, execution_controller=self.execution_controller)
 
     # ==================================================================
     # Result parsing (single public entry; see tuba.solver.parse_tables)

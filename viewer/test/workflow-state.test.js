@@ -52,6 +52,15 @@ test("the colouring channel is explicit, defaulting by scene content", () => {
   assert.equal(colorChannelOf({ colorChannel: "model", resultFields: [{ id: "f" }] }), "model");
 });
 
+test("Build never colours by results, even over a solved bundle", () => {
+  // A published gallery enters Build on the solved bundle until the reader
+  // runs Update geometry; Build is authored input, so the model owns the tint.
+  assert.equal(colorChannelOf({ stage: "build", colorChannel: "results", resultFields: [{ id: "f" }] }), "model");
+  assert.equal(colorChannelOf({ stage: "build", resultStates: [{ id: "s" }] }), "model");
+  // The reader's choice survives: back in Review it colours by results again.
+  assert.equal(colorChannelOf({ stage: "review", colorChannel: "results" }), "results");
+});
+
 test("the embedded canvas is a stage of its own and outranks every other", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: true });
 

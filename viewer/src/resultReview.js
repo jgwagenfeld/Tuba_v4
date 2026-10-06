@@ -1,6 +1,8 @@
-import { getColoringLegend, getColoringValues } from "./coloring.js";
+import { getColoringField, getColoringLegend, scalarFor } from "./coloring.js";
 import { colorChannelOf } from "./workflowState.js";
-import { bandCountOrZero, rampRatio, withScale } from "./legendScale.js";
+import { isModelColorable } from "./modelColoring.js";
+import { selectionKey } from "./reviewSelection.js";
+import { bandCountOrZero, isSignedRange, rampRatio, withScale } from "./legendScale.js";
 import { formatNumber, formatNumberSeries } from "./units.js";
 
 export function formatPseudoTime(value) {
@@ -226,6 +228,14 @@ export function getActiveScalarOverlay(state) {
   );
 }
 
+function scalarField(state) {
+  if (contactColoringActive(state)) return null;
+  if ((state.resultFields ?? []).length > 0) return getColoringField(state);
+  const overlay = getActiveScalarOverlay(state);
+  return overlay ? { overlay, values: legacyScalars(overlay.data?.values).values,
+    resultType: overlay.data?.result_type, vectors: overlay.data?.vectors } : null;
+}
+
 // The scale the user has set for the field the legend is describing. Kept per
 // field rather than globally: comparing a stress plot against a displacement
 // plot on one shared scale is how a range ends up meaningless for both, and the
@@ -262,11 +272,8 @@ export function getScalarLegend(state) {
     return null;
   }
   const data = overlay.data ?? {};
-  const values = numericValues(data.values);
-  const range = data.legend?.range ?? data.range ?? {
-    min: Math.min(...values),
-    max: Math.max(...values)
-  };
+  const range = data.legend?.range ?? data.range ?? legacyScalars(data.values).range;
+  if (!range) return null;
   return withScale(
     {
       field: data.legend?.field ?? data.field ?? data.result_type ?? overlay.name ?? overlay.id,
@@ -296,36 +303,38 @@ function scaleThresholds(state) {
 // hotspot list, the scene's own tint and the inspector probe - and the first
 // two each carried their own copy of the ternary.
 export function getScalarValues(state, overlay = getActiveScalarOverlay(state)) {
+  if ((state.resultFields ?? []).length > 0) return scalarField(state)?.values ?? {};
   if (!overlay) {
     return {};
   }
-  return (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
+  return legacyScalars(overlay.data?.values).values;
 }
 
 export function getHotspots(state) {
   // A hotspot is a peak in the scalar field colouring the scene, so there are
   // none while the model channel owns the colours.
   if (colorChannelOf(state) !== "results") return [];
-  const overlay = getActiveScalarOverlay(state);
-  if (!overlay) {
+  const field = scalarField(state);
+  if (!field) {
     return [];
   }
-  const data = overlay.data ?? {};
-  const values = getScalarValues(state, overlay);
+  const data = field.overlay?.data ?? {};
+  const values = field.values;
   const hotspots = Array.isArray(data.hotspots) && data.hotspots.length > 0
     ? data.hotspots
     : Object.entries(values).map(([objectId, value]) => ({
         object_id: objectId,
         value,
-        unit: data.unit
+        unit: field.legend?.unit ?? data.unit
       }));
   const stressMin = numberOrNull(state.resultThreshold);
   const utilizationMin = numberOrNull(state.utilizationThreshold);
+  const { byId } = objectIndex(state);
   return hotspots
     .map((hotspot) => {
       const objectId = hotspot.object_id ?? hotspot.objectId;
-      const object = (state.objects ?? []).find((candidate) => candidate.id === objectId);
-      const value = Number(hotspot.value ?? values[objectId]);
+      const object = byId.get(objectId);
+      const value = scalarFor(hotspot.value ?? values[objectId], "magnitude");
       const utilization = numberOrNull(hotspot.utilization ?? data.utilization_values?.[objectId]);
       return {
         objectId,
@@ -333,7 +342,7 @@ export function getHotspots(state) {
         elementId: hotspot.element_id ?? hotspot.elementId,
         rowIndex: hotspot.row_index ?? hotspot.rowIndex,
         subpointIndex: hotspot.subpoint_index ?? hotspot.subpointIndex,
-        unit: hotspot.unit ?? data.unit ?? "",
+        unit: hotspot.unit ?? field.legend?.unit ?? data.unit ?? "",
         utilization,
         value
       };
@@ -467,29 +476,118 @@ export function stepFinding(state, direction) {
   return findings[next];
 }
 
+// The bodies a result field paints. Everything else on screen - supports, load
+// symbols, labels - keeps its own colour, because a line-load comb tinted by the
+// stress of the pipe under it reads as a stress value it does not have.
+const FIELD_BODY_KINDS = new Set([
+  "pipe", "element", "rack_member", "imported_component",
+  "analysis_mesh_element", "analysis_mesh_surface",
+  "deformed_analysis_mesh_element", "deformed_analysis_mesh_surface", "deformed_centerline",
+  "volume_displacement_field", "volume_stress_field"
+]);
+
+const SOLID_SKIN_KINDS = new Set(["imported_component", "analysis_mesh_surface", "deformed_analysis_mesh_surface"]);
+
+const objectIndexCache = new WeakMap();
+
+// Objects by id, and each element's design object by selection key: a warped
+// mesh segment `pipe_bend_0_s0` carries the cell value of `element:pipe_bend_0`.
+function objectIndex(state) {
+  const objects = state.objects ?? [];
+  let index = objectIndexCache.get(objects);
+  if (!index) {
+    const byId = new Map(objects.map((object) => [object.id, object]));
+    const sourceByKey = new Map();
+    for (const object of objects) {
+      if (isModelColorable(object) && !sourceByKey.has(selectionKey(object))) sourceByKey.set(selectionKey(object), object.id);
+    }
+    index = { byId, sourceByKey };
+    objectIndexCache.set(objects, index);
+  }
+  return index;
+}
+
+// Whether the active field may paint these objects at all. An arrow takes only
+// its own quantity's colour - a reaction arrow tinted by the displacement of its
+// node is two quantities on one glyph - and a reaction field paints only its
+// arrows, never the member whose end node happens to be supported. An id the
+// scene does not describe is let through, as before.
+function fieldMayTint(state, field, ids) {
+  const resultType = String(field.resultType ?? "");
+  const { byId } = objectIndex(state);
+  const objects = ids.map((id) => byId.get(id)).filter(Boolean);
+  if (objects.length === 0) return true;
+  return objects.some((object) => {
+    const kind = String(object.kind ?? "");
+    if (kind.endsWith("_vector")) return object.metadata?.result_type === resultType;
+    return FIELD_BODY_KINDS.has(kind) && !resultType.startsWith("reaction");
+  });
+}
+
+// What an uncoloured body is while a result field colours the scene.
+// "no_result": the field paints bodies and has no value for this one - a beam
+// whose stress was not imported. Drawn hatched, because the scale's grey middle
+// is a value and a plain grey ghost read as one.
+// "context": the field paints arrows only (reactions), so a body is scenery,
+// not a gap - drawn as plain reference geometry.
+// null: not a body, or not a results view; the body keeps its own colouring.
+export function fieldBodyState(state, objectIds, valueIds = []) {
+  if (colorChannelOf(state) !== "results") return null;
+  const field = scalarField(state);
+  if (!field) return null;
+  const { byId } = objectIndex(state);
+  const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
+  const kinds = ids.map((id) => String(byId.get(id)?.kind ?? ""));
+  if (!kinds.some((kind) => FIELD_BODY_KINDS.has(kind))) return null;
+  if (String(field.resultType ?? "").startsWith("reaction")) return "context";
+  // A solid's CAD body and its mesh skins never carry values: its results are
+  // drawn by the solid's own field surfaces. They are scenery around those, not
+  // a gap in the field.
+  if (kinds.some((kind) => SOLID_SKIN_KINDS.has(kind))) return "context";
+  return getObjectScalarColor(state, ids, valueIds) === null ? "no_result" : null;
+}
+
 export function getObjectScalarColor(state, objectIds, valueIds = []) {
   // Only the results channel tints by a scalar. On the model channel the model
   // colour - or the base role colour - governs, so this yields.
   if (colorChannelOf(state) !== "results") {
     return null;
   }
-  const overlay = getActiveScalarOverlay(state);
-  if (!overlay) {
+  const field = scalarField(state);
+  if (!field) {
     return null;
   }
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
-  const values = getScalarValues(state, overlay);
-  const relatedValueIds = (overlay.data?.vectors ?? [])
-    .filter((vector) => (vector.object_ids ?? []).some((id) => ids.includes(id)))
-    .map((vector) => vector.node_id)
-    .filter(Boolean);
-  const found = [...ids, ...valueIds, ...relatedValueIds]
-    .map((id) => Number(values[id]))
-    .filter((value) => Number.isFinite(value));
-  if (found.length === 0) {
+  if (!fieldMayTint(state, field, ids)) {
     return null;
   }
-  return colorForScalarValue(Math.max(...found), getScalarLegend(state));
+  const values = field.values;
+  const relatedValueIds = relatedVectorValueIds(field.vectors, ids);
+  const { byId, sourceByKey } = objectIndex(state);
+  const sourceIds = ids.map((id) => sourceByKey.get(selectionKey(byId.get(id)))).filter(Boolean);
+  let peak = -Infinity;
+  for (const id of [...ids, ...sourceIds, ...valueIds, ...relatedValueIds]) {
+    if (Number.isFinite(values[id])) peak = Math.max(peak, values[id]);
+  }
+  return peak === -Infinity ? null : colorForScalarValue(peak, getScalarLegend(state));
+}
+
+const vectorIndexCache = new WeakMap();
+function relatedVectorValueIds(vectors, ids) {
+  if (!vectors) return [];
+  let index = vectorIndexCache.get(vectors);
+  if (!index) {
+    index = new Map();
+    for (const vector of vectors) {
+      if (!vector.node_id) continue;
+      for (const id of vector.object_ids ?? []) {
+        if (!index.has(id)) index.set(id, []);
+        index.get(id).push(vector.node_id);
+      }
+    }
+    vectorIndexCache.set(vectors, index);
+  }
+  return ids.flatMap((id) => index.get(id) ?? []);
 }
 
 // Cividis. Lightness rises monotonically end to end, so ranking two values never
@@ -505,6 +603,14 @@ const SCALAR_RAMP = Object.freeze([
   0x8a8779, 0xa69d75, 0xc4b56c, 0xffea46
 ]);
 
+// Moreland's cool-warm, for a range that crosses zero (see isSignedRange). Blue
+// is negative, red positive, and the grey middle is zero - a grey that still
+// reads as a body on the light canvas, where a white centre would vanish.
+const DIVERGING_RAMP = Object.freeze([
+  0x3b4cc0, 0x6282ea, 0x8db0fe, 0xb8d0f9, 0xdddddd,
+  0xf5c4ad, 0xf49a7b, 0xde604d, 0xb40426
+]);
+
 export function colorForScalarValue(value, legend) {
   if (!legend || !Number.isFinite(value)) {
     return null;
@@ -513,9 +619,10 @@ export function colorForScalarValue(value, legend) {
   // gradient and places its ticks. A second copy of the min/max arithmetic here
   // is how the 3D tint and the bar beside it end up describing different scales.
   const ratio = rampRatio(value, legend);
-  const span = ratio * (SCALAR_RAMP.length - 1);
-  const index = Math.min(Math.floor(span), SCALAR_RAMP.length - 2);
-  return interpolateHex(SCALAR_RAMP[index], SCALAR_RAMP[index + 1], span - index);
+  const ramp = isSignedRange(legend) ? DIVERGING_RAMP : SCALAR_RAMP;
+  const span = ratio * (ramp.length - 1);
+  const index = Math.min(Math.floor(span), ramp.length - 2);
+  return interpolateHex(ramp[index], ramp[index + 1], span - index);
 }
 
 export function getResultVectorScale(state, vectorType) {
@@ -529,6 +636,15 @@ export function getResultVectorScale(state, vectorType) {
 export function getVisualDeformationDisplayScale(state) {
   const value = Number(state.visualDeformationScale ?? 1);
   return Number.isFinite(value) && value >= 0 ? value : 1;
+}
+
+// The scale the solved shape is drawn at right now: the slider's while an
+// exaggerated (visualization) geometry state is active, true scale otherwise.
+// Result surfaces that carry no geometry state of their own - a solid's stress
+// and displacement skins - follow this, so they stay on the members they join.
+export function getActiveShapeScale(state) {
+  const active = (state.geometryStates ?? []).find((overlay) => (overlay.data?.id ?? overlay.id) === state.activeGeometryStateId);
+  return active?.data?.purpose === "visualization" ? getVisualDeformationDisplayScale(state) : 1;
 }
 
 export function setActiveLoadCase(state, loadCase) {
@@ -667,13 +783,28 @@ function solverResultOverlays(state) {
 }
 
 function hasNumericObjectValues(values) {
-  return numericValues(values).length > 0;
+  return legacyScalars(values).range !== null;
 }
 
-function numericValues(values) {
-  return Object.values(values ?? {})
-    .map(Number)
-    .filter((value) => Number.isFinite(value));
+const legacyScalarCache = new WeakMap();
+const EMPTY_VALUES = Object.freeze({});
+function legacyScalars(raw = EMPTY_VALUES) {
+  raw = raw ?? EMPTY_VALUES;
+  let resolved = legacyScalarCache.get(raw);
+  if (!resolved) {
+    const values = {};
+    let min = Infinity, max = -Infinity;
+    for (const [key, value] of Object.entries(raw)) {
+      const scalar = scalarFor(value, "magnitude");
+      if (!Number.isFinite(scalar)) continue;
+      values[key] = scalar;
+      min = Math.min(min, scalar);
+      max = Math.max(max, scalar);
+    }
+    resolved = { values, range: min === Infinity ? null : { min, max } };
+    legacyScalarCache.set(raw, resolved);
+  }
+  return resolved;
 }
 
 function numberOrNull(value) {

@@ -15,9 +15,10 @@ from tuba.analysis.provenance import (
 from tuba.geometry.volume import VolumeGeometry, build_volume_geometry
 from tuba.solver.compiler_contract import volume_contract, reject_fluid_contents
 from tuba.meshing import build_pipe_volume_mesh
-from tuba.model import PipeSection, TubaModel
+from tuba.meshing.policy import resolve_mesh_policy
+from tuba.model import PipeSection, RectangularSection, TubaModel
 from tuba.solver.aster_comm import _pipe_orientation_vector
-from tuba.solver.code_aster_runtime import write_artifact_text
+from tuba.solver.code_aster_runtime import export_text, write_artifact_text
 from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.modelisation import PipeModelization
@@ -40,7 +41,7 @@ def volume_study_inputs(
     load_case_name: str | None,
     *,
     element_ids: Iterable[str],
-    max_element_size: float,
+    max_element_size: float | None = None,
     element_order: int = 2,
     export_tensor_stress: bool = False,
 ) -> VolumeStudyInputs:
@@ -59,15 +60,19 @@ def volume_study_inputs(
     ids = tuple(element_ids)
     line_elements = [element for element in model.elements if element.id not in ids]
     geometry = build_volume_geometry(model, ids)
+    policy = resolve_mesh_policy(model,max_element_size=max_element_size,volume_geometry=geometry)
     contract = volume_contract(
         model,
         element_ids=ids,
         line_element_ids=[element.id for element in line_elements],
         element_order=element_order,
-        max_element_size=max_element_size,
+        max_element_size=policy._data["global_size_m"],
         export_tensor_stress=export_tensor_stress,
     )
     compiler_inputs = {**contract.compiler_inputs, "volume_geometry": geometry.to_dict()}
+    from tuba.meshing.policy import has_mesh_policy
+    if has_mesh_policy(model) or line_elements:
+        compiler_inputs["mesh_policy"] = policy.to_dict()
     identity = build_solver_input_identity(
         model,
         load_case_name,
@@ -95,7 +100,7 @@ class PipeVolumeStudyExporter:
         output_dir: str | Path,
         *,
         element_ids: Iterable[str],
-        max_element_size: float,
+        max_element_size: float | None = None,
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
@@ -125,6 +130,7 @@ class PipeVolumeStudyExporter:
             max_element_size=max_element_size,
             element_order=element_order,
             geometry=geometry,
+            mesh_policy=resolve_mesh_policy(model,max_element_size=max_element_size,volume_geometry=geometry),
         )
         analysis_mesh = replace(generated.analysis_mesh, solver_input_identity=identity)
         name_map = build_solver_name_map(generated.groups)
@@ -291,6 +297,159 @@ def _reject_unimplemented_loads(load_case, line_elements: list) -> None:
         raise ValueError("Pipe-volume thermal fields are not implemented.")
 
 
+def mixed_pipe_generatrices(model, line_elements):
+    """One endpoint seed for each supported, oriented straight TUYAU chain."""
+    # ponytail: collinear open chains; qualify bent/branched propagation before extending.
+    pipes = {element.id: element for element in line_elements if element.type == "pipe_straight"}
+    incident = {}
+    for element in pipes.values():
+        for node in (element.n1, element.n2):
+            incident.setdefault(node, []).append(element.id)
+    if any(len(ids) > 2 for ids in incident.values()):
+        raise ValueError("Native mixed TUYAU generatrices do not support branching pipe chains.")
+    unseen = set(pipes)
+    rows = []
+    for first_id in pipes:
+        if first_id not in unseen:
+            continue
+        component = set()
+        pending = [first_id]
+        while pending:
+            element_id = pending.pop()
+            if element_id in component:
+                continue
+            component.add(element_id)
+            element = pipes[element_id]
+            pending.extend(other for node in (element.n1, element.n2) for other in incident[node] if other not in component)
+        unseen.difference_update(component)
+        nodes = {node for element_id in component for node in (pipes[element_id].n1, pipes[element_id].n2)}
+        endpoints = [node for node in nodes if len(incident[node]) == 1]
+        if len(endpoints) != 2:
+            raise ValueError("Native mixed TUYAU generatrices require an open pipe chain without loops.")
+        outgoing, incoming = {}, {}
+        for element_id in component:
+            element = pipes[element_id]
+            if element.n1 in outgoing or element.n2 in incoming:
+                raise ValueError("Native mixed TUYAU pipe chains must have consistent n1-to-n2 orientation.")
+            outgoing[element.n1] = element_id
+            incoming[element.n2] = element_id
+        starts = [node for node in endpoints if node not in incoming]
+        if len(starts) != 1:
+            raise ValueError("Native mixed TUYAU pipe chains must have consistent n1-to-n2 orientation.")
+        start = starts[0]
+        ordered = []
+        node = start
+        while node in outgoing:
+            element = pipes[outgoing[node]]
+            ordered.append(element)
+            node = element.n2
+        if len(ordered) != len(component):
+            raise ValueError("Native mixed TUYAU pipe chains must have consistent n1-to-n2 orientation.")
+        axis = None
+        for element in ordered:
+            vector = model.nodes[element.n2].coords - model.nodes[element.n1].coords
+            length = math.sqrt(float(sum(value * value for value in vector)))
+            if length <= 1e-12:
+                raise ValueError("Native mixed TUYAU pipe chains require nonzero element lengths.")
+            direction = tuple(float(value) / length for value in vector)
+            if axis is None:
+                axis = direction
+            elif math.dist(direction, axis) > 1e-8:
+                raise ValueError("Native mixed TUYAU generatrices currently require collinear pipe chains.")
+        rows.append({"element_ids": [element.id for element in ordered], "start_node": start,
+                     "vector": list(_pipe_orientation_vector(model, ordered, []))})
+    return rows
+
+
+def mixed_load_inputs(model, load_case, line_elements, physical_regions):
+    """Resolve supported mixed loads once for the compiler's auditable identity."""
+    from tuba.physical import _fluid_density_by_element, _physical_properties_for_element
+    from tuba.solver.aster_loads import resolve_region_temperature_groups, resolve_node_temperatures
+
+    refused = sorted({field.quantity for field in load_case.fields} - {"temperature", "pressure", "fluid_density"})
+    if refused:
+        raise ValueError(f"Native mixed studies do not implement operation fields {refused!r}.")
+    if any(field.quantity == "temperature" and field.profile != "uniform" for field in load_case.fields):
+        raise ValueError("Native mixed temperature fields currently require a uniform profile; node temperatures can define interpolation.")
+    if load_case.buckling is not None:
+        raise ValueError("Native mixed buckling analysis is not supported.")
+    temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
+    region_temperatures = resolve_region_temperature_groups(model, load_case)
+    temperatures = {element.id: float(load_case.temperature) for element in line_elements}
+    for ids, temperature in temperature_fields:
+        for element_id in ids:
+            temperatures[element_id] = float(temperature)
+    node_temperatures = resolve_node_temperatures(model, load_case)
+    region_values = {region.mesh_group: float(load_case.temperature) for region in physical_regions}
+    region_values.update({group: float(temperature) for groups, temperature in region_temperatures for group in groups})
+    densities = _fluid_density_by_element(model, load_case)
+    properties = {}
+    pipe_generatrices = mixed_pipe_generatrices(model, line_elements)
+    for element in line_elements:
+        mat = model.materials[element.material]
+        rho = float(mat.rho)
+        if densities.get(element.id):
+            physical = _physical_properties_for_element(model, element, densities[element.id])
+            rho = physical.mass_kg_per_m / physical.metal_area_m2
+        properties[element.id] = {"section": element.section, "material": element.material,
+                                  "E": float(mat.E), "nu": float(mat.nu), "alpha": float(mat.alpha), "rho": rho}
+    pipe_pressure = {e.id: float(load_case.internal_pressure) for e in line_elements if e.type == "pipe_straight"}
+    pipe_pressure.update({element_id: float(value) for ids, value in resolve_operation_field_groups(model, load_case, "pressure") for element_id in ids})
+    return {
+        "line_properties": properties,
+        "line_temperatures": temperatures,
+        "region_temperatures": region_values,
+        "node_temperatures": node_temperatures,
+        "fluid_density": densities,
+        "pipe_pressure": pipe_pressure,
+        "pipe_generatrices": pipe_generatrices,
+    }
+
+
+def _write_mixed_temperature(lines, model, load_case, mesh, name_map, regions, line_elements, affe_entries):
+    # Separate AFFE_VARC scopes preserve prescribed member temperatures at a
+    # mechanical joint. A single global nodal field lets the last group written
+    # silently change all neighbouring elements sharing that node.
+    resolved = mixed_load_inputs(model, load_case, line_elements, regions)
+    uniform = {}
+    interpolated = []
+    node_values = resolved["node_temperatures"]
+    for region in regions:
+        uniform.setdefault(resolved["region_temperatures"][region.mesh_group], []).append(region.mesh_group)
+    for element in line_elements:
+        temperature = resolved["line_temperatures"][element.id]
+        group = f"G_LINE_{element.id}"
+        if element.n1 not in node_values and element.n2 not in node_values:
+            uniform.setdefault(temperature, []).append(group)
+            continue
+        if mesh is None:
+            raise ValueError("Mixed node temperature interpolation requires the actual analysis mesh.")
+        start, end = model.nodes[element.n1].coords, model.nodes[element.n2].coords
+        axis = end - start
+        length_squared = float(sum(value * value for value in axis))
+        t0 = node_values.get(element.n1, temperature)
+        t1 = node_values.get(element.n2, temperature)
+        ids = dict.fromkeys(node for cell in mesh.groups[group] for node in mesh.elements[cell])
+        rows = []
+        for node in ids:
+            fraction = float(sum((mesh.nodes[node][i] - start[i]) * axis[i] for i in range(3))) / length_squared
+            rows.append((node, (1 - fraction) * t0 + fraction * t1))
+        interpolated.append(([group], temperature, rows))
+    partitions = [(groups, temperature, []) for temperature, groups in uniform.items()] + interpolated
+    if not partitions:
+        return
+    assignments = []
+    for index, (groups, temperature, rows) in enumerate(partitions):
+        field = f"TF{index}"
+        lines.extend([f"{field} = CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R', OPERATION='AFFE', MAILLAGE=MAIL, AFFE=(",
+                      f"    _F(TOUT='OUI', NOM_CMP='TEMP', VALE={temperature:.12E}),"])
+        for node_id, value in rows:
+            lines.append(f"    _F(NOEUD='{node_id.removeprefix('VN')}', NOM_CMP='TEMP', VALE={value:.12E}),")
+        lines.append("));")
+        assignments.append(f"    _F(GROUP_MA={tuple(name_map[g] for g in groups)!r}, NOM_VARC='TEMP', CHAM_GD={field}, VALE_REF={float(load_case.ref_temperature):.12E}),")
+    lines.extend(["CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL, AFFE=(", *affe_entries, "), AFFE_VARC=(", *assignments, "));"])
+
+
 def _write_comm(
     model: TubaModel,
     path: Path,
@@ -305,30 +464,46 @@ def _write_comm(
     gravity: bool,
     material_name: str,
     export_tensor_stress: bool,
+    solid_group: str | None = "G_SOLID_region_0",
+    skin_groups_raw: tuple[str, ...] | None = None,
+    pressure_groups_raw: tuple[str, ...] = ("G_INNER_region_0",),
+    line_modelisation: str = "TUYAU_3M",
+    modelisations: dict[str, str] | None = None,
+    solid_regions: tuple = (),
+    shell_regions: tuple = (),
+    reference_regions: tuple = (),
+    rigid_patch_groups: tuple[str, ...] = (),
+    beam_stress: bool = False,
+    load_case=None,
+    mesh=None,
 ) -> None:
     material = model.materials[material_name]
-    solid = name_map["G_SOLID_region_0"]
-    inner = name_map["G_INNER_region_0"]
+    solid = name_map[solid_group] if solid_group is not None else None
     skin_groups = [
         mapped
         for raw, mapped in name_map.items()
-        if raw.startswith(("G_INNER_", "G_OUTER_", "G_END_"))
+        if (raw in skin_groups_raw if skin_groups_raw is not None else raw.startswith(("G_INNER_", "G_OUTER_", "G_END_")))
     ]
     skin_group_value = "(" + ", ".join(f"'{group}'" for group in skin_groups) + ",)"
-    mixed = bool(line_elements)
-    lines = [
-        "DEBUT(PAR_LOT='NON');",
-        "MAIL = LIRE_MAILLAGE(FORMAT='MED', UNITE=20);",
-        "MAIL = MODI_MAILLAGE(",
+    extended = modelisations is not None
+    mixed = bool(line_elements or shell_regions or reference_regions)
+    has_characteristics = mixed
+    line_families = {element.id: ("POU_D_T" if element.type == "beam" else "TUYAU_3M")
+                     if extended else line_modelisation for element in line_elements}
+    pipe_elements = [e for e in line_elements if line_families[e.id] == "TUYAU_3M"]
+    lines = ["DEBUT(PAR_LOT='NON');", "MAIL = LIRE_MAILLAGE(FORMAT='MED', UNITE=20);"]
+    if skin_groups:
+        volume_groups = tuple(name_map[r.mesh_group] for r in solid_regions) if solid_regions else (solid,)
+        lines.extend(["MAIL = MODI_MAILLAGE(",
         "    reuse=MAIL,",
         "    MAILLAGE=MAIL,",
         "    ORIE_PEAU_3D=_F(",
         f"        GROUP_MA={skin_group_value},",
-        f"        GROUP_MA_VOLU=('{solid}',),",
+        f"        GROUP_MA_VOLU={volume_groups!r},",
         "    ),",
         ");",
-    ]
-    if mixed:
+        ])
+    if node_groups and not extended:
         lines.extend(["MAIL = DEFI_GROUP(", "    reuse=MAIL,", "    MAILLAGE=MAIL,", "    CREA_GROUP_NO=("])
         for raw_group, mesh_node_id in node_groups.items():
             lines.append(
@@ -336,13 +511,20 @@ def _write_comm(
             )
         lines.extend(["    ),", ");"])
     lines.extend(["MODELE = AFFE_MODELE(", "    MAILLAGE=MAIL,"])
-    if mixed:
+    if extended:
+        assignments = dict(modelisations)
+        assignments.update({group: "3D" for group in skin_groups_raw or ()})
+        lines.append("    AFFE=(")
+        for group, family in assignments.items():
+            lines.append(f"        _F(GROUP_MA='{name_map[group]}', PHENOMENE='MECANIQUE', MODELISATION='{family}'),")
+        lines.append("    ),")
+    elif mixed:
         solid_groups = "(" + ", ".join(f"'{group}'" for group in (solid, *skin_groups)) + ",)"
         lines.extend(
             [
                 "    AFFE=(",
                 f"        _F(GROUP_MA={solid_groups}, PHENOMENE='MECANIQUE', MODELISATION='3D'),",
-                f"        _F(GROUP_MA='{name_map['G_TUBE']}', PHENOMENE='MECANIQUE', MODELISATION='TUYAU_3M'),",
+                f"        _F(GROUP_MA='{name_map['G_TUBE']}', PHENOMENE='MECANIQUE', MODELISATION='{line_modelisation}'),",
                 "    ),",
             ]
         )
@@ -367,64 +549,145 @@ def _write_comm(
         f"        ALPHA={material.alpha:.12E},",
         "    ),",
         ");",
-        "CHMAT = AFFE_MATERIAU(",
-        "    MAILLAGE=MAIL,",
-        ("    AFFE=_F(TOUT='OUI', MATER=MAT)," if mixed else f"    AFFE=_F(GROUP_MA='{solid}', MATER=MAT),"),
-        ");",
         ]
     )
-    if mixed:
-        section = model.sections[line_elements[0].section]
-        assert isinstance(section, PipeSection)
-        orientation = _pipe_orientation_vector(model, line_elements, [])
-        lines.extend(
-            [
-                "CARA = AFFE_CARA_ELEM(",
-                "    MODELE=MODELE,",
-                "    POUTRE=_F(",
-                f"        GROUP_MA='{name_map['G_TUBE']}',",
-                "        SECTION='CERCLE',",
-                "        CARA=('R', 'EP'),",
-                f"        VALE=({section.OD / 2.0:.8E}, {section.WT:.8E}),",
-                "    ),",
-                "    ORIENTATION=(",
-            ]
-        )
-        for element in line_elements:
-            lines.extend(
-                [
-                    "        _F(",
-                    f"            GROUP_NO='{name_map[f'G_NODE_{element.n1}']}',",
-                    "            CARA='GENE_TUYAU',",
-                    f"            VALE=({orientation[0]:.8E}, {orientation[1]:.8E}, {orientation[2]:.8E}),",
-                    "        ),",
-                ]
-            )
-        lines.extend(["    ),", ");"])
+    affe_entries = ([f"        _F(GROUP_MA='{solid}', MATER=MAT),"] if solid else []) if extended else [
+        "        _F(TOUT='OUI', MATER=MAT)," if mixed else f"        _F(GROUP_MA='{solid}', MATER=MAT),"]
+    if extended:
+        from tuba.physical import _fluid_density_by_element, _physical_properties_for_element
+
+        densities = _fluid_density_by_element(model, load_case)
+        rows = [(f"G_LINE_{element.id}", element.material, element) for element in line_elements]
+        rows.extend((region.mesh_group, region.material, None) for region in shell_regions)
+        rows.extend((region.mesh_group, region.material, None) for region in solid_regions if region.mesh_group != solid_group)
+        for index, (group, material_id, element) in enumerate(rows):
+            mat = model.materials[material_id]
+            rho = mat.rho
+            if element is not None and densities.get(element.id):
+                props = _physical_properties_for_element(model, element, densities[element.id])
+                rho = props.mass_kg_per_m / props.metal_area_m2
+                lines.append(f"# Fluid contents mass for {element.id}: {props.fluid_mass_kg_per_m:.12E} kg/m")
+            concept = f"MAT{index:05d}"
+            if len(concept) > 8:
+                raise ValueError("Mixed material assignments exceed Code_Aster's concept-name limit.")
+            lines.append(f"{concept} = DEFI_MATERIAU(ELAS=_F(E={mat.E:.12E}, NU={mat.nu:.12E}, RHO={rho:.12E}, ALPHA={mat.alpha:.12E}));")
+            affe_entries.append(f"        _F(GROUP_MA='{name_map[group]}', MATER={concept}),")
+    lines.extend(["CHMAT = AFFE_MATERIAU(", "    MAILLAGE=MAIL,", "    AFFE=(", *affe_entries, "    ),", ");"])
+    if has_characteristics:
+        lines.extend(["CARA = AFFE_CARA_ELEM(", "    MODELE=MODELE,"])
+    if line_elements:
+        lines.append("    POUTRE=(")
+        section_elements = line_elements if extended else line_elements[:1]
+        for element in section_elements:
+            section = model.sections[element.section]
+            family = line_families[element.id]
+            group = f"G_LINE_{element.id}" if extended else "G_TUBE"
+            if isinstance(section, PipeSection):
+                section_kind, section_keys = "CERCLE", ("R", "EP")
+                section_values = (section.OD / 2.0, section.WT)
+            elif family == "POU_D_T" and isinstance(section, RectangularSection):
+                section_kind, section_keys = "RECTANGLE", ("HY", "HZ")
+                section_values = (section.height_y, section.height_z)
+                if section.thickness_y or section.thickness_z:
+                    section_keys += ("EPY", "EPZ")
+                    section_values += (section.thickness_y, section.thickness_z)
+            else:
+                raise ValueError("Mixed studies support circular pipe or rectangular beam sections.")
+            lines.append(f"        _F(GROUP_MA='{name_map[group]}', SECTION='{section_kind}', CARA={section_keys!r}, VALE={section_values!r}),")
+        lines.extend(["    ),", "    ORIENTATION=("])
+        pipe_elements = [e for e in line_elements if line_families[e.id] == "TUYAU_3M"]
+        generatrices = mixed_pipe_generatrices(model, pipe_elements) if extended else [
+            {"start_node": element.n1, "vector": _pipe_orientation_vector(model, pipe_elements, [])}
+            for element in pipe_elements]
+        for generatrice in generatrices:
+            orientation = generatrice["vector"]
+            node_group = name_map["G_NODE_" + generatrice["start_node"]]
+            lines.extend([
+                "        _F(", f"            GROUP_NO='{node_group}',",
+                "            CARA='GENE_TUYAU',",
+                f"            VALE=({orientation[0]:.8E}, {orientation[1]:.8E}, {orientation[2]:.8E}),", "        ),",
+            ])
+        from tuba.geometry.section_mesh import beam_local_frame
+
+        for element in (e for e in line_elements if line_families[e.id] == "POU_D_T"):
+            _x, local_y, _z = beam_local_frame(model.nodes[element.n1].coords, model.nodes[element.n2].coords)
+            vector = tuple(float(value) for value in local_y)
+            lines.append(f"        _F(GROUP_MA='{name_map[f'G_LINE_{element.id}']}', CARA='VECT_Y', VALE={vector!r}),")
+        lines.append("    ),")
+    if shell_regions:
+        lines.append("    COQUE=(")
+        for region in shell_regions:
+            lines.append(f"        _F(GROUP_MA='{name_map[region.mesh_group]}', EPAIS={float(region.metadata['thickness_m']):.12E}, COQUE_NCOU=1),")
+        lines.append("    ),")
+    if reference_regions:
+        lines.append("    DISCRET=(")
+        for region in reference_regions:
+            lines.append(f"        _F(GROUP_MA='{name_map[region.mesh_group]}', REPERE='GLOBAL', CARA='K_TR_D_N', VALE=(0., 0., 0., 0., 0., 0.)),")
+            lines.append(f"        _F(GROUP_MA='{name_map[region.mesh_group]}', REPERE='GLOBAL', CARA='M_TR_D_N', VALE=(0., 0., 0., 0., 0., 0., 0., 0., 0., 0.)),")
+        lines.append("    ),")
+    if has_characteristics:
+        lines.append(");")
+    if extended and load_case is not None:
+        _write_mixed_temperature(lines, model, load_case, mesh, name_map,
+                                 (*solid_regions, *shell_regions), line_elements, affe_entries)
 
     lines.extend(["BC = AFFE_CHAR_MECA(", "    MODELE=MODELE,", "    DDL_IMPO=("])
+    if extended:
+        from tuba.solver.aster_comm import _held_dofs
+        for support in model.supports:
+            if support.attached_to is not None:
+                continue
+            held = _held_dofs(support)
+            motion = list(support.imposed_displacement or ())
+            values = {dof: float(motion[index]) if index < len(motion) else 0.0
+                      for index, dof in enumerate(("DX", "DY", "DZ", "DRX", "DRY", "DRZ")) if dof in held}
+            if values:
+                entries = ", ".join(f"{dof}={value:.12E}" for dof, value in values.items())
+                if len(held) == 6 and support.node in {node for e in pipe_elements for node in (e.n1, e.n2)}:
+                    entries += ", WO=0.0"
+                lines.append(f"        _F(GROUP_NO='{name_map[f'G_NODE_{support.node}']}', {entries}),")
     for group, kind in support_groups:
+        if extended and kind == "node":
+            continue
         if kind == "node":
-            lines.append(
-                f"        _F(GROUP_NO='{name_map[group]}', BLOCAGE=('DEPLACEMENT', 'ROTATION'), WO=0.0),"
-            )
+            warping = ", WO=0.0" if line_modelisation == "TUYAU_3M" else ""
+            lines.append(f"        _F(GROUP_NO='{name_map[group]}', BLOCAGE=('DEPLACEMENT', 'ROTATION'){warping}),")
         else:
             lines.append(f"        _F(GROUP_MA='{name_map[group]}', DX=0.0, DY=0.0, DZ=0.0),")
     lines.append("    ),")
-    if mixed:
+    if extended:
+        from tuba.solver.aster_contact import attachment_equations
+        attachment_rows = []
+        def attachment_name(raw):
+            return name_map[f"G_NODE_{raw.removeprefix('GN_')}"]
+        for support in model.supports:
+            if support.attached_to is not None:
+                attachment_rows.extend(attachment_equations(model, support, f"GN_{support.node}", _held_dofs(support), attachment_name))
+        if attachment_rows:
+            lines.extend(["    LIAISON_DDL=(", *(f"        {row}," for row in attachment_rows), "    ),"])
+        if rigid_patch_groups:
+            # Patches on adjoining faces/edges may share physical nodes as well
+            # as their reference. One rigid body per reference avoids duplicate
+            # Lagrange equations for those intersections.
+            references = {patch.metadata["mesh_node_group"]: patch.source_node.id
+                          for patch in model.couplings.values() if patch.kind == "rigid_patch"}
+            bodies = {}
+            for group in rigid_patch_groups:
+                bodies.setdefault(references.get(group, group), []).append(name_map[group])
+            lines.append("    LIAISON_SOLIDE=(")
+            for groups in bodies.values():
+                value = groups[0] if len(groups) == 1 else tuple(groups)
+                lines.append(f"        _F(GROUP_NO={value!r}),")
+            lines.append("    ),")
+    if couplings:
         lines.append("    LIAISON_ELEM=(")
-        for face_group, node_group, axis in couplings:
-            lines.extend(
-                [
-                    "        _F(",
-                    "            OPTION='3D_TUYAU',",
-                    "            CARA_ELEM=CARA,",
-                    f"            AXE_POUTRE=({axis[0]:.8E}, {axis[1]:.8E}, {axis[2]:.8E}),",
-                    f"            GROUP_MA_1='{name_map[face_group]}',",
-                    f"            GROUP_NO_2='{name_map[node_group]}',",
-                    "        ),",
-                ]
-            )
+        for coupling in couplings:
+            face_group, node_group, axis = coupling[:3]
+            option = coupling[3] if len(coupling) == 4 else ("3D_TUYAU" if line_modelisation == "TUYAU_3M" else "3D_POU")
+            lines.extend(["        _F(", f"            OPTION='{option}',"])
+            if option == "3D_TUYAU":
+                lines.extend(["            CARA_ELEM=CARA,", f"            AXE_POUTRE=({axis[0]:.8E}, {axis[1]:.8E}, {axis[2]:.8E}),"])
+            lines.extend([f"            GROUP_MA_1='{name_map[face_group]}',", f"            GROUP_NO_2='{name_map[node_group]}',", "        ),"])
         lines.append("    ),")
     lines.append(");")
 
@@ -445,18 +708,35 @@ def _write_comm(
         lines.extend(["    ),", ");"])
 
     excitations = ["_F(CHARGE=BC)"]
-    if pressure != 0.0:
+    pipe_pressures = []
+    if extended:
+        pipe_pressures = resolve_operation_field_groups(model, load_case, "pressure")
+        if not pipe_pressures:
+            pipe_pressures = [([e.id for e in pipe_elements], pressure)]
+        pipe_pressures = [(ids, value) for ids, value in pipe_pressures if ids and value != 0]
+    if pressure != 0 and solid and not pressure_groups_raw:
+        raise ValueError("STEP component pressure requires explicit pressure surface selections.")
+    if (pressure != 0.0 and (not extended or pressure_groups_raw)) or pipe_pressures:
+        pressure_groups = tuple(name_map[group] for group in pressure_groups_raw)
+        pressure_group_value = repr(pressure_groups[0]) if len(pressure_groups) == 1 else repr(pressure_groups)
         lines.extend(
             [
                 "PRESSURE = AFFE_CHAR_MECA(",
                 "    MODELE=MODELE,",
-                "    PRES_REP=_F(",
-                f"        GROUP_MA='{inner}',",
-                f"        PRES={pressure:.12E},",
-                "    ),",
             ]
         )
-        if mixed:
+        if pressure != 0 and pressure_groups_raw:
+            lines.extend(["    PRES_REP=_F(", f"        GROUP_MA={pressure_group_value},", f"        PRES={pressure:.12E},", "    ),"])
+        if extended and pipe_pressures:
+            if len(pipe_pressures) == 1:
+                element_ids, value = pipe_pressures[0]
+                lines.extend(["    FORCE_TUYAU=_F(", f"        GROUP_MA={tuple(name_map[f'G_LINE_{e}'] for e in element_ids)!r},", f"        PRES={value:.12E},", "    ),"])
+            else:
+                lines.append("    FORCE_TUYAU=(")
+                for element_ids, value in pipe_pressures:
+                    lines.append(f"        _F(GROUP_MA={tuple(name_map[f'G_LINE_{e}'] for e in element_ids)!r}, PRES={value:.12E}),")
+                lines.append("    ),")
+        elif not extended and mixed and line_modelisation == "TUYAU_3M":
             lines.extend(
                 [
                     "    FORCE_TUYAU=_F(",
@@ -482,6 +762,9 @@ def _write_comm(
     lines.extend(["RESU = MECA_STATIQUE(", "    MODELE=MODELE,", "    CHAM_MATER=CHMAT,"])
     if mixed:
         lines.append("    CARA_ELEM=CARA,")
+    if reference_regions:
+        # Keep the exact double-Lagrange constraints for zero-stiffness carriers.
+        lines.append("    SOLVEUR=_F(METHODE='MULT_FRONT', NPREC=8, STOP_SINGULIER='OUI'),")
     lines.extend(
         [
             f"    EXCIT=({', '.join(excitations)},),",
@@ -497,11 +780,16 @@ def _write_comm(
             "    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),",
             "    FORCE='REAC_NODA',",
             ");",
-            "IMPR_RESU(",
-            "    FORMAT='MED',",
-            "    UNITE=80,",
         ]
     )
+    beam_groups = tuple(name_map[group] for group, family in (modelisations or {}).items() if family == "POU_D_T")
+    if beam_stress:
+        if not beam_groups:
+            raise ValueError("Beam stress was requested for a study without POU_D_T groups.")
+        # Frame members only: solids and TUYAU_3M cannot compute SIPO_ELNO.
+        lines.extend(["RESU = CALC_CHAMP(", "    reuse=RESU,", "    RESULTAT=RESU,",
+                      f"    GROUP_MA={beam_groups!r},", "    CONTRAINTE=('SIPO_ELNO',),", ");"])
+    lines.extend(["IMPR_RESU(", "    FORMAT='MED',", "    UNITE=80,"])
     if mixed:
         lines.append(
             "    RESU=_F(RESULTAT=RESU, CARA_ELEM=CARA, "
@@ -533,14 +821,25 @@ def _write_comm(
             "IMPR_TABLE(TABLE=TAB_SIEQ, FORMAT='TABLEAU', UNITE=41, SEPARATEUR=',');",
         ]
     )
-    if mixed:
+    if line_elements:
+        line_groups = tuple(name_map[group] for group, family in (modelisations or {"G_TUBE": line_modelisation}).items() if family in {"TUYAU_3M", "POU_D_T"})
         lines.extend(
             [
                 "TAB_EFFO = CREA_TABLE(",
-                "    RESU=_F(RESULTAT=RESU, NOM_CHAM='EFGE_ELNO', TOUT='OUI',",
+                f"    RESU=_F(RESULTAT=RESU, NOM_CHAM='EFGE_ELNO', GROUP_MA={line_groups!r},",
                 "            NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ')),",
                 ");",
                 "IMPR_TABLE(TABLE=TAB_EFFO, FORMAT='TABLEAU', UNITE=38, SEPARATEUR=',');",
+            ]
+        )
+    if beam_stress:
+        lines.extend(
+            [
+                "TAB_SIPO = CREA_TABLE(",
+                f"    RESU=_F(RESULTAT=RESU, NOM_CHAM='SIPO_ELNO', GROUP_MA={beam_groups!r},",
+                "            NOM_CMP=('SN', 'SMFY', 'SMFZ')),",
+                ");",
+                "IMPR_TABLE(TABLE=TAB_SIPO, FORMAT='TABLEAU', UNITE=43, SEPARATEUR=',');",
             ]
         )
     if export_tensor_stress:
@@ -561,7 +860,7 @@ def _write_comm(
     write_artifact_text(path, "\n".join(lines) + "\n")
 
 
-def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: bool) -> None:
+def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: bool, beam_stress: bool = False) -> None:
     files = [
         "P actions make_etude",
         "P version stable",
@@ -582,7 +881,9 @@ def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: boo
         files.append("F effo study_effo.csv R 38")
     if export_tensor_stress:
         files.append("F sigm study_sigm.csv R 42")
-    write_artifact_text(path, "\n".join(files) + "\n")
+    if beam_stress:
+        files.append("F sipo study_sipo.csv R 43")
+    write_artifact_text(path, export_text(files) + "\n")
 
 
 def _group_lineage(group_name: str) -> str:

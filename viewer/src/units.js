@@ -111,6 +111,15 @@ export function formatValueSeries(values, unit, systemId = DEFAULT_UNIT_SYSTEM) 
   return formatNumberSeries(values.map((value) => toDisplay(value, unit, systemId)));
 }
 
+// A colour scale's labels. Solver round-off at a fixed support - 7e-23 m beside
+// 0.08 m - is zero on a scale; printed as "7.487e-20" it reads as a quantity.
+// Only here: result-step times are a series too, and 1e-5 s beside 1e5 s is a
+// real first step, not noise.
+export function formatScaleSeries(values, unit, systemId = DEFAULT_UNIT_SYSTEM) {
+  const largest = Math.max(0, ...values.map(numeric).filter(Number.isFinite).map(Math.abs));
+  return formatValueSeries(values.map((value) => (Math.abs(numeric(value)) < largest * 1e-9 ? 0 : value)), unit, systemId);
+}
+
 export function formatNumberSeries(values) {
   const numbers = values.map(numeric);
   const distinct = new Set(numbers.filter(Number.isFinite)).size;

@@ -94,9 +94,9 @@ export function initProfileLibrary(dialog, {
     revealButton.disabled = !Number.isInteger(row.source_line) || !sourceCurrent();
     find("definition-note").textContent = tab === "used"
       ? !sourceCurrent() ? "Sections reflect the last successful run. Run model.py to refresh definitions and line links."
-        : !Number.isInteger(row.source_line) ? "This section has no recorded model.py line." : `Defined at model.py:${row.source_line}`
-      : canInsert() ? "Inserts at the start of the current line. Assign the section to members in Python."
-        : "Open a model in Build to insert this section into Python.";
+        : !Number.isInteger(row.source_line) ? "This section has no recorded model.py line." : ""
+      : canInsert() ? "Inserts at the current line; assign the section to members in model.py." : "";
+    find("definition-note").hidden = !find("definition-note").textContent;
     if (tab === "catalog") {
       let name = row.name;
       let suffix = 2;
@@ -124,7 +124,9 @@ export function initProfileLibrary(dialog, {
       button.addEventListener("click", () => showProfile(row));
       list.append(button);
     }
-    status.textContent = `${rows.length} ${tab === "used" ? "sections in this model" : "profiles"}${rows.length ? "" : " — no matches"}`;
+    const noun = tab === "used" ? `${rows.length === 1 ? "section" : "sections"} in this model`
+      : rows.length === 1 ? "profile" : "profiles";
+    status.textContent = `${rows.length} ${noun}${rows.length ? "" : " — no matches"}`;
     showProfile(rows.find(row => row.name === (preferred ?? selected?.name)) ?? rows[0] ?? null);
   }
 
@@ -169,9 +171,8 @@ export function initProfileLibrary(dialog, {
       data = { ...payload, used: payload.used ?? [] };
       const hasModel = Array.isArray(payload.used);
       dialog.querySelector('[data-profiles-tab="used"]').hidden = !hasModel;
-      find("intro").textContent = canInsert()
-        ? "Choose a section and insert its definition into model.py. Update geometry previews the model; engineering results require a Code_Aster solve."
-        : "Browse section dimensions and derived properties. Open a model in Build to insert a definition into Python.";
+      find("intro").textContent = canInsert() ? "" : "Open model.py in Build to insert a section.";
+      find("intro").hidden = !find("intro").textContent;
       selectTab(section && hasModel ? "used" : "catalog", section);
     } catch (error) {
       status.textContent = `Profiles unavailable: ${error.message}`;

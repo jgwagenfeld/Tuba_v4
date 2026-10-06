@@ -123,6 +123,7 @@ class _CommWriterMixin:
         path: Path,
         *,
         name_map: Callable[[str], str] | None = None,
+        beam_stress: bool = False,
     ) -> None:
         """Generate the Code_Aster command file for static piping analysis.
 
@@ -217,9 +218,20 @@ class _CommWriterMixin:
         # DEFI_MATERIAU
         # ==============================================================
         w("# ----- Material definitions -----")
-        for mat_name in used_mat_names:
+        # SIPO_ELNO refuses a material that also carries CABLE. A material the
+        # cables share with beams is written twice, so the beams' copy is ELAS
+        # only and the cables keep theirs through a per-cable override below.
+        shared_cable_mats = {
+            name for name in cable_mats
+            if beam_stress and any(e.material == name and e.type != "cable" for e in model.elements)
+        }
+        # Indexed, so no authored material's MAT_ name can collide with it.
+        cable_copies = {name: f"MC{index}" for index, name in enumerate(sorted(shared_cable_mats))}
+        for mat_name, cable_law, var in [
+            (name, name in cable_mats and name not in shared_cable_mats,
+             f"MAT_{name.upper().replace(' ', '_').replace('-', '_')}") for name in used_mat_names
+        ] + [(name, True, copy) for name, copy in cable_copies.items()]:
             mat = model.materials[mat_name]
-            var = f"MAT_{mat_name.upper().replace(' ', '_').replace('-', '_')}"
             w(f"{var} = DEFI_MATERIAU(")
             w(f"    ELAS=_F(")
             w(f"        E={mat.E:.6E},")
@@ -227,7 +239,7 @@ class _CommWriterMixin:
             w(f"        RHO={mat.rho:.6E},")
             w(f"        ALPHA={mat.alpha:.6E},")
             w(f"    ),")
-            if mat_name in cable_mats:
+            if cable_law:
                 # EC_SUR_E is a material property in Code_Aster but a
                 # per-cable modelling choice here, so a material shared by two
                 # idealisations has no single answer and must say so.
@@ -263,7 +275,7 @@ class _CommWriterMixin:
         for elem in model.elements:
             if elem.type == "pipe_bend":
                 material_element_groups.setdefault(elem.material, []).extend(
-                    f"{elem.id}_s{i}" for i in range(self._BEND_SEGMENTS)
+                    f"{elem.id}_s{i}" for i in range(self._segment_count(elem,self._BEND_SEGMENTS))
                 )
             else:
                 material_element_groups.setdefault(elem.material, []).append(elem.id)
@@ -310,6 +322,10 @@ class _CommWriterMixin:
                 f"            MATER={var},\n"
                 f"        ),"
             )
+
+        for elem in model.elements:
+            if elem.type == "cable" and elem.material in cable_copies:
+                affe_entries.append(f"        _F(GROUP_MA='{map_name(elem.id)}', MATER={cable_copies[elem.material]}),")
 
         # Carry non-structural insulation mass on the steel section. E, NU,
         # ALPHA and wall geometry stay unchanged; RHO supplies static gravity.
@@ -902,6 +918,19 @@ class _CommWriterMixin:
         w("    FORCE='REAC_NODA',")
         w(");")
         w()
+        beam_group = f"('{map_name('G_TUBE')}',)"
+        if beam_stress:
+            if not beam_elems:
+                raise ValueError("Beam stress was requested for a model without beam elements.")
+            # Frame members only: TUYAU_3M cannot compute SIPO_ELNO, and the
+            # whole-model call above would fail on it (parse_sipo_table).
+            w("RESU = CALC_CHAMP(")
+            w("    reuse=RESU,")
+            w("    RESULTAT=RESU,")
+            w(f"    GROUP_MA={beam_group},")
+            w("    CONTRAINTE=('SIPO_ELNO',),")
+            w(");")
+            w()
 
         # ==============================================================
         # IMPR_RESU — MED output
@@ -1004,6 +1033,28 @@ class _CommWriterMixin:
             w("IMPR_TABLE(")
             w("    TABLE=TAB_SIEQ,")
             w("    UNITE=41,")
+            w("    FORMAT='TABLEAU',")
+            w("    FORMAT_R='1PE24.16',")
+            w("    SEPARATEUR=',',")
+            w(");")
+            w()
+
+        if beam_stress:
+            w("# ----- Text table for SIPO_ELNO -----")
+            w("TAB_SIPO = CREA_TABLE(")
+            w("    RESU=_F(")
+            w("        RESULTAT=RESU,")
+            w("        NOM_CHAM='SIPO_ELNO',")
+            w(f"        GROUP_MA={beam_group},")
+            w("        NOM_CMP=('SN', 'SMFY', 'SMFZ'),")
+            if is_nonlinear and not native_path:
+                w("        INST=1.0,")
+            w("    ),")
+            w(");")
+            w()
+            w("IMPR_TABLE(")
+            w("    TABLE=TAB_SIPO,")
+            w("    UNITE=43,")
             w("    FORMAT='TABLEAU',")
             w("    FORMAT_R='1PE24.16',")
             w("    SEPARATEUR=',',")

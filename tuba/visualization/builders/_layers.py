@@ -47,6 +47,10 @@ OBJECT_KIND_CATEGORY: dict[str, str] = {
     "imported_component": "design",
     "imported_port": "design",
     "mixed_coupling": "design",
+    "interface_mapping": "design",
+    "mesh_refinement_target": "analysis_mesh",
+    "mesh_size_sample": "analysis_mesh",
+    "mesh_problem": "analysis_mesh",
     "local_coordinate_axis": "design",
     # analysis_mesh — what was solved
     "analysis_mesh_node": "analysis_mesh",
@@ -206,6 +210,11 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
     }
     if analysis_mesh.geometry_ref is not None:
         identity["geometry_ref"] = analysis_mesh.geometry_ref
+    if analysis_mesh.surface_mesh is not None:
+        identity["display_representation"] = "triangulated_surface"
+    if analysis_mesh.mesh_review is not None:
+        identity["mesh_review"] = analysis_mesh.mesh_review
+        identity["result_status"] = "solver_input" if analysis_mesh.solver_input_identity is not None else "mesh_only"
     discretisation = discretisation_summary(analysis_mesh)
     if discretisation is not None:
         identity["discretisation"] = discretisation
@@ -223,12 +232,20 @@ def _element_families(analysis_mesh: AnalysisMesh) -> list[dict[str, object]]:
     cannot do from ``MODELISATION`` alone: Tuba emits TUYAU_3M on SEG3, but the
     family is a property of the connectivity rather than of the modelisation.
     """
-    counts: dict[int, int] = {}
-    for node_ids in analysis_mesh.elements.values():
-        counts[len(node_ids)] = counts.get(len(node_ids), 0) + 1
+    counts: dict[str, int] = {}
+    for element_id, node_ids in analysis_mesh.elements.items():
+        node_count = len(node_ids)
+        source = analysis_mesh.element_sources.get(element_id)
+        if source and source.role in {"volume_skin", "shell_cell"}:
+            family = {3: "TRIA3", 4: "QUAD4", 6: "TRIA6", 8: "QUAD8"}.get(node_count, f"NODE{node_count}")
+        elif source and source.role == "volume_cell":
+            family = {4: "TETRA4", 8: "HEXA8", 10: "TETRA10", 20: "HEXA20", 27: "HEXA27"}.get(node_count, f"NODE{node_count}")
+        else:
+            family = _ELEMENT_FAMILIES.get(node_count, f"NODE{node_count}")
+        counts[family] = counts.get(family, 0) + 1
     return [
-        {"family": _ELEMENT_FAMILIES.get(node_count, f"NODE{node_count}"), "element_count": count}
-        for node_count, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        {"family": family, "element_count": count}
+        for family, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
 
 

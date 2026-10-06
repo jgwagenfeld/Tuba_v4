@@ -149,6 +149,15 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertIn("exported `.comm`, `.mail`, and `.export` files are handoff artifacts", autorouting)
         self.assertIn("The current generator emits U-loop candidates only", autorouting)
 
+    def test_docs_name_the_cut_view_the_viewer_ships(self):
+        # The rail's "Section box" tool is gone; Display -> Cut view replaced it,
+        # and it does hide objects wholly outside the box.
+        for page in ("tutorial.md", "architecture/visualization.md"):
+            text = (CONTENT / page).read_text(encoding="utf-8")
+            self.assertNotIn("Section box", text, page)
+            self.assertIn("Cut view", text, page)
+            self.assertIn("wholly outside", text, page)
+
     def test_pages_use_real_figures_not_sketches(self):
         # Each concept page must reference the real rendered figures (committed
         # under assets/figures/) and must not fall back to Mermaid or CSS sketches.

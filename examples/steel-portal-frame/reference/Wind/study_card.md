@@ -14,7 +14,7 @@ Source folder: `evidence/Wind`
 | Mesh size | 210 nodes, 559 elements |
 | Solver | Code_Aster 18.0.12 |
 | Execution | wsl |
-| Solved at | 2026-09-29T09:25:46.178153Z |
+| Solved at | 2026-10-04T17:24:04.068369Z |
 | Evidence | **verified** — the attestation is intact and the run was verified. |
 
 ## Code_Aster commands in the generated .comm
@@ -25,13 +25,13 @@ Source folder: `evidence/Wind`
 | `AFFE_CHAR_MECA` | 15 |
 | `AFFE_MATERIAU` | 1 |
 | `AFFE_MODELE` | 1 |
-| `CALC_CHAMP` | 1 |
-| `CREA_TABLE` | 3 |
+| `CALC_CHAMP` | 2 |
+| `CREA_TABLE` | 4 |
 | `DEBUT` | 1 |
 | `DEFI_MATERIAU` | 1 |
 | `FIN` | 1 |
 | `IMPR_RESU` | 1 |
-| `IMPR_TABLE` | 3 |
+| `IMPR_TABLE` | 4 |
 | `LIRE_MAILLAGE` | 1 |
 | `MECA_STATIQUE` | 1 |
 
@@ -49,6 +49,7 @@ Source folder: `evidence/Wind`
 | reac | `study_reac.csv` | R | 40 | node reactions (REAC_NODA) |
 | sieq | `study_sieq.csv` | R | 41 | stress invariants (SIEQ_ELNO) |
 | libr | `study_contact.json` | R | 42 | contact history |
+| sipo | `study_sipo.csv` | R | 43 | frame member normal stress (SIPO_ELNO) |
 
 A unit the command file writes but the export omits is silently lost with the run directory; the two lists above are the check on that.
 
@@ -56,16 +57,17 @@ A unit the command file writes but the export omits is silently lost with the ru
 
 | File | Size | SHA-256 |
 | --- | --- | --- |
-| `study.comm` | 69.9 kB | `dac4a5e0fc1152da…` |
-| `study.export` | 377 B | `49d368425faa339a…` |
+| `study.comm` | 70.4 kB | `4eed27f562079c45…` |
+| `study.export` | 404 B | `85dc46238025a16f…` |
 | `study.mail` | 65.7 kB | `11d9e74c267305cd…` |
-| `study.mess` | 127.0 kB | `e2a3dc6c96f621a6…` |
-| `study.rmed` | 679.4 kB | `546b47670c069cec…` |
-| `study_depl.csv` | 67.7 kB | `0dcde3f09b51ab2d…` |
-| `study_effo.csv` | 397.7 kB | `22190620a8c5ae0a…` |
-| `study_manifest.json` | 274.4 kB | `36e78707e34b2936…` |
-| `study_reac.csv` | 67.7 kB | `4e1cc6aa2e301827…` |
-| `study_tuba_fem.json` | 47.0 kB | `52e0c0972b02719b…` |
+| `study.mess` | 132.7 kB | `9e57a00529f66bb8…` |
+| `study.rmed` | 679.4 kB | `debc4449d8d92910…` |
+| `study_depl.csv` | 67.7 kB | `228d6faaecc68d23…` |
+| `study_effo.csv` | 397.7 kB | `40f2c30461b29251…` |
+| `study_manifest.json` | 274.5 kB | `e5bae48f4d20a98e…` |
+| `study_reac.csv` | 67.7 kB | `3fd06c46322d07b4…` |
+| `study_sipo.csv` | 312.5 kB | `681979f48595e8c9…` |
+| `study_tuba_fem.json` | 47.0 kB | `97e946fdea1fc784…` |
 
 These hashes are what the solve attested. The evidence verdict above is taken by re-checking them against the files on disk.
 

@@ -266,7 +266,8 @@ def operation_field_problem(
         selected = model.resolve_operation_field_elements(field_record)
     except ValueError as exc:
         return f"is invalid: {exc}"
-    if not selected:
+    regions = model.resolve_operation_field_regions(field_record)
+    if not selected and not regions:
         if field_record.quantity in {"wind", "line_load"}:
             return "selects no pipe or beam elements."
         return "selects no pipe elements."
@@ -285,7 +286,7 @@ def operation_fields_problem(fields: Sequence[Any], model: TubaModel) -> list[st
     """
     problems: list[str] = []
     pipe_nodes = _pipe_node_ids(model)
-    seen: dict[str, dict[str, tuple[Any, ...]]] = {}
+    seen: dict[str, dict[tuple[str,str], tuple[Any, ...]]] = {}
     node_temperatures: dict[str, float] = {}
     element_temperature_nodes: dict[str, set[int]] = {}
     for index, field_record in enumerate(fields):
@@ -312,7 +313,8 @@ def operation_fields_problem(fields: Sequence[Any], model: TubaModel) -> list[st
         quantity_values = seen.setdefault(field_record.quantity, {})
         value_key = _operation_field_value_key(field_record)
         for elem in selected:
-            previous = quantity_values.get(elem.id)
+            key = ("element", elem.id)
+            previous = quantity_values.get(key)
             if previous is not None and field_record.quantity == "line_load":
                 # Pressure, temperature and wind are states, so equal values agree; line loads add.
                 problems.append(
@@ -324,7 +326,13 @@ def operation_fields_problem(fields: Sequence[Any], model: TubaModel) -> list[st
                     f"has overlapping incompatible {field_record.quantity} fields on element {elem.id!r}: "
                     f"{previous!r} vs {value_key!r}."
                 )
-            quantity_values[elem.id] = value_key
+            quantity_values[key] = value_key
+        for region in model.resolve_operation_field_regions(field_record):
+            key = ("analysis_region", region.id)
+            previous = quantity_values.get(key)
+            if previous is not None and previous != value_key:
+                problems.append(f"has overlapping incompatible temperature fields on analysis region {region.id!r}: {previous!r} vs {value_key!r}.")
+            quantity_values[key] = value_key
     shared = sorted(set(node_temperatures) & set(element_temperature_nodes))
     if shared:
         indices = sorted({index for node_id in shared for index in element_temperature_nodes[node_id]})
@@ -547,17 +555,20 @@ def _validate_imported_components(model: TubaModel, errors: list[str]) -> None:
 
 
 def _validate_analysis_regions(model: TubaModel, errors: list[str]) -> None:
+    from tuba.mixed import shell_panel_geometry
     for region_id, region in model.analysis_regions.items():
-        if region.owner.kind != "component":
+        owner_kind = {"solid_3d": "component", "shell_2d": "group", "reference": "node"}.get(region.role, "component")
+        if region.owner.kind != owner_kind:
             errors.append(
-                f"Analysis region {region_id!r} owner must be a component, got {region.owner.kind!r}."
+                f"Analysis region {region_id!r} owner must be a {owner_kind}, got {region.owner.kind!r}."
             )
-        elif region.owner.id not in model.imported_components:
-            errors.append(
-                f"Analysis region {region_id!r} references missing owner {region.owner!r}."
-            )
+        else:
+            try:
+                resolve_entity_ref(model, region.owner)
+            except KeyError:
+                errors.append(f"Analysis region {region_id!r} references missing owner {region.owner!r}.")
 
-        if region.material not in model.materials:
+        if region.material not in model.materials and not (region.role == "reference" and not region.material):
             errors.append(
                 f"Analysis region {region_id!r} references missing material {region.material!r}."
             )
@@ -567,6 +578,18 @@ def _validate_analysis_regions(model: TubaModel, errors: list[str]) -> None:
                 f"Analysis region {region_id!r} is solid_3d but has modelisation "
                 f"{region.code_aster_modelisation!r}."
             )
+        if region.role == "shell_2d":
+            if region.code_aster_modelisation != "DKT" or region.element_order != 1:
+                errors.append(f"Analysis region {region_id!r} shell_2d requires DKT and element_order=1.")
+            try:
+                shell_panel_geometry(region.metadata.get("polygon_m"), region.metadata.get("thickness_m"), region.metadata.get("mesh_size", "auto"))
+            except (TypeError, ValueError) as exc:
+                errors.append(f"Analysis region {region_id!r} has invalid shell geometry: {exc}")
+        if region.role == "reference" and (region.code_aster_modelisation != "DIS_TR" or region.element_order != 1):
+            errors.append(f"Analysis region {region_id!r} reference requires DIS_TR and element_order=1.")
+    groups = [r.mesh_group for r in model.analysis_regions.values()]
+    if len(set(groups)) != len(groups):
+        errors.append("Analysis regions must have distinct mesh_group names.")
 
 
 def _validate_ports(model: TubaModel, errors: list[str]) -> None:
@@ -593,6 +616,13 @@ def _validate_mesh_groups(model: TubaModel, errors: list[str]) -> None:
 def _validate_couplings(model: TubaModel, errors: list[str]) -> None:
     element_ids = {element.id for element in model.elements}
     for coupling_id, coupling in model.couplings.items():
+        if coupling.kind == "rigid_patch":
+            from tuba.mixed import validate_rigid_patch
+            try:
+                validate_rigid_patch(model, coupling)
+            except (KeyError, TypeError, ValueError) as exc:
+                errors.append(f"Coupling {coupling_id!r} has invalid rigid patch: {exc}")
+            continue
         if coupling.kind == "pipe_to_solid_port":
             if coupling.code_aster_keyword != "LIAISON_ELEM":
                 errors.append(

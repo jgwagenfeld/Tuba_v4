@@ -96,6 +96,11 @@ Choose **Solve**, then **Review**. Notebooks also run in this environment with
 `jupyter lab`. In a new Ubuntu terminal, run `conda activate tuba` before
 starting Tuba.
 
+To open a received project, extract its ZIP and use Studio's **Open Folder** or
+pass the folder containing `model.py` to the command above. See
+[Share and open a project](project-sharing.md) for source dependencies, CAD,
+mesh generation and saved results.
+
 To update the source installation, pull the desired revision and recreate the
 environment from its recipe. Avoid mixing this environment with `uv sync` or
 a Windows `.venv`.

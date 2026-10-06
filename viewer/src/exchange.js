@@ -47,7 +47,7 @@ export async function fetchIfcExport(fetcher = fetch) {
   };
 }
 
-export function initExchange(dialog, { project, catalogEntry, reload }) {
+export function initExchange(dialog, { project, catalogEntry, reload, trigger, hasUnsavedChanges = () => false }) {
   const file = dialog.querySelector("[data-ifc-file]");
   const previewButton = dialog.querySelector("[data-ifc-preview]");
   const attachButton = dialog.querySelector("[data-ifc-attach]");
@@ -63,15 +63,56 @@ export function initExchange(dialog, { project, catalogEntry, reload }) {
   let preview = null;
   let attachedId = null;
   let busy = false;
+  const packageSection = dialog.querySelector("[data-project-package]");
+  const packageResults = dialog.querySelector("[data-package-results]");
+  const packageFormat = dialog.querySelector("[data-package-format]");
+  const packageStatus = dialog.querySelector("[data-package-status]");
+  const packageExport = dialog.querySelector("[data-package-export]");
+  if (packageSection) {
+    packageSection.hidden = !project?.package?.available;
+    const previewPackage = async () => {
+      packageExport.disabled = true;
+      if (hasUnsavedChanges()) throw new Error("Save your editor changes with Update geometry before exporting the project.");
+      packageStatus.textContent = "Checking saved project files…";
+      const response = await fetch(`/api/package/preview?results=${packageResults.checked ? 1 : 0}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Project export unavailable.");
+      packageStatus.textContent = `${result.file_count} files · ${(result.size_bytes / 1024 / 1024).toFixed(2)} MiB before compression`;
+      packageExport.disabled = false;
+    };
+    packageResults.addEventListener("change", () => previewPackage().catch(error => { packageStatus.textContent = error.message; }));
+    packageExport.addEventListener("click", async () => {
+      try {
+        await previewPackage();
+        // Native downloads stream the archive instead of buffering it in JavaScript.
+        const link = document.createElement("a");
+        link.href = `/api/package/export?results=${packageResults.checked ? 1 : 0}&format=${packageFormat?.value ?? "zip"}`;
+        // The successful response supplies the download filename. An export
+        // error opens its JSON message instead of downloading a corrupt package.
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.click();
+      } catch (error) { packageStatus.textContent = error.message; }
+    });
+    packageFormat?.addEventListener("change", () => {
+      packageExport.textContent = packageFormat.value === "tgz" ? "Download .tgz" : "Download .tubaproject";
+    });
+    packageSection.refresh = () => previewPackage().catch(error => { packageStatus.textContent = error.message; });
+  }
 
   renderPublishedDownloads(dialog, catalogEntry);
 
   function say(message) { status.textContent = message; }
   function controls() {
     const available = Boolean(capability?.available);
+    const hasReferences = Boolean(capability?.references?.length);
+    if (trigger) trigger.hidden = Boolean(project) && !project.package?.available && !available && !capability?.export_available && !hasReferences;
     studioControls.hidden = !project;
     dialog.querySelector("[data-exchange-published]").hidden = Boolean(project);
-    file.hidden = previewButton.hidden = attachButton.hidden = convertButton.hidden = !project;
+    dialog.querySelector("[data-ifc-export-section]").hidden = !capability?.export_available;
+    dialog.querySelector("[data-ifc-import-section]").hidden = !available && !hasReferences;
+    file.closest("label").hidden = !project || !available;
+    file.hidden = previewButton.hidden = attachButton.hidden = convertButton.hidden = !project || !available;
     form.hidden = !project || !attachedId;
     exportLink.hidden = !project || !capability?.export_available;
     file.disabled = previewButton.disabled = attachButton.disabled = convertButton.disabled = !available || busy;
@@ -147,6 +188,7 @@ export function initExchange(dialog, { project, catalogEntry, reload }) {
   }
   async function refresh() {
     if (!project) return;
+    if (project.package?.available) await packageSection?.refresh?.();
     exportLink.hidden = true;
     try {
       capability = await fetchIfcCapability();

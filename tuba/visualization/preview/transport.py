@@ -14,6 +14,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import socket
 import struct
 import threading
@@ -108,9 +109,13 @@ class PreviewServer:
             script_get_handler=getattr(self, "get_python_script", None),
             script_post_handler=getattr(self, "execute_python_code", None),
             solve_handler=getattr(self, "start_solve", None),
+            mesh_handler=getattr(self, "mesh_jobs", None),
             project_handler=getattr(self, "project_info", None),
             profiles_handler=getattr(self, "profile_library", None),
             ifc_handler=getattr(self, "ifc_request", None),
+            geometry_handler=getattr(self, "geometry_request", None),
+            package_preview_handler=getattr(self, "package_preview", None),
+            package_export_handler=getattr(self, "package_export", None),
             project_name=getattr(getattr(self, "project", None), "name", None),
             comm_handler=getattr(self, "code_aster_commands", None),
             bound_host=self.host,
@@ -119,7 +124,7 @@ class PreviewServer:
         self.port = int(self._httpd.server_address[1])
         self._server_thread = threading.Thread(target=self._httpd.serve_forever, name="tuba-preview-http", daemon=True)
         self._server_thread.start()
-        self._last_fingerprint = file_fingerprint(self.script_path)
+        self._last_fingerprint = self.watch_fingerprint()
         # ponytail: ProjectStudioServer is the only server; its run_once is what the watcher
         # calls. Plan 7 splits this transport from the authoring session.
         self._watch_thread = threading.Thread(target=self._watch_loop, name="tuba-preview-watch", daemon=True)
@@ -142,24 +147,50 @@ class PreviewServer:
         # file itself (ProjectStudioServer's POST /api/script) updates it, so the watcher
         # does not run the same content a second time.
         while not self._stop.wait(self.poll_interval_s):
-            with self._fingerprint_lock:
-                current = file_fingerprint(self.script_path)
-                if current is None or current == self._last_fingerprint:
-                    continue
-                self._last_fingerprint = current
+            self.poll_review()
+            if not self._source_changed():
+                continue
             time.sleep(self.debounce_s)
             if not self._stop.is_set():
                 self.run_once()
 
-    def mark_saved(self, code: str) -> None:
+    def _source_changed(self) -> bool:
+        # A run in flight records the bytes it consumed when it finishes. Comparing
+        # against the fingerprint it has not written yet queued a second full run at
+        # every studio start, which then held the script lock behind the review import.
+        lock = getattr(self, "_script_lock", None)
+        if lock is not None and not lock.acquire(blocking=False):
+            return False
+        try:
+            with self._fingerprint_lock:
+                current = self.watch_fingerprint()
+                if current is None or current == self._last_fingerprint:
+                    return False
+                self._last_fingerprint = current
+                return True
+        finally:
+            if lock is not None:
+                lock.release()
+
+    def poll_review(self) -> None:
+        """Observe completed external project solves, when the host supports them."""
+
+    def mark_saved(self, code: str, expected_revision: str | None = None) -> str:
         """Persist *code* as the watched script under the fingerprint lock, so the
         server's own write is not seen as an external edit."""
         with self._fingerprint_lock:
-            # newline="": write what the client sent. Text mode on Windows turns a CRLF
-            # body into CR CR LF, and Python then counts every line twice in tracebacks.
-            self.script_path.write_text(code, encoding="utf-8", newline="")
+            from tuba.project.source import save_source, source_revision
+
+            if expected_revision is None:
+                expected_revision = source_revision(self.script_path)
+            revision = save_source(self.script_path, code, expected_revision)
             # The watcher compares against this, so it does not run the same file again.
-            self._last_fingerprint = file_fingerprint(self.script_path)
+            self._last_fingerprint = self.watch_fingerprint()
+            return revision
+
+    def watch_fingerprint(self) -> bytes | None:
+        """The dependency snapshot monitored by this preview surface."""
+        return file_fingerprint(self.script_path)
 
     # --- Handler interface -------------------------------------------------
     # ProjectStudioServer overrides each of these. Declared here so the transport
@@ -170,10 +201,10 @@ class PreviewServer:
         """Re-run the watched script after it changes on disk."""
         raise NotImplementedError("PreviewServer.run_once")
 
-    def get_python_script(self) -> str:
+    def get_python_script(self) -> dict[str, str]:
         raise NotImplementedError("PreviewServer.get_python_script")
 
-    def execute_python_code(self, code: str) -> dict[str, Any]:
+    def execute_python_code(self, code: str, *, expected_revision: str | None = None) -> dict[str, Any]:
         raise NotImplementedError("PreviewServer.execute_python_code")
 
     def start_solve(self, force: bool = False) -> tuple[int, dict[str, Any]]:
@@ -198,6 +229,10 @@ def _handler_factory(
     comm_handler: Any = None,
     bound_host: str = "127.0.0.1",
     profiles_handler: Any = None,
+    geometry_handler: Any = None,
+    mesh_handler: Any = None,
+    package_preview_handler: Any = None,
+    package_export_handler: Any = None,
 ):
     # Host names a request may address; the Host check stops DNS rebinding.
     local_hosts = {"127.0.0.1", "localhost", "::1", bound_host.lower()}
@@ -226,6 +261,40 @@ def _handler_factory(
                 self._refuse()
                 return
             parsed = urlparse(self.path)
+            if parsed.path in {"/api/package/preview", "/api/package/export"} and package_export_handler is not None:
+                if not self._same_origin():
+                    self._refuse()
+                    return
+                streaming = False
+                try:
+                    options = parse_qs(parsed.query, keep_blank_values=True)
+                    if (set(options) - {"results", "format"} or options.get("results", ["0"]) not in (["0"], ["1"])
+                            or options.get("format", ["zip"]) not in (["zip"], ["tgz"])):
+                        raise ValueError("Package takes results=0|1 and format=zip|tgz.")
+                    include_results = options.get("results") == ["1"]
+                    archive_format = options.get("format", ["zip"])[0]
+                    if parsed.path.endswith("/preview"):
+                        self._json_response(200, package_preview_handler(include_results))
+                    else:
+                        with package_export_handler(include_results, archive_format) as path, path.open("rb") as source:
+                            streaming = True
+                            self.send_response(200)
+                            self._response_headers()
+                            self.send_header("Content-Type", "application/gzip" if archive_format == "tgz" else "application/zip")
+                            self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
+                            self.send_header("Content-Length", str(path.stat().st_size))
+                            self.send_header("Cache-Control", "no-store")
+                            self.end_headers()
+                            shutil.copyfileobj(source, self.wfile)
+                except Exception as exc:
+                    if streaming:
+                        self.close_connection = True
+                    else:
+                        self._json_response(400, {"ok": False, "error": str(exc)})
+                return
+            if parsed.path in {"/api/mesh", "/api/mesh/convergence"} and mesh_handler is not None:
+                self._json_response(200, mesh_handler.status())
+                return
             if parsed.path == "/api/ifc/export" and ifc_handler is not None:
                 if not self._same_origin():
                     self._refuse()
@@ -266,8 +335,8 @@ def _handler_factory(
             if parsed.path in ("/api/script", "/model.py"):
                 if script_get_handler is not None:
                     try:
-                        code = script_get_handler()
-                        data = json.dumps({"ok": True, "code": code}).encode("utf-8")
+                        snapshot = script_get_handler()
+                        data = json.dumps({"ok": True, **snapshot}).encode("utf-8")
                         self.send_response(200)
                         self._response_headers()
                         self.send_header("Content-Type", "application/json")
@@ -291,6 +360,31 @@ def _handler_factory(
                 self._refuse()
                 return
             parsed = urlparse(self.path)
+            if parsed.path in ("/api/geometry/preview", "/api/geometry/store") and geometry_handler is not None:
+                try:
+                    size = int(self.headers.get("Content-Length", ""))
+                except ValueError:
+                    size = 0
+                if size > _MAX_BODY_BYTES:
+                    self.close_connection = True
+                    self._json_response(413, {"ok": False, "error": "Geometry upload exceeds 16 MiB"})
+                    return
+                if (size < 1 or self.headers.get("Transfer-Encoding")
+                        or self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/octet-stream"):
+                    self.close_connection = True
+                    self._json_response(400, {"ok": False, "error": "Expected bounded nonempty application/octet-stream body"})
+                    return
+                body = self.rfile.read(size)
+                if len(body) != size:
+                    self.close_connection = True
+                    self._json_response(400, {"ok": False, "error": "Geometry upload body is truncated"})
+                    return
+                status, result = geometry_handler(
+                    parsed.path.rsplit("/", 1)[1], body,
+                    self.headers.get("X-Geometry-Name", ""), self.headers.get("X-Geometry-Options", ""),
+                )
+                self._json_response(status, result)
+                return
             if parsed.path in ("/api/ifc/preview", "/api/ifc/attach", "/api/ifc/remove", "/api/ifc/convert") and ifc_handler is not None:
                 raw = self.headers.get("Content-Length")
                 try:
@@ -339,6 +433,21 @@ def _handler_factory(
                 self.end_headers()
                 self.wfile.write(data)
                 return
+            if parsed.path in {"/api/mesh", "/api/mesh/convergence"} and mesh_handler is not None:
+                try:
+                    payload = json.loads(self.rfile.read(length) if length else b"{}")
+                    if not isinstance(payload, dict) or set(payload) - {"force", "expected_source_revision"}:
+                        raise ValueError("A mesh request takes force and expected_source_revision.")
+                    force = payload.get("force", False)
+                    revision = payload.get("expected_source_revision")
+                    if not isinstance(force, bool) or (revision is not None and (isinstance(revision, bool) or not isinstance(revision, int))):
+                        raise ValueError("force must be boolean and expected_source_revision an integer.")
+                    status, result = mesh_handler.start(force=force, expected_source_revision=revision,
+                        mode="convergence" if parsed.path.endswith("/convergence") else "mesh")
+                except (ValueError, TypeError) as exc:
+                    status, result = 400, {"ok": False, "error": str(exc)}
+                self._json_response(status, result)
+                return
             if parsed.path in ("/api/script", "/model.py"):
                 body = self.rfile.read(length) if length > 0 else b"{}"
                 try:
@@ -347,9 +456,12 @@ def _handler_factory(
                     if not isinstance(code, str):
                         # A missing "code" (an empty body too) saved an empty model.py; an explicit "" still does.
                         raise ValueError('a script save needs a string "code"')
+                    expected_revision = payload.get("expected_revision")
+                    if not isinstance(expected_revision, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_revision):
+                        raise ValueError('a script save needs the "expected_revision" returned by GET /api/script')
                     if script_post_handler is not None:
-                        result = script_post_handler(code)
-                        self.send_response(200 if result.get("ok") else 400)
+                        result = script_post_handler(code, expected_revision=expected_revision)
+                        self.send_response(409 if result.get("conflict") else (200 if result.get("ok") else 400))
                         self._response_headers()
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
@@ -367,6 +479,26 @@ def _handler_factory(
             self.send_response(404)
             self._response_headers()
             self.end_headers()
+
+        def do_DELETE(self) -> None:
+            if not self._same_origin():
+                self._refuse()
+                return
+            path = urlparse(self.path).path
+            if path.startswith("/api/mesh/") and mesh_handler is not None:
+                self._json_response(*mesh_handler.cancel(path.removeprefix("/api/mesh/")))
+            else:
+                self._json_response(404, {"ok": False, "error": "No such route."})
+
+        def _json_response(self, status: int, result: dict) -> None:
+            data = json.dumps(result, allow_nan=False).encode("utf-8")
+            self.send_response(status)
+            self._response_headers()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         def _ifc_response(self, route: str, response: tuple[int, Any]) -> None:
             status, result = response

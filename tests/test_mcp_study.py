@@ -67,7 +67,8 @@ def test_init_scaffolds_a_managed_study_and_reports_the_studio(tmp_path: Path):
 
     assert res["study"] == {"exists": True, "managed": True, "load_cases": [], "missing_cases": []}
     assert res["studio"]["cmd"] == f"python -m tuba.cli_studio {model_file.parent}"
-    assert "bundle=build" in res["studio"]["viewer_url"]
+    assert res["studio"]["running"] is False
+    assert res["studio"]["viewer_url"] is None  # no fabricated default endpoint
 
     assert load_project(model_file.parent).load_study() is not None
 

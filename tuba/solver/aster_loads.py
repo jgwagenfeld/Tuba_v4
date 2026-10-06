@@ -65,6 +65,18 @@ def resolve_operation_field_groups(
     return [(element_ids, value) for value, element_ids in groups_by_value.items()]
 
 
+def resolve_region_temperature_groups(model: TubaModel, load_case: LoadCase) -> FieldGroups:
+    """Uniform temperatures on physical solid/shell regions, using operation selectors."""
+    problems = operation_fields_problem(getattr(load_case, "fields", []), model)
+    if problems:
+        raise ValueError(problems[0])
+    by_group = {}
+    for field_record in load_case.fields:
+        for region in model.resolve_operation_field_regions(field_record):
+            by_group[region.mesh_group] = float(field_record.value)
+    return [([group], value) for group, value in by_group.items()]
+
+
 def _linear_route_field_groups(
     model: TubaModel,
     load_case: LoadCase,

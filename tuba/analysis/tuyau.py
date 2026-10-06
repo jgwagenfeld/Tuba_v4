@@ -13,7 +13,7 @@ The convention, from ``AFFE_CARA_ELEM`` / ``TUYAU`` (u3.11.01):
 * sub-points run angle-fastest, one-based.
 
 Sector 0 sits on the *generatrice* - the reference direction that fixes where
-"angle zero" points. Tuba computes one per model and writes it to the ``.comm``
+"angle zero" points. Tuba writes endpoint seeds for connected pipe chains to the ``.comm``
 as ``CARA='GENE_TUYAU'`` (see ``_pipe_orientation_vector`` in
 ``tuba/solver/aster_comm.py``); :func:`read_gene_tuyau` reads that value back so
 the glyphs land where the solver's sectors actually are.
@@ -89,6 +89,48 @@ class Generatrice:
 
     def to_dict(self) -> dict[str, object]:
         return {"vector": list(self.vector), "source": self.source, "solved": self.solved}
+
+
+def read_gene_tuyau_factors(comm_text: str) -> list[tuple[tuple[str, ...] | None, Generatrice]]:
+    """Read every endpoint seed without discarding its ``GROUP_NO`` scope.
+
+    A scoped seed must contain one endpoint node; Code_Aster propagates it to
+    the connected TUYAU chain. Element groups cannot define ``GENE_TUYAU``.
+    ``None`` denotes an unscoped legacy factor, whose global interpretation is
+    retained by the solver reader only for old studies.
+    """
+    try:
+        tree = ast.parse(dedent(comm_text))
+    except SyntaxError as exc:
+        raise ValueError("GENE_TUYAU command file is not valid Python.") from exc
+    factors = []
+    for call in ast.walk(tree):
+        if not isinstance(call, ast.Call):
+            continue
+        keywords = {item.arg: item.value for item in call.keywords}
+        try:
+            cara = ast.literal_eval(keywords.get("CARA"))
+        except (ValueError, TypeError):
+            continue
+        if cara != "GENE_TUYAU":
+            continue
+        try:
+            vector = tuple(float(value) for value in ast.literal_eval(keywords.get("VALE")))
+            if len(vector) != 3 or not all(math.isfinite(value) for value in vector) or math.hypot(*vector) <= 1e-12:
+                raise ValueError("not a finite direction")
+            if "GROUP_MA" in keywords:
+                raise ValueError("requires GROUP_NO, not GROUP_MA")
+            groups = ast.literal_eval(keywords["GROUP_NO"]) if "GROUP_NO" in keywords else None
+            if isinstance(groups, str):
+                groups = (groups,)
+            if groups is not None:
+                if not isinstance(groups, (tuple, list)) or len(groups) != 1 or not isinstance(groups[0], str) or not groups[0]:
+                    raise ValueError("requires one GROUP_NO endpoint group")
+                groups = tuple(groups)
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"Invalid GENE_TUYAU endpoint factor: {exc}.") from exc
+        factors.append((groups, Generatrice(vector, GENERATRICE_SOLVED)))
+    return factors
 
 
 def solve_generatrice(comm_text: str | None) -> Generatrice:

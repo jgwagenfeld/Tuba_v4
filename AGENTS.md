@@ -17,6 +17,11 @@ surfaces only.
 
 ## Concurrent Work
 
+Commit locally by default. Never push to `origin` or any other remote unless
+the user explicitly asks for that push. A request to commit, merge, finish,
+or publish artifacts does not authorize pushing Git commits. This applies
+to shell commands, tools, APIs, and automated workflows initiated by agents.
+
 Use an isolated worktree for multi-file work while another session uses the
 checkout. Inspect current HEAD and staged/unstaged changes before committing.
 Use explicit owned pathspecs for staging and ordinary commits; never use

@@ -43,6 +43,15 @@ function state({ steps = ["Hot", "Cold"], quantities = ["stress"] } = {}) {
 
 const stressField = { field: "max_von_mises", unit: "Pa", result_type: "stress", load_case: "Hot" };
 
+test("governing steps retain stage labels and distinguish nearby increments", () => {
+  const staged = state();
+  staged.resultStates.forEach((overlay, i) => {
+    overlay.name = "Result state Hot";
+    overlay.data.metadata = { stage_label: "Hot", pseudo_time: 100 + i * .001 };
+  });
+  assert.deepEqual(envelopeResultStates(staged).map(step => step.label), ["Hot / 100", "Hot / 100.001"]);
+});
+
 test("an envelope needs more than one result step to be an envelope", () => {
   assert.equal(envelopeAvailable(state()), true);
   assert.equal(envelopeAvailable(state({ steps: ["Hot"] })), false);

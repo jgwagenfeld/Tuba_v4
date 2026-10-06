@@ -42,8 +42,10 @@ const BODY_SPECS = Object.freeze([
   },
   {
     id: "analysis_mesh",
-    label: "Analysis mesh",
-    description: "Elements on the centerline. No surface exists - the tube is swept from section properties.",
+    label: "FE mesh",
+    // Replaced per scene by meshDescription: what the mesh is depends on its
+    // dimensions, and a volume skin is a real surface.
+    description: "The elements the solver received.",
     supportsOpacity: true
   },
   {
@@ -78,6 +80,18 @@ const OVERLAY_SPECS = Object.freeze([
     label: "Supports & BCs",
     description: "Restraints and boundary conditions as the solver received them.",
     layerIds: ["support"]
+  },
+  {
+    // Supports that drive their node rather than hold it. The builder files
+    // them on their own layer (builders/_objects.py IMPOSED_DISPLACEMENT_LAYER),
+    // so the row only appears when the scene prescribes a movement.
+    id: "imposed_displacement",
+    label: "Imposed displacements",
+    // No compile detail: the volume and mixed studies impose it exactly
+    // (DDL_IMPO) and the line-model compiler refuses it, so no single sentence
+    // about how it is solved would be true.
+    description: "Supports that move their node by a prescribed displacement (an input, not a result).",
+    layerIds: ["support:imposed_displacement"]
   },
   {
     id: "support_link",
@@ -140,6 +154,23 @@ const OVERLAY_SPECS = Object.freeze([
     stateKey: "referenceGridVisible"
   }
 ]);
+
+// What the mark in the viewport is actually reporting, which is not the same
+// question as what the body is.
+const BODY_LEGEND_NOTE = Object.freeze({
+  insulation: "physical",
+  geometry: "surface, interpolated",
+  analysis_mesh: "cell values",
+  subpoints: "measured",
+  deformed: "display scale only"
+});
+
+// The viewport key's line for a body. A body added without a note reads as its
+// label alone, never "— undefined".
+export function bodyLegendText(body) {
+  const note = BODY_LEGEND_NOTE[body.id];
+  return note ? `${body.label} — ${note}` : body.label;
+}
 
 // The steps the scale chip cycles. Inside the 0-5 range the vector sliders
 // already used, so a chip and a slider can never disagree about what is legal.
@@ -214,7 +245,10 @@ export function bodyIdForLayerId(layerId, declaredCategory = null) {
   if (id.startsWith("physical_envelope:") || id === "overlay:physical_envelope") return null;
   if (id.includes("tuyau_subpoint")) return "subpoints";
   if (id.startsWith("deformed:")) return "deformed";
-  if (id === "analysis_mesh:helpers") return null;
+  // Sizing samples, refinement targets and problem cells are diagnostics the
+  // mesh panel switches on one by one. As part of the body, the Mesh button lit
+  // 256 sizing samples that read as hundreds of FE nodes.
+  if (id === "analysis_mesh:helpers" || id.startsWith("analysis_mesh:review:")) return null;
   const category = categoryForLayerId(id, declaredCategory);
   if (category === "design") return "geometry";
   if (category === "analysis_mesh") return "analysis_mesh";
@@ -243,8 +277,9 @@ export function getBodies(state) {
       layerIds: gates.map((layer) => layer.id),
       visible: visibles.every(Boolean),
       partiallyVisible: !visibles.every(Boolean) && visibles.some(Boolean),
+      description: spec.id === "analysis_mesh" ? meshDescription(state) : spec.description,
       opacity: spec.supportsOpacity ? bodyOpacity(state, spec.id) : 1,
-      badge: badgeForBody(state, spec.id),
+      status: statusForBody(state, spec.id, gates),
       metrics: metricsForBody(state, spec.id)
     });
   }
@@ -254,16 +289,11 @@ export function getBodies(state) {
 export function setBodyVisibility(state, bodyId, visible) {
   const body = getBodies(state).find((candidate) => candidate.id === bodyId);
   if (!body) return state;
-  let nextState = setLayersVisible(state, body.layerIds, visible);
-  if (bodyId === "analysis_mesh") {
-    const currentGeoOpacity = bodyOpacity(nextState, "geometry");
-    if (visible && Math.abs(currentGeoOpacity - 1.0) < 1e-4) {
-      nextState = setBodyOpacity(nextState, "geometry", 0.35);
-    } else if (!visible && Math.abs(currentGeoOpacity - 0.35) < 1e-4) {
-      nextState = setBodyOpacity(nextState, "geometry", 1.0);
-    }
-  }
-  return nextState;
+  // Visibility only. Showing the mesh used to drop Geometry to 35% as a side
+  // effect - off the opacity steps, and against the rule above that an opacity
+  // must not shift as other bodies toggle. The mesh lines are drawn without a
+  // depth test, so they read through opaque geometry anyway.
+  return setLayersVisible(state, body.layerIds, visible);
 }
 
 export function setBodyOpacity(state, bodyId, opacity) {
@@ -361,22 +391,57 @@ export function getDiscretisationCheck(state) {
   return getMeshIdentity(state)?.discretisation ?? null;
 }
 
-function badgeForBody(state, bodyId) {
-  if (bodyId === "insulation") return { text: "physical", tone: "neutral" };
-  if (bodyId === "geometry") return { text: "3D solid", tone: "neutral" };
-  if (bodyId === "analysis_mesh") {
-    const dim = getMeshIdentity(state)?.topological_dim;
-    return Number.isFinite(dim) && dim >= 0
-      ? { text: `${dim}D`, tone: "accent" }
-      : { text: "mesh", tone: "neutral" };
+// The one line a row shows without being opened: what the checkbox cannot
+// say. A half-ticked box says "some of this is hidden" and nothing about which
+// part; the deformed shape is drawn at a scale nobody would guess.
+function statusForBody(state, bodyId, gates) {
+  const parts = bodyId === "deformed" ? deformedStatus(state) : [];
+  const partial = partialVisibilityReason(gates);
+  if (partial) parts.push(partial);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+// Named from the layers' own labels, so the reason is what the layer tree
+// shows. Per-group layers are selections of the same elements and would crowd
+// out the layers that actually differ, so they are not named.
+function partialVisibilityReason(gates) {
+  const shownCount = gates.filter((layer) => layer.visible !== false).length;
+  if (shownCount === 0 || shownCount === gates.length) return null;
+  const named = gates.filter((layer) => !String(layer.id).includes(":group:"));
+  const names = (layers) => {
+    const labels = [...new Set(layers.map((layer) => layer.label || layer.id))];
+    return labels.length > 3 ? `${labels.slice(0, 3).join(", ")} +${labels.length - 3}` : labels.join(", ");
+  };
+  const shown = named.filter((layer) => layer.visible !== false);
+  const hidden = named.filter((layer) => layer.visible === false);
+  const parts = [];
+  if (shown.length > 0) parts.push(`${names(shown)} shown`);
+  if (hidden.length > 0) parts.push(`${names(hidden)} hidden`);
+  // Unnamed, but never unmentioned: with every named layer on, a hidden group
+  // is the whole reason the box is half-ticked.
+  if (gates.some((layer) => String(layer.id).includes(":group:") && layer.visible === false)) {
+    parts.push("some groups hidden");
   }
-  if (bodyId === "subpoints") {
-    // 1D topology, results recovered around and through the wall. "2.5D" is
-    // the shorthand the layer-structure design record uses for exactly this.
-    return { text: "2.5D", tone: "accent" };
-  }
-  const stateType = deformedGeometryState(state)?.data?.state_type;
-  return { text: stateType ? String(stateType).toUpperCase() : "deformed", tone: "neutral" };
+  return parts.join(" · ");
+}
+
+// The state the shape belongs to, in the scene's own words, and the scale it
+// is drawn at. The scale used to sit behind the caret and the state was shouted
+// in capitals.
+function deformedStatus(state) {
+  const data = deformedGeometryState(state)?.data ?? {};
+  const stateType = String(data.state_type ?? "");
+  // "deformed" restates the row's own name, so it is not a state name.
+  const name = data.load_case ?? (stateType && stateType !== "deformed"
+    ? stateType.charAt(0).toUpperCase() + stateType.slice(1)
+    : null);
+  const parts = name ? [String(name)] : [];
+  // The scale the shape is *drawn* at, not the one the bundle was built at: the
+  // deform slider overrides the latter, and a row claiming x50 while the bar
+  // reads x1 is the kind of mismatch a screenshot carries away.
+  const scale = getVisualDeformationDisplayScale(state);
+  if (scale > 1) parts.push(`×${formatNumber(scale)} · display only`);
+  return parts;
 }
 
 function metricsForBody(state, bodyId) {
@@ -386,9 +451,11 @@ function metricsForBody(state, bodyId) {
       return spec ? [`${spec.material} · ${formatQuantity(spec.thickness_m, "m", getUnitSystem(state))}`] : [];
     }))];
   }
-  if (bodyId === "geometry") return geometryMetrics(state);
+  if (bodyId === "geometry") return ["3D solid", ...geometryMetrics(state)];
   if (bodyId === "analysis_mesh") return meshMetrics(state);
-  if (bodyId === "subpoints") return subpointMetrics(state);
+  // 1D topology, results recovered around and through the wall. "2.5D" is the
+  // shorthand the layer-structure design record uses for exactly this.
+  if (bodyId === "subpoints") return ["2.5D: 1D elements, stress through the wall", ...subpointMetrics(state)];
   return deformedMetrics(state);
 }
 
@@ -436,20 +503,50 @@ function sectionDimensions(objects, system) {
   return parts.length > 0 ? `${parts.join(" · ")} ${displayUnit("m", system)}` : null;
 }
 
+// Every dimension the mesh has, not the highest: a tee meshed as a 3D solid
+// with TUYAU legs is "1D + 3D", and a lone "3D" hid the pipe elements.
+function meshDimensions(identity) {
+  const dims = [...new Set((identity?.modelisations ?? [])
+    .map((entry) => entry.topological_dim)
+    .filter((dim) => Number.isFinite(dim) && dim >= 0))].sort();
+  if (dims.length === 0 && Number.isFinite(identity?.topological_dim)) dims.push(identity.topological_dim);
+  return dims;
+}
+
+const MESH_DIMENSION_WORDS = Object.freeze({
+  1: "pipe and beam elements on the centerline",
+  2: "shell elements on the mid-surface",
+  3: "solid elements, drawn as their outer skin"
+});
+
+// The row's tooltip. "No surface exists" is only true of a line mesh: a solid
+// mesh draws its skin, and a cut opens it to the elements inside.
+export function meshDescription(state) {
+  const dims = meshDimensions(getMeshIdentity(state));
+  const words = dims.map((dim) => MESH_DIMENSION_WORDS[dim]).filter(Boolean);
+  if (words.length === 0) return "The elements the solver received.";
+  const text = words.join("; ");
+  const swept = dims.length === 1 && dims[0] === 1 ? " The tube is swept from section properties." : "";
+  return `${text[0].toUpperCase()}${text.slice(1)}.${swept}`;
+}
+
 function meshMetrics(state) {
   const identity = getMeshIdentity(state);
   if (!identity) return [];
+  const dims = meshDimensions(identity);
+  const lines = dims.length > 0 ? [`Mesh: ${dims.map((dim) => `${dim}D`).join(" + ")}`] : [];
   const parts = [];
-  const family = identity.element_families?.[0];
-  if (family) {
-    parts.push(`${family.element_count} ${family.family}`);
+  const families = identity.element_families ?? [];
+  if (families.length > 0) {
+    parts.push(families.map((family) => `${family.element_count} ${family.family}`).join(" · "));
   } else if (Number.isFinite(identity.element_count)) {
     parts.push(`${identity.element_count} elements`);
   }
   if (Number.isFinite(identity.node_count)) parts.push(`${identity.node_count} nodes`);
   const modelisations = (identity.modelisations ?? []).map((entry) => entry.modelisation).filter(Boolean);
   if (modelisations.length > 0) parts.push(modelisations.join(" + "));
-  return parts.length > 0 ? [parts.join(" · ")] : [];
+  if (parts.length > 0) lines.push(parts.join(" · "));
+  return lines;
 }
 
 // --- how the sub-point field is drawn ---------------------------------------
@@ -467,14 +564,14 @@ function meshMetrics(state) {
 //
 //   measured  every point, depth-tested, at its wall position. Complete, and
 //             honest about the occlusion.
-//   peak      only points in the top of the colour range, drawn through the pipe
+//   peak      only points at or above a cut on the colour range, drawn through the pipe
 //             (x-ray). Fewer marks, so the ones that survive are readable, and
 //             legible through the wall - which is the whole point, because the
 //             worst stations are often in the bore.
 
 export const SUBPOINT_MODES = Object.freeze([
-  { id: "peak", label: "Peak", xray: true, description: "Top of the range, drawn through the wall." },
-  { id: "measured", label: "Measured", xray: false, description: "Every sub-point, at the wall, complete." }
+  { id: "peak", label: "Hot spots", xray: true, description: "Only points at or above the cut, drawn through the wall." },
+  { id: "measured", label: "All points", xray: false, description: "Every sub-point, at the wall, complete." }
 ]);
 
 // What fraction of the colour range has to be exceeded before a point is drawn in
@@ -544,6 +641,12 @@ export function hasSubpointValue(value) {
   return Number.isFinite(Number(value));
 }
 
+// The cut keeps points at or above this fraction of the range maximum - at 80%
+// that is the worst fifth of the range, not the "top 80%" this used to read.
+export function subpointThresholdLabel(state) {
+  return `≥ ${Math.round(subpointThreshold(state) * 100)}% of max`;
+}
+
 export function subpointThresholdValue(fraction, rangeMax) {
   if (!Number.isFinite(fraction) || !Number.isFinite(rangeMax)) return null;
   return Number(rangeMax) * Math.min(Math.max(fraction, 0), 1);
@@ -559,8 +662,11 @@ function subpointRangeMax(state) {
   const config = subpointFieldConfig(state);
   const configMax = Number(config?.range?.max ?? config?.legend?.range?.max);
   if (Number.isFinite(configMax)) return configMax;
-  const values = (config?.values ?? []).filter(hasSubpointValue).map(Number);
-  return values.length > 0 ? Math.max(...values) : null;
+  let max = -Infinity;
+  for (const value of config?.values ?? []) {
+    if (hasSubpointValue(value)) max = Math.max(max, Number(value));
+  }
+  return max === -Infinity ? null : max;
 }
 
 export function subpointValueCutoff(state) {
@@ -816,7 +922,7 @@ function subpointMetrics(state) {
   if (Number.isFinite(drawn)) {
     // Say so when fewer points reach the screen than the scene read: a silently
     // thinned field reads as complete coverage.
-    const prefix = cutoff === null ? "" : `top ${Math.round(subpointThreshold(state) * 100)}% · `;
+    const prefix = cutoff === null ? "" : `${subpointThresholdLabel(state)} · `;
     metrics.push(
       Number.isFinite(total) && total > drawn
         ? `${prefix}${drawn} of ${total} points drawn`
@@ -847,21 +953,12 @@ function subpointMetrics(state) {
   return metrics;
 }
 
+// The display scale is on the row itself (deformedStatus), not repeated here.
 function deformedMetrics(state) {
-  const metrics = [];
   const peak = peakDisplacement(state);
-  if (peak) {
-    const magnitude = formatQuantity(peak.value, "m", getUnitSystem(state));
-    metrics.push(`max |D| ${magnitude}${peak.nodeId ? ` at ${peak.nodeId}` : ""}`);
-  }
-  // The scale the shape is *drawn* at, not the one the bundle was built at: the
-  // deform slider overrides the latter, and a body claiming x50 while the bar
-  // reads x1 is the kind of mismatch a screenshot carries away.
-  const scale = getVisualDeformationDisplayScale(state);
-  if (scale > 1) {
-    metrics.push(`drawn at ×${formatNumber(scale)} (display only)`);
-  }
-  return metrics;
+  if (!peak) return [];
+  const magnitude = formatQuantity(peak.value, "m", getUnitSystem(state));
+  return [`max |D| ${magnitude}${peak.nodeId ? ` at ${peak.nodeId}` : ""}`];
 }
 
 function peakDisplacement(state) {
@@ -878,7 +975,7 @@ function peakDisplacement(state) {
 }
 
 // The deformed body draws whichever geometry state carries deformed layers, so
-// its badge and scale must describe that state. Reading the *active* state made
+// its state name and scale must describe that state. Reading the *active* state made
 // the body announce itself as COLD whenever the cold state happened to be
 // selected, which is the one thing it is definitely not showing.
 function deformedGeometryState(state) {

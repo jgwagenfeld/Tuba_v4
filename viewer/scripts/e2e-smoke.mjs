@@ -124,6 +124,54 @@ async function framebufferSnapshot(canvas) {
 }
 
 const scenarios = {
+  "compact-connections": {
+    bundle: "/test/fixtures/smoke_scene",
+    minimumObjects: 1,
+    async beforeNavigate(page) {
+      await page.route("**/smoke_scene/scene.json", async route => {
+        const response = await route.fetch();
+        const scene = await response.json();
+        for (const [id, status] of [["resolved", "meshed"], ["unresolved", "authored"]]) {
+          scene.objects.push({
+            id, name: id, kind: "interface_mapping", entity_ref: `coupling:${id}`,
+            metadata: {
+              owner_refs: ["element:pipe_smoke"], source_ref: "element:pipe_smoke", target_ref: `port:${id}`,
+              model_mapping: "1D pipe ↔ 3D solid", interface_mapping: "0D endpoint ↔ 2D cut face",
+              method: "LIAISON_ELEM / 3D_TUYAU", status, target_geometry_available: status === "meshed",
+              face_group: "G_END_N2", node_group: "G_NODE_N2", element_ids: ["VS1"], node_ids: ["VN1", "VN2", "VN3"]
+            }
+          });
+        }
+        await route.fulfill({ response, json: scene });
+      });
+    },
+    async run(page) {
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await openReviewControls(page);
+      await page.locator("[data-objects-section]").evaluate(details => { details.open = true; });
+      await page.locator('button[data-object-id="object:element:pipe_smoke"]').click();
+      const details = page.locator('[data-mapping-details="interface_mapping:resolved"]');
+      const section = details.locator("..");
+      assert.deepEqual(await section.locator(":scope > table th").allTextContents(), ["Model coupling", "Source", "Target", "Status"]);
+      assert.equal(await details.evaluate(element => element.open), false);
+      assert.equal(await details.getByText("G_END_N2", { exact: true }).isVisible(), false);
+      const collapsedHeight = (await section.boundingBox()).height;
+      await details.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      assert.equal(await details.getByText("G_END_N2", { exact: true }).isVisible(), true);
+      assert.match(await details.textContent(), /3D_TUYAU/);
+      assert.match(await details.textContent(), /Mapped cells1Mapped nodes3/);
+      assert.ok((await section.boundingBox()).height > collapsedHeight + 100);
+      await page.locator("[data-unit-system]").click();
+      assert.equal(await details.evaluate(element => element.open), true, "panel refresh preserves expanded mapping details");
+      await details.locator("summary").click();
+      assert.equal(await details.getByText("G_END_N2", { exact: true }).isVisible(), false);
+      const unresolved = page.locator('[data-mapping-details="interface_mapping:unresolved"]').locator("..");
+      assert.equal(await unresolved.getByText("Authored footprint; mesh membership unresolved", { exact: true }).isVisible(), true);
+      assert.equal(await unresolved.getByText("Unavailable; selected surface cannot be highlighted", { exact: true }).isVisible(), true);
+      assert.equal(await unresolved.getByText("Mapped nodes", { exact: true }).count(), 0);
+    }
+  },
   "number-display": {
     bundle: "/code-aster-review",
     minimumObjects: 1,
@@ -235,6 +283,38 @@ const scenarios = {
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
   },
+  "context-menu": {
+    bundle: "code-aster-review",
+    minimumObjects: 1,
+    beforeNavigate: captureUnexpectedBrowserEvents,
+    async run(page) {
+      const canvas = page.locator("[data-canvas]");
+      const actions = page.locator("[data-selection-tools]");
+      const menu = page.getByRole("menu", { name: "Component actions", exact: true });
+      assert.equal(await actions.isVisible(), false, "selection actions must not cover the viewport");
+      await canvas.click({ button: "right" });
+      assert.equal(await menu.isVisible(), true);
+      assert.equal(await actions.locator("button").count(), 7);
+      const picker = page.locator("[data-pick-open]");
+      if (await picker.isEnabled()) {
+        await picker.press("ArrowRight");
+        const stack = page.getByRole("menu", { name: "Select Other", exact: true });
+        assert.equal(await stack.isVisible(), true);
+        await stack.press("Escape");
+        assert.equal(await stack.isVisible(), false);
+        assert.equal(await menu.isVisible(), true);
+      }
+      await menu.press("Escape");
+      assert.equal(await actions.isVisible(), false);
+      await canvas.press("Shift+F10");
+      assert.equal(await menu.isVisible(), true);
+      await menu.press("End");
+      await page.locator('[data-selection-action="find"]').press("Enter");
+      assert.equal(await menu.isVisible(), false);
+      assert.equal(await page.locator("[data-search]").evaluate(el => el === document.activeElement), true);
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
   "colour-context": {
     bundle: "profile-orientation-review",
     minimumObjects: 30,
@@ -315,11 +395,8 @@ const scenarios = {
     async run(page) {
       await openReviewControls(page);
       const canvas = page.locator("[data-canvas]");
-      // The section box is a secondary control, folded into a drawer so the
-      // bodies panel owns the rail. Open it before the first framebuffer
-      // sample: every snapshot below is compared against another, so the
-      // layout has to be identical across all of them.
-      await page.locator('[data-rail-tool="section"]').click();
+      // Cut view lives in the Display palette, which floats over the canvas,
+      // so opening it later changes no framebuffer sample below.
       const baseline = await framebufferFingerprint(canvas);
       const baselineSnapshot = await framebufferSnapshot(canvas);
       // The camera controls show a glyph and name the view they set, so the
@@ -357,22 +434,23 @@ const scenarios = {
       const zoomSnapshot = await framebufferSnapshot(canvas);
       assert.notEqual(zoomSnapshot.hash, viewFingerprint, "zoom must redraw the framebuffer");
 
-      const sectionEnabled = page.getByLabel("Enable section");
-      await sectionEnabled.focus();
+      const palette = page.locator("[data-display-palette]");
+      if (!(await palette.evaluate((el) => el.open))) await palette.locator(":scope > summary").click();
+      const custom = palette.getByRole("radio", { name: "Custom", exact: true });
+      await custom.focus();
       await page.keyboard.press("Space");
-      await page.waitForFunction(() => Boolean(window.__tubaViewer?.state?.sectionBox));
-      assert.equal(await sectionEnabled.evaluate((node) => document.activeElement === node), true, "section toggle must retain focus");
-      await page.keyboard.press("Tab");
-      const sectionMin = page.getByLabel("Section X min");
-      assert.equal(await sectionMin.evaluate((node) => document.activeElement === node), true, "Tab must reach the first section input");
-      await sectionMin.fill("-0.05");
-      await page.keyboard.press("Tab");
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.min?.[0] === -0.05);
-      const sectionMax = page.getByLabel("Section X max");
-      assert.equal(await sectionMax.evaluate((node) => document.activeElement === node), true, "field editing must retain sequential Tab focus");
-      await sectionMax.fill("1.5");
-      await sectionMax.press("Enter");
-      await page.waitForFunction(() => (window.__tubaViewer?.state?.sectionBox?.max?.[0] ?? 0) === 1.5);
+      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.mode === "custom");
+      assert.equal(await custom.evaluate((node) => document.activeElement === node), true, "the cut mode must retain focus");
+      const fullBox = await page.evaluate(() => window.__tubaViewer.state.sectionBox);
+      const sectionMin = palette.getByRole("slider", { name: "X min", exact: true });
+      await sectionMin.focus();
+      for (let press = 0; press < 10; press += 1) await page.keyboard.press("ArrowRight");
+      await page.waitForFunction((start) => window.__tubaViewer?.state?.sectionBox?.min?.[0] > start, fullBox.min[0]);
+      assert.equal(await sectionMin.evaluate((node) => document.activeElement === node), true, "a handle must keep focus across renders");
+      const sectionMax = palette.getByRole("slider", { name: "X max", exact: true });
+      await sectionMax.focus();
+      for (let press = 0; press < 10; press += 1) await page.keyboard.press("ArrowLeft");
+      await page.waitForFunction((start) => window.__tubaViewer?.state?.sectionBox?.max?.[0] < start, fullBox.max[0]);
       assert.ok(
         (await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? [])).includes("object:element:pipe_smoke"),
         "a pipe crossing the section box remains renderable for fragment clipping"
@@ -380,7 +458,8 @@ const scenarios = {
       const sectionSnapshot = await framebufferSnapshot(canvas);
       assert.notEqual(sectionSnapshot.hash, zoomSnapshot.hash, "sectioning must change the framebuffer");
 
-      await page.getByRole("button", { name: "Reset section", exact: true }).click();
+      // Off is the reset.
+      await palette.getByRole("radio", { name: "Off", exact: true }).check();
       await page.waitForFunction(() => !window.__tubaViewer?.state?.sectionBox);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const resetSnapshot = await framebufferSnapshot(canvas);
@@ -712,13 +791,13 @@ const scenarios = {
     minimumObjects: 1,
     async run(page) {
       await openReviewControls(page);
-      // Analysis mesh is a body; the clash marker is an annotation and lives in
+      // The FE mesh is a body; the clash marker is an annotation and lives in
       // the layer tree.
       await page.locator(".layer-tree").evaluate((details) => {
         details.open = true;
       });
       await setLayerLeaves(page, /Clash \(\d+\)/, true);
-      await page.getByLabel(/^\s*Analysis mesh\s*$/).check();
+      await page.getByLabel(/^\s*FE mesh\s*$/).check();
       await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).length === 3);
       // The object list is no longer a collapsed disclosure. Clicking the always
       // visible search field opens the finder that owns it.
@@ -790,10 +869,8 @@ const scenarios = {
       // The coloring channel lives in the pinned "Colour by" control; the result
       // refinements (case, component, deformation, hotspots) hang off it.
       assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Hot");
-      // This bundle declares no result_fields, so the panel still offers the
-      // result-state picker; the bar's field selector takes over when a scene
-      // does carry a catalogue.
-      assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
+      // A single result for this case adds no Step choice; Case identifies it.
+      assert.equal(await page.getByRole("combobox", { name: "Step", exact: true }).count(), 0);
       // Stored pascals, read as MPa: 6.00e+6 / 5.70e+7 Pa show as 6 / 57 MPa.
       assert.match(await page.locator("[data-result-legend]").textContent(), /max_von_mises: 6 - 57 MPa/);
       assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 57 MPa/);
@@ -1148,7 +1225,7 @@ const scenarios = {
         await page.locator("[data-body-list] input").evaluateAll((inputs) =>
           inputs.map((input) => input.getAttribute("aria-label"))
         ),
-        ["Geometry", "Analysis mesh", "Sub-points", "Deformed mesh"]
+        ["Geometry", "FE mesh", "Sub-points", "Deformed mesh"]
       );
       // The categories survive intact, one level down in the All layers row at
       // the foot of the same list. The tree is rendered whether or not the row
@@ -1157,7 +1234,7 @@ const scenarios = {
         await page.locator("[data-layer-list] h3").evaluateAll((headings) =>
           headings.map((heading) => heading.textContent)
         ),
-        ["Design", "Analysis mesh", "Results", "Annotations"]
+        ["Design", "FE mesh", "Results", "Annotations"]
       );
 
       const field = page.getByRole("combobox", { name: "Colour the scene by" });
@@ -1170,16 +1247,17 @@ const scenarios = {
       assert.ok(internalForceOptions.length <= 1);
       if (internalForceOptions.length) {
         assert.deepEqual(internalForceOptions, [
-          { label: "Section Forces (EFGE ELNO) (elements)", value: internalForceValue }
+          { label: "Section forces (elements)", value: internalForceValue }
         ]);
       }
       assert.deepEqual(
         fieldOptions.filter(option => option.value !== internalForceValue),
         [
-          { label: "Default (Role)", value: "model:default" },
+          { label: "Role", value: "model:default" },
           { label: "Section", value: "model:section" },
           { label: "Material", value: "model:material" },
           { label: "Group", value: "model:group" },
+          { label: "Pipe run", value: "model:route" },
           { label: "Insulation", value: "model:insulation" },
           { label: "Von Mises stress (elements)", value: "field:solver_result:stress:result_state:Operating" },
           { label: "User reference ratio (not a code check) (elements)", value: "field:solver_result:user_reference_ratio:result_state:Operating" },
@@ -1238,9 +1316,9 @@ const scenarios = {
       assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
 
       await openIssuesTask(page);
-      const warnings = await page.locator("[data-diagnostic-list]").textContent();
-      assert.match(warnings, /visualization\.code_aster_artifacts\.rmed_read_failed/);
-      assert.match(warnings, /Unable to synchronously open object/);
+      const diagnostics = await page.locator("[data-diagnostic-list]").textContent();
+      assert.match(diagnostics, /PROVENANCE_RESULT_STATE/);
+      assert.doesNotMatch(diagnostics, /rmed_read_failed|Unable to synchronously open object/);
 
       const positiveZ = page.getByRole("button", { name: "Look down +Z", exact: true });
       await positiveZ.focus();
@@ -1249,19 +1327,17 @@ const scenarios = {
         const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
         return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
       });
-      // The section box is a secondary tool in the rail popover now.
-      await openReviewControls(page);
-      await page.locator('[data-rail-tool="section"]').click();
-      const sectionEnabled = page.getByLabel("Enable section", { exact: true });
-      await sectionEnabled.focus();
-      await page.keyboard.press("Space");
-      await page.waitForFunction(() => Boolean(window.__tubaViewer?.state?.sectionBox));
-      await page.keyboard.press("Tab");
-      const sectionMin = page.getByLabel("Section X min", { exact: true });
+      // Cut view lives in the Display palette.
+      const palette = page.locator("[data-display-palette]");
+      if (!(await palette.evaluate((el) => el.open))) await palette.locator(":scope > summary").click();
+      await palette.getByRole("radio", { name: "Custom", exact: true }).check();
+      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.mode === "custom");
+      const fullMin = await page.evaluate(() => window.__tubaViewer.state.sectionBox.min[0]);
+      const sectionMin = palette.getByRole("slider", { name: "X min", exact: true });
+      await sectionMin.focus();
+      await page.keyboard.press("ArrowRight");
+      await page.waitForFunction((start) => window.__tubaViewer?.state?.sectionBox?.min?.[0] > start, fullMin);
       assert.equal(await sectionMin.evaluate((input) => document.activeElement === input), true);
-      await sectionMin.fill("0");
-      await sectionMin.press("Enter");
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.min?.[0] === 0);
 
       assert.equal(await page.locator("[data-canvas]").getAttribute("data-render-diagnostics"), "0");
       assert.deepEqual(await page.evaluate(() => window.__tubaViewer?.lastRender?.diagnostics ?? []), []);
@@ -1325,7 +1401,7 @@ const scenarios = {
 
       // Exercise hover coalescing with the analysis mesh visible.
       await page.locator("summary").filter({ hasText: /^Display$/ }).click();
-      await page.getByLabel("Analysis mesh", { exact: true }).check();
+      await page.getByLabel("FE mesh", { exact: true }).check();
       await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.renderableCount ?? 0) > 50);
 
       const hoverBurst = await page.locator("[data-canvas]").evaluate((canvas) => {
@@ -1451,7 +1527,7 @@ const scenarios = {
         "field:solver_result:tuyau_subpoints:result_state:Operating"
       );
       await page.waitForFunction(() => window.__tubaViewer?.resultReview?.legend?.field === "Von Mises stress (wall points)");
-      assert.match(await page.locator("[data-compliance-notice]").textContent(), /FE stress - not ASME code stress/);
+      assert.match(await page.locator("[data-applicability-fact]").textContent(), /FE stress - not ASME code stress/);
 
       const deformedState = page.getByRole("combobox", { name: "Deformed state", exact: true });
       await deformedState.selectOption("geometry_state:Operating:physical");
@@ -1599,6 +1675,7 @@ const scenarios = {
   }
 };
 scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/", bundle: "code-aster-review" };
+scenarios["pages-compact-connections"] = { ...scenarios["compact-connections"], path: "/viewer/", bundle: "../smoke_scene" };
 const selected = scenarios[scenario];
 
 if (!selected) {

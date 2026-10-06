@@ -1,5 +1,5 @@
 setting '--memory' value to 7372.80 MB (keyword RESERVE_MEMOIRE)
-copying '/mnt/d/Gitprojects/Tuba_v4/examples/pipe-tee-volume-review/.tuba/staging/Operating/study.med' to 'fort.20'...
+copying '/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/study.med' to 'fort.20'...
 Ouverture en écriture du fichier ./vola.1
 
 <INFO> Démarrage de l'exécution.
@@ -9,11 +9,11 @@ Ouverture en écriture du fichier ./vola.1
                                     révision n/a - branche 'n/a'                                    
                                      Copyright EDF 1991 - 2026                                      
                                                                                                     
-                              Exécution du : Sat Sep 19 17:22:07 2026                               
+                              Exécution du : Tue Oct  6 17:24:09 2026                               
                                 Nom de la machine : DESKTOP-QH6C3T8                                 
                                         Architecture : 64bit                                        
                                     Type de processeur : x86_64                                     
-      Système d'exploitation : Linux-5.15.153.1-microsoft-standard-WSL2-x86_64-with-glibc2.39       
+       Système d'exploitation : Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.39       
                                   Langue des messages : C (UTF-8)                                   
                                      Version de Python : 3.14.6                                     
                                       Version de NumPy : 2.4.6                                      
@@ -65,21 +65,23 @@ Nom de la base                          :  ELEMBASE
 
 Relecture des catalogues des éléments faite.
 
-Fin de lecture (durée  0.313934  s.) 
+Fin de lecture (durée  0.089938  s.) 
 
                       Mémoire limite pour l'allocation dynamique : 7884.86 Mo                       
-                         ajouté à l'initialisation du processus : 558.62 Mo                         
-                               Limite cible du processus : 8443.47 Mo                               
+                         ajouté à l'initialisation du processus : 558.68 Mo                         
+                               Limite cible du processus : 8443.54 Mo                               
                          Taille limite des fichiers d'échange : 2048.00 Go                          
-/tmp/run_aster_a4e74h61/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/.aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
   DEBUT(PAR_LOT='NON');
-# Mémoire (Mo) :   558.62 /   549.55 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0001   user+syst:        0.06s (syst:        0.69s, elaps:        0.74s)
+# Mémoire (Mo) :   558.68 /   549.59 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0001   user+syst:        0.06s (syst:        0.24s, elaps:        1.37s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt14
 # ----------------------------------------------------------------------------------------------
-# Commande #0002 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 14
+# Commande #0002 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 14
 MAIL = LIRE_MAILLAGE(FORMAT='MED',
                      INFO=1,
                      INFO_MED=0,
@@ -88,7 +90,7 @@ MAIL = LIRE_MAILLAGE(FORMAT='MED',
                      VERI_MAIL=_F(APLAT=0.001,
                                   VERIF='OUI'))
 
-Nom MED du maillage : tuba_pipe_volume_9b53584c7d284c5b84cc400dcdc50a64
+Nom MED du maillage : tuba_pipe_volume_845ee9a127fe4c66896e5eb6685a289e
 
 
 ------------ MAILLAGE 00000001 - IMPRESSIONS NIVEAU  1 ------------
@@ -108,15 +110,17 @@ NOMBRE DE GROUPES DE MAILLES               8
 Vérification du maillage.
 
 # Résultat commande #0002 (LIRE_MAILLAGE): MAIL ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   669.23 /   558.88 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0002   user+syst:        0.65s (syst:        0.14s, elaps:        0.79s)
+# Mémoire (Mo) :   669.26 /   558.90 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0002   user+syst:        0.25s (syst:        0.11s, elaps:        0.42s)
 # ----------------------------------------------------------------------------------------------
-/tmp/run_aster_a4e74h61/study.comm.changed.py:15: DeprecationWarning: This feature has a new implementation, 'MODI_MAILLAGE/ORIE_PEAU_2D(3D)=_F(GROUP_MA=(...), GROUP_MA_SURF(VOLU)=(...))' will be removed in the future. Use MODI_MAILLAGE/ORIE_PEAU=_F(GROUP_MA_PEAU=(...), GROUP_MA_INTERNE=(...))
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/.aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py:15: DeprecationWarning: This feature has a new implementation, 'MODI_MAILLAGE/ORIE_PEAU_2D(3D)=_F(GROUP_MA=(...), GROUP_MA_SURF(VOLU)=(...))' will be removed in the future. Use MODI_MAILLAGE/ORIE_PEAU=_F(GROUP_MA_PEAU=(...), GROUP_MA_INTERNE=(...))
   MAIL = MODI_MAILLAGE(
 
 .. _stg1_txt15
 # ----------------------------------------------------------------------------------------------
-# Commande #0003 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 15
+# Commande #0003 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 15
 MAIL = MODI_MAILLAGE(INFO=1,
                      MAILLAGE=MAIL,
                      ORIE_PEAU=_F(GROUP_MA_INTERNE='G_SOLID_region_0',
@@ -135,13 +139,15 @@ TRAITEMENT DU GROUP_MA: G_END_N3                 DE     198 MAILLES
                               0 MAILLE(S) ONT ETE ORIENTEE(S)
 AU TOTAL    2532 MAILLE(S) ORIENTEE(S) 
 # Résultat commande #0003 (MODI_MAILLAGE): MAIL ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   669.23 /   558.88 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0003   user+syst:        0.43s (syst:        0.03s, elaps:        0.45s)
+# Mémoire (Mo) :   669.26 /   558.90 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0003   user+syst:        0.20s (syst:        0.01s, elaps:        0.21s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt23
 # ----------------------------------------------------------------------------------------------
-# Commande #0004 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 23
+# Commande #0004 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 23
 MAIL = DEFI_GROUP(ALARME='OUI',
                   CREA_GROUP_NO=(_F(NOEUD='13',
                                     NOM='G_NODE_N1'),
@@ -176,13 +182,15 @@ NOMBRE  DE GROUPES DE NOEUDS CREES :      6
                ------------------------------------------------------
 
 # Résultat commande #0004 (DEFI_GROUP): MAIL ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   669.23 /   559.88 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0004   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
+# Mémoire (Mo) :   669.26 /   559.90 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0004   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt35
 # ----------------------------------------------------------------------------------------------
-# Commande #0005 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 35
+# Commande #0005 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 35
 MODELE = AFFE_MODELE(AFFE=(_F(GROUP_MA=('G_SOLID_region_0', 'G_INNER_region_0', 'G_OUTER_region_0', 'G_END_N1', 'G_END_N2', 'G_END_N3'),
                               MODELISATION='3D',
                               PHENOMENE='MECANIQUE'),
@@ -204,15 +212,17 @@ Modélisation     Formulation      Type maille  Élément fini     Nombre
 _                _                QUAD8        MECA_FACE8       5982
 3D               _                HEXA20       MECA_HEXA20      11252
 TUYAU_3M         _                SEG3         MET3SEG3         84
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.13      0.00      0.13
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.05      0.00      0.05
 # Résultat commande #0005 (AFFE_MODELE): MODELE ('<00000002>') de type <Model>
-# Mémoire (Mo) :   694.37 /   693.59 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0005   user+syst:        0.48s (syst:        0.00s, elaps:        0.49s)
+# Mémoire (Mo) :   694.39 /   693.61 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0005   user+syst:        0.18s (syst:        0.00s, elaps:        0.18s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt42
 # ----------------------------------------------------------------------------------------------
-# Commande #0006 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 42
+# Commande #0006 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 42
 MAT = DEFI_MATERIAU(ELAS=_F(ALPHA=0.0,
                             B_ENDOGE=0.0,
                             COEF_AMOR=1.0,
@@ -223,26 +233,30 @@ MAT = DEFI_MATERIAU(ELAS=_F(ALPHA=0.0,
                     INFO=1)
 
 # Résultat commande #0006 (DEFI_MATERIAU): MAT ('<00000003>') de type <Material>
-# Mémoire (Mo) :   694.37 /   693.59 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0006   user+syst:        0.12s (syst:        0.00s, elaps:        0.11s)
+# Mémoire (Mo) :   694.39 /   693.61 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0006   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt50
 # ----------------------------------------------------------------------------------------------
-# Commande #0007 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 50
+# Commande #0007 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 50
 CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT,
                               TOUT='OUI'),
                       INFO=1,
                       MAILLAGE=MAIL)
 
 # Résultat commande #0007 (AFFE_MATERIAU): CHMAT ('<00000004>') de type <MaterialField>
-# Mémoire (Mo) :   694.37 /   693.59 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0007   user+syst:        0.12s (syst:        0.00s, elaps:        0.12s)
+# Mémoire (Mo) :   694.39 /   693.61 /   213.62 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0007   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt54
+.. _stg1_txt56
 # ----------------------------------------------------------------------------------------------
-# Commande #0008 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 54
+# Commande #0008 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 56
 CARA = AFFE_CARA_ELEM(INFO=1,
                       MODELE=MODELE,
                       ORIENTATION=(_F(CARA='GENE_TUYAU',
@@ -279,13 +293,15 @@ CARA = AFFE_CARA_ELEM(INFO=1,
 # Résultat commande #0008 (AFFE_CARA_ELEM): CARA ('<00000005>') de type <ElementaryCharacteristics>
 # Dépend de :
 # - MODELE ('<00000002>') de type <Model>
-# Mémoire (Mo) :   698.62 /   693.99 /   218.07 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0008   user+syst:        0.15s (syst:        0.00s, elaps:        0.15s)
+# Mémoire (Mo) :   698.64 /   694.01 /   218.07 /   206.03 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0008   user+syst:        0.06s (syst:        0.01s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt80
+.. _stg1_txt79
 # ----------------------------------------------------------------------------------------------
-# Commande #0009 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 80
+# Commande #0009 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 79
 BC = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                 GROUP_NO='G_NODE_N4',
                                 WO=0.0),
@@ -319,17 +335,19 @@ Le système linéaire à résoudre a 171501 degrés de liberté:
      (ils sont portés par 56141 noeuds du maillage)
    - 0 sont les couples de paramètres de Lagrange associés
      aux 0 relations linéaires dualisées.
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.10      0.00      0.11
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.06      0.01      0.07
 # Résultat commande #0009 (AFFE_CHAR_MECA): BC ('<00000006>') de type <MechanicalLoadReal>
 # Dépend de :
 # - CARA ('<00000005>') de type <ElementaryCharacteristics>
-# Mémoire (Mo) :   740.12 /   727.43 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0009   user+syst:        1.99s (syst:        0.02s, elaps:        2.00s)
+# Mémoire (Mo) :   740.14 /   727.45 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0009   user+syst:        0.89s (syst:        0.08s, elaps:        0.97s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt109
+.. _stg1_txt108
 # ----------------------------------------------------------------------------------------------
-# Commande #0010 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 109
+# Commande #0010 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 108
 POINT_FORCE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                              FORCE_NODALE=_F(FX=0.0,
                                              FY=0.0,
@@ -345,13 +363,15 @@ POINT_FORCE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                              VERI_NORM='OUI')
 
 # Résultat commande #0010 (AFFE_CHAR_MECA): POINT_FORCE ('<00000007>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   740.12 /   732.15 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0010   user+syst:        0.02s (syst:        0.01s, elaps:        0.02s)
+# Mémoire (Mo) :   740.14 /   732.17 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0010   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt123
+.. _stg1_txt122
 # ----------------------------------------------------------------------------------------------
-# Commande #0011 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 123
+# Commande #0011 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 122
 PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           FORCE_TUYAU=_F(GROUP_MA='G_TUBE',
                                          PRES=1000000.0),
@@ -364,13 +384,15 @@ PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           VERI_NORM='OUI')
 
 # Résultat commande #0011 (AFFE_CHAR_MECA): PRESSURE ('<00000008>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   740.12 /   732.15 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0011   user+syst:        0.13s (syst:        0.00s, elaps:        0.13s)
+# Mémoire (Mo) :   740.14 /   732.17 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0011   user+syst:        0.04s (syst:        0.00s, elaps:        0.04s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt134
+.. _stg1_txt133
 # ----------------------------------------------------------------------------------------------
-# Commande #0012 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 134
+# Commande #0012 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 133
 GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          INFO=1,
                          MODELE=MODELE,
@@ -381,13 +403,15 @@ GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          VERI_NORM='OUI')
 
 # Résultat commande #0012 (AFFE_CHAR_MECA): GRAVITY ('<00000009>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   740.12 /   732.15 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0012   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# Mémoire (Mo) :   740.14 /   732.17 /   258.85 /   223.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0012   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt138
+.. _stg1_txt137
 # ----------------------------------------------------------------------------------------------
-# Commande #0013 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 138
+# Commande #0013 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 137
 RESU = MECA_STATIQUE(CARA_ELEM=CARA,
                      CHAM_MATER=CHMAT,
                      EXCIT=(_F(CHARGE=BC,
@@ -431,8 +455,8 @@ n'est pas symétrique.
 Champ stocké <DEPL> à l'instant  0.000000000000e+00 pour le numéro d'ordre 1
 Champ stocké <SIEF_ELGA> à l'instant  0.000000000000e+00 pour le numéro d'ordre 1
 # Résultat commande #0013 (MECA_STATIQUE): RESU ('<0000000a>') de type <ElasticResult>
-# Mémoire (Mo) :  3276.55 /   877.18 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0013   user+syst:       14.83s (syst:        0.96s, elaps:       15.95s)
+# Mémoire (Mo) :  3276.59 /   877.22 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0013   user+syst:       11.05s (syst:        1.03s, elaps:       13.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt183
@@ -454,15 +478,17 @@ Le système linéaire à résoudre a 171641 degrés de liberté:
      (ils sont portés par 56141 noeuds du maillage)
    - 140 sont les couples de paramètres de Lagrange associés
      aux 70 relations linéaires dualisées.
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.95      0.03      0.96
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.96      0.02      0.95
 # Résultat commande #0014 (CALC_CHAMP): RESU ('<0000000a>') de type <ElasticResult>
-# Mémoire (Mo) :  3276.55 /   958.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0014   user+syst:        1.18s (syst:        0.03s, elaps:        1.22s)
+# Mémoire (Mo) :  3276.59 /   921.66 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0014   user+syst:        1.09s (syst:        0.03s, elaps:        1.12s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt151
+.. _stg1_txt150
 # ----------------------------------------------------------------------------------------------
-# Commande #0015 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 151
+# Commande #0015 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 150
 IMPR_RESU(FICHIER_UNIQUE='NON',
           FORMAT='MED',
           INFO=1,
@@ -492,13 +518,15 @@ Création du fichier au format MED 3.3.1.
      Dans certains cas, le fichier MED produit peut devenir volumineux. Dans ce
      cas, l'utilisation du mot-clé NOM_CMP est conseillée.
 
-# Mémoire (Mo) :  3276.55 /   958.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0015   user+syst:        0.47s (syst:        0.04s, elaps:        0.52s)
+# Mémoire (Mo) :  3276.59 /   921.66 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0015   user+syst:        0.56s (syst:        0.17s, elaps:        1.93s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt156
+.. _stg1_txt155
 # ----------------------------------------------------------------------------------------------
-# Commande #0016 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 156
+# Commande #0016 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 155
 TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INTITULE='RESU',
                               NOM_CHAM='DEPL',
@@ -509,13 +537,15 @@ TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0016 (CREA_TABLE): TAB_DEPL ('<00000039>') de type <Table>
-# Mémoire (Mo) :  3276.55 /   958.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0016   user+syst:        0.95s (syst:        0.00s, elaps:        0.96s)
+# Mémoire (Mo) :  3276.59 /   921.66 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0016   user+syst:        1.06s (syst:        0.01s, elaps:        1.07s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt160
+.. _stg1_txt159
 # ----------------------------------------------------------------------------------------------
-# Commande #0017 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 160
+# Commande #0017 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 159
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -529,13 +559,15 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_DEPL,
            UNITE=39)
 
-# Mémoire (Mo) :  3276.55 /   961.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0017   user+syst:        0.64s (syst:        0.03s, elaps:        0.66s)
+# Mémoire (Mo) :  3276.59 /   924.66 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0017   user+syst:        0.70s (syst:        0.07s, elaps:        0.80s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt161
+.. _stg1_txt160
 # ----------------------------------------------------------------------------------------------
-# Commande #0018 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 161
+# Commande #0018 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 160
 TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INTITULE='RESU',
                               NOM_CHAM='REAC_NODA',
@@ -546,13 +578,15 @@ TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0018 (CREA_TABLE): TAB_REAC ('<0000003a>') de type <Table>
-# Mémoire (Mo) :  3276.55 /   961.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0018   user+syst:        1.43s (syst:        0.00s, elaps:        1.45s)
+# Mémoire (Mo) :  3276.59 /   939.61 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0018   user+syst:        1.04s (syst:        0.02s, elaps:        1.06s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt165
+.. _stg1_txt164
 # ----------------------------------------------------------------------------------------------
-# Commande #0019 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 165
+# Commande #0019 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 164
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -566,13 +600,15 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_REAC,
            UNITE=40)
 
-# Mémoire (Mo) :  3276.55 /   963.36 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0019   user+syst:        0.72s (syst:        0.05s, elaps:        0.76s)
+# Mémoire (Mo) :  3276.59 /   941.61 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0019   user+syst:        0.76s (syst:        0.07s, elaps:        0.89s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt166
+.. _stg1_txt165
 # ----------------------------------------------------------------------------------------------
-# Commande #0020 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 166
+# Commande #0020 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 165
 TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INTITULE='RESU',
                               NOM_CHAM='SIEQ_ELNO',
@@ -583,13 +619,15 @@ TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0020 (CREA_TABLE): TAB_SIEQ ('<0000003b>') de type <Table>
-# Mémoire (Mo) :  3276.55 /  1012.71 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0020   user+syst:        3.27s (syst:        0.07s, elaps:        3.34s)
+# Mémoire (Mo) :  3276.59 /  1002.95 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0020   user+syst:        2.92s (syst:        0.15s, elaps:        3.07s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt170
+.. _stg1_txt169
 # ----------------------------------------------------------------------------------------------
-# Commande #0021 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 170
+# Commande #0021 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 169
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -603,30 +641,34 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_SIEQ,
            UNITE=41)
 
-# Mémoire (Mo) :  3276.55 /  1018.71 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0021   user+syst:        3.06s (syst:        0.25s, elaps:        3.31s)
+# Mémoire (Mo) :  3276.59 /  1008.95 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0021   user+syst:        3.02s (syst:        0.49s, elaps:        3.77s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt171
+.. _stg1_txt170
 # ----------------------------------------------------------------------------------------------
-# Commande #0022 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 171
+# Commande #0022 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 170
 TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
+                              GROUP_MA='G_TUBE',
                               INTITULE='RESU',
                               NOM_CHAM='EFGE_ELNO',
                               NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
                               PRECISION=1e-06,
-                              RESULTAT=RESU,
-                              TOUT='OUI'),
+                              RESULTAT=RESU),
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0022 (CREA_TABLE): TAB_EFFO ('<0000003c>') de type <Table>
-# Mémoire (Mo) :  3276.55 /  1018.71 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0022   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
+# Mémoire (Mo) :  3276.59 /  1008.95 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0022   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt175
+.. _stg1_txt174
 # ----------------------------------------------------------------------------------------------
-# Commande #0023 de /tmp/run_aster_a4e74h61/study.comm.changed.py, ligne 175
+# Commande #0023 de
+/mnt/d/tmp/tuba-red-tests/examples/pipe-tee-volume-review/.tuba/staging/Operating/
+aster-work/14f971698e1949e1a5b8178868a26842/study.comm.changed.py, ligne 174
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -640,7 +682,7 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_EFFO,
            UNITE=38)
 
-# Mémoire (Mo) :  3276.55 /  1018.71 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :  3276.59 /  1008.95 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0023   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
 # ----------------------------------------------------------------------------------------------
 
@@ -668,15 +710,15 @@ No database in results, objects not saved on processor #0
   
  <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     386.28 Mo
  <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     579.44 Mo
- <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :    3276.55 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :    3276.59 Mo
   
  <I>       FERMETURE DES BASES EFFECTUEE
   
    STATISTIQUES CONCERNANT L'ALLOCATION DYNAMIQUE :
      TAILLE CUMULEE MAXIMUM            :                  579  Mo.
      TAILLE CUMULEE LIBEREE            :                  237  Mo.
-     NOMBRE TOTAL D'ALLOCATIONS        :               523036
-     NOMBRE TOTAL DE LIBERATIONS       :               522247
+     NOMBRE TOTAL D'ALLOCATIONS        :               523044
+     NOMBRE TOTAL DE LIBERATIONS       :               522255
      APPELS AU MECANISME DE LIBERATION :                    0
      TAILLE MEMOIRE CUMULEE RECUPEREE  :                  151  Mo.
      VOLUME DES LECTURES               :                    0  Mo.
@@ -688,11 +730,11 @@ No database in results, objects not saved on processor #0
    MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     579.44 Mo
      - LIMITE LES ACCES DISQUE
      - AMELIORE LA VITESSE D'EXECUTION
-   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :    3276.55 Mo
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :    3276.59 Mo
      - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
        LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
   
- <I>       FIN D'EXECUTION LE : SA-19-SEPT-2026 17:22:41
+ <I>       FIN D'EXECUTION LE : MA-06-OCTO-2026 17:24:40
 INFO './glob.1' deleted
 Deleting './glob.2': No such file or directory
 INFO './vola.1' deleted
@@ -701,43 +743,43 @@ Deleting './vola.2': No such file or directory
  ********************************************************************************
  * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
  ********************************************************************************
- * DEBUT                    :       0.06 :       0.69 :       0.75 :       0.74 *
- * LIRE_MAILLAGE            :       0.65 :       0.14 :       0.79 :       0.79 *
- * MODI_MAILLAGE            :       0.43 :       0.03 :       0.46 :       0.45 *
- * DEFI_GROUP               :       0.06 :       0.00 :       0.06 :       0.06 *
- * AFFE_MODELE              :       0.48 :       0.00 :       0.48 :       0.49 *
- * DEFI_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.11 *
- * AFFE_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.12 *
- * AFFE_CARA_ELEM           :       0.15 :       0.00 :       0.15 :       0.15 *
- * AFFE_CHAR_MECA           :       1.99 :       0.02 :       2.01 :       2.00 *
- * AFFE_CHAR_MECA           :       0.02 :       0.01 :       0.03 :       0.02 *
- * AFFE_CHAR_MECA           :       0.13 :       0.00 :       0.13 :       0.13 *
+ * DEBUT                    :       0.06 :       0.24 :       0.30 :       1.37 *
+ * LIRE_MAILLAGE            :       0.25 :       0.11 :       0.36 :       0.42 *
+ * MODI_MAILLAGE            :       0.20 :       0.01 :       0.21 :       0.21 *
+ * DEFI_GROUP               :       0.01 :       0.00 :       0.01 :       0.02 *
+ * AFFE_MODELE              :       0.18 :       0.00 :       0.18 :       0.18 *
+ * DEFI_MATERIAU            :       0.05 :       0.00 :       0.05 :       0.05 *
+ * AFFE_MATERIAU            :       0.06 :       0.00 :       0.06 :       0.06 *
+ * AFFE_CARA_ELEM           :       0.06 :       0.01 :       0.07 :       0.07 *
+ * AFFE_CHAR_MECA           :       0.89 :       0.08 :       0.97 :       0.97 *
  * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
- * MECA_STATIQUE            :      14.83 :       0.96 :      15.79 :      15.95 *
- * CALC_CHAMP               :       1.18 :       0.03 :       1.21 :       1.22 *
- * IMPR_RESU                :       0.47 :       0.04 :       0.51 :       0.52 *
- * CREA_TABLE               :       0.95 :       0.00 :       0.95 :       0.96 *
- * IMPR_TABLE               :       0.64 :       0.03 :       0.67 :       0.66 *
- * CREA_TABLE               :       1.43 :       0.00 :       1.43 :       1.45 *
- * IMPR_TABLE               :       0.72 :       0.05 :       0.77 :       0.76 *
- * CREA_TABLE               :       3.27 :       0.07 :       3.34 :       3.34 *
- * IMPR_TABLE               :       3.06 :       0.25 :       3.31 :       3.31 *
- * CREA_TABLE               :       0.06 :       0.00 :       0.06 :       0.06 *
+ * AFFE_CHAR_MECA           :       0.04 :       0.00 :       0.04 :       0.04 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.00 *
+ * MECA_STATIQUE            :      11.05 :       1.03 :      12.08 :      13.00 *
+ * CALC_CHAMP               :       1.09 :       0.03 :       1.12 :       1.12 *
+ * IMPR_RESU                :       0.56 :       0.17 :       0.73 :       1.93 *
+ * CREA_TABLE               :       1.06 :       0.01 :       1.07 :       1.07 *
+ * IMPR_TABLE               :       0.70 :       0.07 :       0.77 :       0.80 *
+ * CREA_TABLE               :       1.04 :       0.02 :       1.06 :       1.06 *
+ * IMPR_TABLE               :       0.76 :       0.07 :       0.83 :       0.89 *
+ * CREA_TABLE               :       2.92 :       0.15 :       3.07 :       3.07 *
+ * IMPR_TABLE               :       3.02 :       0.49 :       3.51 :       3.77 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
  * IMPR_TABLE               :       0.05 :       0.00 :       0.05 :       0.05 *
- * FIN                      :       0.05 :       0.00 :       0.05 :       0.05 *
+ * FIN                      :       0.05 :       0.00 :       0.05 :       0.59 *
  *  . sdveri                :       0.00 :       0.00 :       0.00 :       0.00 *
- *  . check syntax          :       0.12 :       0.00 :       0.12 :       0.15 *
- *  . fortran               :      10.59 :       0.89 :      11.48 :      11.47 *
- *  . cleanup               :       0.44 :       0.01 :       0.45 :       0.44 *
+ *  . check syntax          :       0.03 :       0.00 :       0.03 :       0.04 *
+ *  . fortran               :       8.14 :       0.72 :       8.86 :      11.62 *
+ *  . cleanup               :       0.32 :       0.00 :       0.32 :       0.31 *
  ********************************************************************************
- * TOTAL_JOB                :      31.05 :       2.35 :      33.40 :      33.95 *
+ * TOTAL_JOB                :      24.21 :       2.50 :      26.71 :      30.98 *
  ********************************************************************************
 
-# Mémoire (Mo) :  3276.55 /  1017.71 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0024   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :  3276.59 /  1008.95 /   579.44 /   386.28 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0024   user+syst:        0.05s (syst:        0.00s, elaps:        0.59s)
 # ----------------------------------------------------------------------------------------------
 
-EXECUTION_CODE_ASTER_EXIT_8437=0
+EXECUTION_CODE_ASTER_EXIT_482=0
 
 
 

@@ -88,7 +88,8 @@ def test_expected_identity_never_meshes(monkeypatch):
         _pressure_pipe(), "Pressure", volume_export={"element_ids": ["pipe_0"], "max_element_size": 0.005}
     )
 
-    assert identity.compiler_id == "tuba.code_aster.volume.v2"
+    from tuba.analysis.provenance import VOLUME_CODE_ASTER_COMPILER_ID
+    assert identity.compiler_id == VOLUME_CODE_ASTER_COMPILER_ID
 
 
 def _copy_rack_evidence(tmp_path: Path) -> Path:

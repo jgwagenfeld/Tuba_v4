@@ -1,20 +1,37 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Box3, BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import { Box3, BoxGeometry, Color, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Sprite, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
-import { colorForScalarValue } from "../src/resultReview.js";
-import { SUPPORT_PART_COLORS } from "../src/supportGlyphs.js";
-// Support glyphs are achromatic: hue belongs to the vector convention, where it
-// says authored-input vs Code_Aster-result. The tests below assert that rule
-// through this one constant rather than repeating a literal per part.
-const SUPPORT_NEUTRAL = Number.parseInt(SUPPORT_PART_COLORS.restraint.slice(1), 16);
+import { colorForScalarValue, getScalarLegend } from "../src/resultReview.js";
+import { SUPPORT_BUILD_COLORS, SUPPORT_GROUND_COLOR, SUPPORT_REVIEW_COLORS } from "../src/supportGlyphs.js";
+import { applySectionBox } from "../src/controls.js";
+import { createViewerState, setLayerVisibility } from "../src/sceneLoader.js";
+
+test("mesh diagnostics preserve requested-size colours and exact x-ray bounds", () => {
+  const asset = { id: "geometry:mesh_problem", format: "aabb", bounds: [0,0,0,.1,.1,.1], object_ids: ["object:mesh_problem"],
+    generation_config: { source: "tuba.analysis_mesh.review", color: "#dc2626", opacity: .25 } };
+  const state = { objects: [{ id: "object:mesh_problem", kind: "mesh_problem" }], geometryAssets: [asset], visibleObjectIds: ["object:mesh_problem"] };
+  assert.equal(prepareAssetRenderConfig(asset, {}, state).color, "#dc2626");
+  const graph = createThreeSceneGraph(state);
+  const rendered = graph.objectsByObjectId.get("object:mesh_problem");
+  assert.ok(rendered);
+  rendered.traverse(part => { if (part.material) assert.equal(part.material.depthTest, false); });
+  applySelectionHighlight(graph, ["object:mesh_problem"]);
+  assert.equal(rendered.material.color.getHexString(), "dc2626", "selection keeps the requested colour");
+  disposeThreeSceneGraph(graph);
+});
+// In Review (the default stage) support glyphs are achromatic: hue belongs to
+// the results, where it says authored-input vs Code_Aster-result. The tests
+// below assert that rule through this one constant rather than a literal per part.
+const SUPPORT_NEUTRAL = Number.parseInt(SUPPORT_REVIEW_COLORS.restraint.slice(1), 16);
 
 import {
   SUPPORTED_RENDER_FORMATS,
   applyVisualDeformationScale,
   applyHoverHighlight,
   applySelectionHighlight,
+  applySupportStage,
   createThreeSceneGraph,
   disposeThreeSceneGraph,
   fitCameraToBounds,
@@ -26,7 +43,10 @@ import {
   pickRenderedPoint,
   prepareAssetRenderConfig,
   sectionBoxClippingPlanes,
-  applySectionBoxClipping
+  applySectionBoxClipping,
+  applyValueLabelVisibility,
+  scaleValueLabels,
+  updateSceneGraphBounds
 } from "../src/renderer.js";
 
 function fixtureState() {
@@ -150,8 +170,66 @@ test("the ground grid answers to its flag, and the lights do not", () => {
   assert.equal(lightsOf(on).length, 2);
 
   const off = createThreeSceneGraph({ ...fixtureState(), referenceGridVisible: false }).scene;
-  assert.equal(gridOf(off).length, 0);
+  assert.equal(gridOf(off).filter((grid) => grid.visible).length, 0);
   assert.equal(lightsOf(off).length, 2, "the lights are not optional");
+});
+
+// The row flipped the flag, but the cached graph kept the grid it was built
+// with. Rebuilding for it was correct but cost a full graph (a 56k-node skin)
+// per click; the visibility pass flips the grid instead.
+test("toggling the ground grid hides and shows it without rebuilding the graph", () => {
+  const gridOf = (graph) => graph.scene.children.find((child) => child.type === "GridHelper");
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph, disposeThreeSceneGraph);
+  const state = fixtureState();
+  const graph = cache.get(state);
+  assert.equal(gridOf(graph).visible, true);
+  const hidden = { ...state, referenceGridVisible: false };
+  assert.equal(cache.get(hidden), graph, "no rebuild");
+  rendererModule.updateSceneGraphVisibility(graph, hidden);
+  assert.equal(gridOf(graph).visible, false);
+  const shown = { ...state, referenceGridVisible: true };
+  assert.equal(cache.get(shown), graph);
+  rendererModule.updateSceneGraphVisibility(graph, shown);
+  assert.equal(gridOf(graph).visible, true);
+  cache.clear();
+});
+
+// Only the prescribed-displacement badge is drawn in display units, so only a
+// scene with one rebuilds when the units change.
+test("a unit switch rebuilds the graph only when a prescribed badge needs redrawing", () => {
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph, disposeThreeSceneGraph);
+  const plain = { ...fixtureState(), unitSystem: "si" };
+  const graph = cache.get(plain);
+  assert.equal(cache.get({ ...plain, unitSystem: "engineering" }), graph, "nothing drawn in units: no rebuild");
+  const prescribed = {
+    ...plain,
+    geometryAssets: [...plain.geometryAssets, {
+      id: "geometry:support:p", format: "point", bounds: [0, 0, 0, 0, 0, 0], object_ids: ["object:support:p"],
+      generation_config: { point: [0, 0, 0], source: "tuba.support", imposed_displacement: [0, 0, 0.08] }
+    }],
+    visibleObjectIds: [...plain.visibleObjectIds, "object:support:p"]
+  };
+  const withBadge = cache.get(prescribed);
+  assert.notEqual(cache.get({ ...prescribed, unitSystem: "engineering" }), withBadge, "the badge is redrawn in the new units");
+  cache.clear();
+});
+
+test("source triangulation toggles only its imported surface and invalidates the cached graph", () => {
+  const state = fixtureState();
+  const source = state.geometryAssets.find(asset => asset.id === "geometry:mesh");
+  state.geometryAssets.push({ ...source, id: "second", object_ids: ["second"] });
+  state.visibleObjectIds.push("second");
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph, disposeThreeSceneGraph);
+  const initial = cache.get(state);
+  assert.equal(initial.objectsByObjectId.get("object:mesh").children.some(child => child.isLineSegments), false);
+  const withMesh = cache.get({ ...state, sourceMeshObjectIds: ["object:mesh"] });
+  assert.ok(withMesh !== initial);
+  assert.equal(withMesh.objectsByObjectId.get("object:mesh").children.some(child => child.isLineSegments), true);
+  assert.equal(withMesh.objectsByObjectId.get("second").children.some(child => child.isLineSegments), false);
+  assert.equal(source.generation_config.show_edges, undefined);
+  const cleared = cache.get({ ...state, sourceMeshObjectIds: [] });
+  assert.equal(cleared.objectsByObjectId.get("object:mesh").children.some(child => child.isLineSegments), false);
+  cache.clear();
 });
 
 test("mesh vertex values render as a scalar-colored surface", () => {
@@ -164,7 +242,12 @@ test("mesh vertex values render as a scalar-colored surface", () => {
   const mesh = graph.objectsByObjectId.get("object:mesh");
 
   assert.equal(mesh.material.vertexColors, true);
-  assert.equal(mesh.geometry.getAttribute("color").count, 4);
+  assert.equal(mesh.geometry.getAttribute("color").count, 6);
+  // Both faces retain the same scalar color at their duplicated corner.
+  const colors = mesh.geometry.getAttribute("color");
+  const sources = mesh.geometry.userData.sourceVertexIndices;
+  assert.deepEqual(Array.from(colors.array.slice(0,3)),
+    Array.from(colors.array.slice(sources.lastIndexOf(0)*3,sources.lastIndexOf(0)*3+3)));
 });
 
 test("analysis mesh at 100 percent opacity is actually opaque", () => {
@@ -205,7 +288,7 @@ test("analysis surface mesh triangulates quadrilateral fills without drawing dia
   assert.equal(edges.material.color.getHex(), 0x1f2937);
 });
 
-test("section box reveals the internal volume-element edges", () => {
+test("a cut reveals the internal volume-element edges", () => {
   const state = fixtureState();
   const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");
   asset.generation_config.volume_vertices = [
@@ -377,7 +460,7 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
   );
   for (const glyph of glyphs) {
     const size = new Box3().setFromObject(glyph).getSize(new Vector3());
-    assert.ok(Math.max(size.x, size.y, size.z) >= 0.15, `${glyph.userData.supportGlyph} remains visible`);
+    assert.ok(Math.max(size.x, size.y, size.z) >= 0.1, `${glyph.userData.supportGlyph} remains visible`);
       for (const part of glyph.children) {
         assert.equal(part.material.wireframe, false);
         assert.equal(part.material.color.getHex(), SUPPORT_NEUTRAL);
@@ -435,6 +518,46 @@ test("rest support with friction generates contact shoe pad and friction badge",
 
   const guides = pad.children.find((c) => c.name === "sliding-plane-guides");
   assert.ok(guides, "sliding plane guides created on shoe pad");
+});
+
+// Sticking/sliding is a Code_Aster result, not one of the authored values Show
+// values hides; hiding the μ badge used to take the state icon with it.
+test("hiding values keeps a shoe's solved contact state on screen", () => {
+  const texts = [];
+  const canvasFactory = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({
+      fillRect() {}, beginPath() {}, roundRect() {}, fill() {}, stroke() {},
+      fillText(text) { texts.push(text); },
+      measureText: (text) => ({ width: text.length * 16 })
+    })
+  });
+  const contact = { support_id: "shoe", node_id: "N1", normal: [0, 0, 1], status: "sliding", normal_force: 1000,
+    tangential_force: [300, 0, 0], gap: 0, relative_displacement: [0.002, 0, 0], slip: [0.002, 0, 0], friction_limit: 300, utilization: 1 };
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 5, 1, 1],
+    resultStates: [{ kind: "result_state", id: "rs", data: { id: "rs", load_case: "Op", contact_results: { shoe: contact } } }],
+    activeResultStateId: "rs",
+    geometryAssets: [{
+      id: "geometry:support:shoe", format: "point", bounds: [2, 0, 0, 2, 0, 0], object_ids: ["object:support:shoe"],
+      generation_config: { point: [2, 0, 0], source: "tuba.support", support_id: "shoe", support_type: "rest", friction_coefficient: 0.3, contact_normal: [0, 0, 1] }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:shoe"]
+  }, { canvasFactory });
+  const glyph = graph.objectsByObjectId.get("object:support:shoe");
+  const badge = glyph.children.find((part) => part.userData.supportPart === "friction-badge");
+  const state = glyph.children.find((part) => part.userData.supportPart === "friction-state");
+  assert.ok(texts.includes("➜ μ = 0.30"));
+  assert.ok(state?.isSprite && texts.includes("➜"), "an icon-only stand-in exists");
+
+  applyValueLabelVisibility(graph, false);
+  assert.equal(badge.visible, false, "the μ value goes");
+  assert.equal(state.visible, true, "the solved state stays");
+  applyValueLabelVisibility(graph, true);
+  assert.equal(badge.visible, true);
+  assert.equal(state.visible, false, "one badge at a time");
 });
 
 test("ground hatch hugs the glyph underside instead of floating below it", () => {
@@ -548,6 +671,45 @@ test("a support glyph clears the pipe radius the asset carries", () => {
   );
 });
 
+test("a support glyph follows its pipe, not the model span", () => {
+  // A span-driven size gave an 80 mm pipe on a 40 m plant a 1.8 m restraint star.
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 40, 1, 1],
+    geometryAssets: [{
+      id: "geometry:support:joint",
+      format: "point",
+      bounds: [2, 0, 0, 2, 0, 0],
+      object_ids: ["object:support:joint"],
+      generation_config: { point: [2, 0, 0], source: "tuba.support", support_type: "custom", blocked_dof: [1, 1, 1, 0, 0, 0], radius_m: 0.04 }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:joint"]
+  });
+
+  const size = new Box3().setFromObject(graph.objectsByObjectId.get("object:support:joint")).getSize(new Vector3());
+  assert.ok(Math.max(size.x, size.y, size.z) <= 0.7, `glyph ${size.x} x ${size.z} dwarfs the 0.08 pipe`);
+});
+
+test("a support acting through a rigid patch draws no larger than the patch", () => {
+  // A lug support on a 10 m tower: no pipe on its node, so the span floor would
+  // draw a star about 0.37 m across around a 0.15 m lug patch.
+  const glyph = (extra) => {
+    const graph = createThreeSceneGraph({
+      bounds: [0, -5, 0, 1, 5, 10],
+      geometryAssets: [{
+        id: "geometry:support:lug", format: "point", bounds: [0, 0, 6, 0, 0, 6], object_ids: ["object:support:lug"],
+        generation_config: { point: [0, 0, 6], source: "tuba.support", support_type: "custom", blocked_dof: [1, 0, 1, 0, 0, 0], ...extra }
+      }],
+      geometryPayloads: [],
+      visibleObjectIds: ["object:support:lug"]
+    });
+    const size = new Box3().setFromObject(graph.objectsByObjectId.get("object:support:lug")).getSize(new Vector3());
+    return Math.max(size.x, size.y, size.z);
+  };
+  assert.ok(glyph({}) > 0.3, "without a patch the span floor still keeps an unpiped support visible");
+  assert.ok(glyph({ body_extent_m: 0.15 }) <= 0.16, `glyph ${glyph({ body_extent_m: 0.15 })} overruns its 0.15 m patch`);
+});
+
 test("support anchors stay on the constrained node without hiding the pipe", () => {
   const graph = createThreeSceneGraph({
     bounds: [-0.08, -0.05, -0.05, 0, 0.05, 0.05],
@@ -578,7 +740,7 @@ test("support anchors stay on the constrained node without hiding the pipe", () 
   assert.equal(block.material.depthTest, true);
   assert.equal(block.material.depthWrite, false);
   assert.equal(block.material.transparent, true);
-  assert.equal(block.material.opacity, 0.5);
+  assert.equal(block.material.opacity, 0.85);
   assert.equal(glyph.children.some((part) => part.userData.supportPart === "leader"), false);
 });
 
@@ -618,7 +780,9 @@ test("support springs and prescribed displacements retain V2 colors and axis sem
 
   const spring = graph.objectsByObjectId.get("object:support:spring");
   const springParts = spring.children.filter((part) => part.userData.supportPart?.startsWith("spring"));
-  assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-ring").length, 8);
+  // One coil and its seat per sprung direction (X and Z here).
+  assert.deepEqual(springParts.filter((part) => part.userData.supportPart === "spring-coil").map((part) => part.userData.supportAxis), [0, 2]);
+  assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-seat").length, 2);
   assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-rotation").length, 1);
     assert.ok(springParts.every((part) => part.material.color.getHex() === SUPPORT_NEUTRAL && part.material.wireframe === false));
 
@@ -630,6 +794,124 @@ test("support springs and prescribed displacements retain V2 colors and axis sem
     // Hollow where a restraint is solid: a prescribed movement and a restraint
     // are both cones on one axis, and fill is what tells them apart.
     assert.equal(displacement.material.wireframe, true);
+});
+
+test("a prescribed movement on a fully held support reads clear of the anchor block, with its value", () => {
+  const texts = [];
+  const canvasFactory = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({
+      measureText: (text) => ({ width: text.length * 20 }),
+      beginPath() {}, roundRect() {}, fill() {}, stroke() {}, fillRect() {},
+      fillText(text) { texts.push(text); }
+    })
+  });
+  const state = (unitSystem) => ({
+    bounds: [0, -1, -1, 2, 1, 1],
+    unitSystem,
+    geometryAssets: [{
+      id: "geometry:support:tp",
+      format: "point",
+      bounds: [0, 0, 0, 0, 0, 0],
+      object_ids: ["object:support:tp"],
+      generation_config: {
+        point: [0, 0, 0],
+        source: "tuba.support",
+        support_type: "custom",
+        blocked_dof: [1, 1, 1, 1, 1, 1],
+        imposed_displacement: [0, 0, 0.08]
+      }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:tp"]
+  });
+
+  const graph = createThreeSceneGraph(state("engineering"), { canvasFactory });
+  const glyph = graph.objectsByObjectId.get("object:support:tp");
+  glyph.updateMatrixWorld(true);
+  const block = new Box3().setFromObject(glyph.children.find((part) => part.userData.supportPart === "fixed-block"));
+  const arrow = new Box3().setFromObject(glyph.children.find((part) => part.userData.supportPart === "prescribed-displacement"));
+  // The hollow cone used to start at the node, inside the block that holds the
+  // other five DOFs. It now sits wholly past it, on the imposed direction.
+  assert.ok(arrow.min.z > block.max.z, `arrow ${arrow.min.z} must clear the block ${block.max.z}`);
+  assert.ok(glyph.children.some((part) => part.userData.supportPart === "prescribed-shaft"), "a shaft ties it to the node");
+
+  const badge = glyph.children.find((part) => part.userData.loadPart === "load-badge");
+  assert.ok(badge?.isSprite, "the movement carries a value badge");
+  assert.ok(badge.position.z > arrow.max.z - glyph.position.z, "the badge sits past the arrow tip");
+  assert.ok(texts.includes("ΔZ = 80 mm"));
+  createThreeSceneGraph(state("si"), { canvasFactory });
+  assert.ok(texts.includes("ΔZ = 0.08 m"), "the badge follows the display units");
+
+  // Show values governs it like the force badges.
+  applyValueLabelVisibility(graph, false);
+  assert.equal(badge.visible, false);
+  applyValueLabelVisibility(graph, true);
+  assert.equal(badge.visible, true);
+
+  // A screen-sized badge has no fixed world size: the ground plate and the
+  // selection outline count it by its anchor alone.
+  const support = { ...state("engineering"), objects: [{ id: "object:support:tp", kind: "support", entity_ref: "support:tp" }] };
+  const labelled = createThreeSceneGraph(support, { canvasFactory });
+  const bare = createThreeSceneGraph(support, { canvasFactory: () => null });
+  const plateZ = (rendered) => rendered.objectsByObjectId.get("object:support:tp").children
+    .find((part) => part.userData.supportPart === "ground-hatch").position.z;
+  assert.equal(plateZ(labelled), plateZ(bare));
+  // The selection outline is the outline pass, which traces meshes only, so a
+  // badge sprite of whatever zoomed size never enlarges it - and there is no
+  // box to measure it into.
+  assert.equal(labelled.objectsByObjectId.get("object:support:tp").userData.outlineSurface, true);
+  assert.equal(labelled.objectsByObjectId.get("object:support:tp").userData.highlightOutline, undefined);
+});
+
+// Imposed displacement carries three or six components (mixed_study.py), and the
+// badge used to be gated on the translation length: a rotation-only support,
+// or one moved by a micrometre, carried no mark at all.
+test("a rotation-only or micrometre prescribed movement still gets its badge and mark", () => {
+  const texts = [];
+  const canvasFactory = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({
+      measureText: (text) => ({ width: text.length * 20 }),
+      beginPath() {}, roundRect() {}, fill() {}, stroke() {}, fillRect() {},
+      fillText(text) { texts.push(text); }
+    })
+  });
+  const glyphFor = (imposed) => {
+    const graph = createThreeSceneGraph({
+      bounds: [0, -1, -1, 2, 1, 1],
+      unitSystem: "si",
+      geometryAssets: [{
+        id: "geometry:support:p",
+        format: "point",
+        bounds: [0, 0, 0, 0, 0, 0],
+        object_ids: ["object:support:p"],
+        generation_config: { point: [0, 0, 0], source: "tuba.support", support_type: "custom", blocked_dof: [1, 1, 1, 1, 1, 1], imposed_displacement: imposed }
+      }],
+      geometryPayloads: [],
+      visibleObjectIds: ["object:support:p"]
+    }, { canvasFactory });
+    return graph.objectsByObjectId.get("object:support:p");
+  };
+  const part = (glyph, name) => glyph.children.find((child) => child.userData.supportPart === name || child.userData.loadPart === name);
+
+  const rotation = glyphFor([0, 0, 0, 0, 0, 0.01]);
+  assert.ok(part(rotation, "load-badge")?.isSprite, "a rotation-only support carries a badge");
+  assert.ok(texts.includes("ΔRZ = 0.01 rad"));
+  const turn = part(rotation, "prescribed-rotation");
+  assert.ok(turn, "and a rotation arc");
+  assert.equal(part(rotation, "prescribed-displacement"), undefined, "no translation cone for a pure rotation");
+  // The arc turns about Z: its local +Y is the world Z axis.
+  assert.ok(new Vector3(0, 1, 0).applyQuaternion(turn.quaternion).distanceTo(new Vector3(0, 0, 1)) < 1e-9);
+
+  const tiny = glyphFor([0, 0, 5e-7]);
+  assert.ok(part(tiny, "prescribed-displacement"), "half a micrometre is still a movement");
+  assert.ok(part(tiny, "load-badge")?.isSprite);
+  assert.equal(part(tiny, "prescribed-rotation"), undefined);
+
+  assert.equal(part(glyphFor([0, 0, 0, 0, 0, 0]), "load-badge"), undefined, "nothing moves, nothing is drawn");
 });
 
 test("scene graph reports invalid assets without throwing", () => {
@@ -900,6 +1182,81 @@ test("scene graph cache rebuilds rendered materials when the coloring field chan
     blue.objectsByObjectId.get("object:pipe").material.color.getHex(),
     red.objectsByObjectId.get("object:pipe").material.color.getHex()
   );
+});
+
+test("a solved shape at x1 owns the colour: the design solid yields, and each field paints only what carries it", () => {
+  const tube = (id, objectId, config) => ({ id, format: "tube", bounds: [0, -0.1, -0.1, 1, 0.1, 0.1], object_ids: [objectId],
+    generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05, ...config } });
+  const arrow = (id, objectId, config) => ({ id, format: "vector", bounds: [0, 0, 0, 1, 0, 0], object_ids: [objectId],
+    generation_config: { source: "tuba.result_state", node_id: "N1", start: [0, 0, 0], end: [1, 0, 0], ...config } });
+  const field = (type, values, components = ["magnitude"]) => ({
+    overlay: { id: `overlay:${type}`, kind: "solver_result", data: { result_type: type, values, legend: { range: { min: 0, max: 10 } } } },
+    field: { id: `field:${type}`, overlay_id: `overlay:${type}`, load_case: "Hot", components, range: [0, 10] }
+  });
+  const fields = [
+    field("stress", { "object:element:P": 7 }),
+    field("displacement", { N1: [0, 0, 1], N2: [0, 0, 4] }, ["DX", "DY", "DZ", "magnitude"]),
+    field("reaction_force", { N1: [0, 0, 9] }, ["DX", "DY", "DZ", "magnitude"])
+  ];
+  const objects = [
+    { id: "object:element:P", kind: "pipe", entity_ref: "element:P" },
+    { id: "object:element:R", kind: "rack_member", entity_ref: "element:R" },
+    { id: "object:warp:P_s0", kind: "deformed_analysis_mesh_element", entity_ref: "element:P" },
+    { id: "object:warp:R_s0", kind: "deformed_analysis_mesh_element", entity_ref: "element:R" },
+    { id: "object:reaction:N1", kind: "reaction_vector", metadata: { result_type: "reaction_force" } },
+    { id: "object:displacement:N1", kind: "displacement_vector", metadata: { result_type: "displacement" } }
+  ];
+  const warp = { source: "tuba.deformed_analysis_mesh.profile", geometry_state_id: "shape:Hot:physical", visual_scale: 1 };
+  const state = {
+    ...fixtureState(),
+    objects,
+    geometryAssets: [
+      tube("geometry:P", "object:element:P", { source: "tuba.element" }),
+      tube("geometry:warp:P_s0", "object:warp:P_s0", { ...warp, element_id: "P_s0", node_ids: ["N1", "N2"] }),
+      tube("geometry:warp:R_s0", "object:warp:R_s0", { ...warp, element_id: "R_s0", node_ids: ["N3"] }),
+      arrow("geometry:reaction:N1", "object:reaction:N1", { result_type: "reaction_force", color: "#dc2626" }),
+      arrow("geometry:displacement:N1", "object:displacement:N1", { result_type: "displacement", color: "#7c3aed" })
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: objects.map((object) => object.id),
+    activeGeometryStateId: "shape:Hot:physical",
+    overlays: fields.map((item) => item.overlay),
+    resultFields: fields.map((item) => item.field),
+    colorChannel: "results"
+  };
+  const colorOf = (graph, id) => { const object = graph.objectsByObjectId.get(id); return (object.material ?? object.children[0].material).color.getHex(); };
+  const stateFor = (type) => ({ ...state, coloring: { loadCase: "Hot", fieldId: `field:${type}`, component: "magnitude" } });
+  const showing = (type) => createThreeSceneGraph(stateFor(type));
+  const tint = (type, value) => colorForScalarValue(value, getScalarLegend(stateFor(type)));
+
+  const stress = showing("stress");
+  const design = stress.objectsByObjectId.get("object:element:P").material;
+  assert.equal(design.color.getHex(), 0x9ca3af, "the design solid is reference geometry once its solved shape is drawn");
+  assert.equal(design.polygonOffset, true, "and yields the depth test where the two coincide");
+  assert.equal(colorOf(stress, "object:warp:P_s0"), tint("stress", 7), "a mesh segment carries its element's cell value");
+  assert.equal(colorOf(stress, "object:warp:R_s0"), 0x9ca3af, "a body the field does not reach is grey, not a hue off the legend");
+  assert.equal(stress.objectsByObjectId.get("object:warp:R_s0").material.userData.noResultHatch, true,
+    "and hatched, so it cannot pass for the scale's own grey middle");
+  assert.equal(Boolean(stress.objectsByObjectId.get("object:warp:P_s0").material.userData.noResultHatch), false);
+
+  const displacement = showing("displacement");
+  assert.equal(colorOf(displacement, "object:warp:P_s0"), tint("displacement", 4), "a segment reads its own nodes");
+  assert.equal(colorOf(displacement, "object:reaction:N1"), 0xdc2626, "a reaction arrow never wears the displacement of its node");
+
+  const reaction = showing("reaction_force");
+  assert.equal(colorOf(reaction, "object:reaction:N1"), tint("reaction_force", 9));
+  assert.equal(colorOf(reaction, "object:warp:P_s0"), 0x9ca3af, "a reaction field paints its arrows, not the supported member");
+  assert.equal(Boolean(reaction.objectsByObjectId.get("object:warp:P_s0").material.userData.noResultHatch), false,
+    "a member under an arrow-only field is scenery, not a missing result");
+
+  // A CAD body is scenery around its solid's own field surfaces, never a gap.
+  const cad = createThreeSceneGraph({ ...stateFor("stress"),
+    objects: [...objects, { id: "object:component:tee", kind: "imported_component" }],
+    geometryAssets: [...state.geometryAssets, { id: "geometry:tee", format: "mesh", bounds: [0, 0, 0, 1, 1, 0], object_ids: ["object:component:tee"],
+      generation_config: { source: "tuba.imported_component", vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]], faces: [[0, 1, 2]] } }],
+    visibleObjectIds: [...state.visibleObjectIds, "object:component:tee"] });
+  assert.equal(Boolean(cad.objectsByObjectId.get("object:component:tee").material.userData.noResultHatch), false);
+  assert.equal(colorOf(reaction, "object:displacement:N1"), 0x7c3aed);
 });
 
 test("scene graph recolors a node-result vector when the coloring component changes", () => {
@@ -1314,6 +1671,97 @@ test("section box clipping applies and removes planes on root mesh and line mate
   }
 });
 
+test("cut view never slices a label: one outside the box goes whole, one inside stays whole", () => {
+  const root = new Group();
+  const inside = new Sprite();
+  inside.position.set(0, 0, 0);
+  const outside = new Sprite();
+  outside.position.set(3, 0, 0);
+  const glyph = new Group();
+  glyph.position.set(0.8, 0, 0);
+  const badge = new Sprite();
+  badge.position.set(0.5, 0, 0); // world x = 1.3, past the box
+  glyph.add(badge);
+  root.add(inside, outside, glyph);
+  const graph = { root };
+
+  applySectionBoxClipping(graph, { min: [-1, -1, -1], max: [1, 1, 1] });
+  for (const sprite of [inside, outside, badge]) assert.equal(sprite.material.clippingPlanes, null);
+  assert.equal(inside.material.visible, true);
+  assert.equal(outside.material.visible, false);
+  assert.equal(badge.material.visible, false, "anchored on the badge itself, not its glyph");
+  // Material, not object, visibility: the layer and Show values toggles own
+  // object.visible and must not be overwritten.
+  assert.equal(outside.visible, true);
+
+  // A drag that widens the box brings the label back with no rebuild.
+  applySectionBoxClipping(graph, { min: [-1, -1, -1], max: [4, 1, 1] });
+  assert.equal(outside.material.visible, true);
+  applySectionBoxClipping(graph, null);
+  assert.ok([inside, outside, badge].every((sprite) => sprite.material.visible));
+});
+
+test("cut view draws an outline of its box that is never clipped, picked or counted", () => {
+  const graph = createThreeSceneGraph(fixtureState());
+  const bounds = [...graph.bounds];
+  const renderables = graph.renderableObjects.length;
+  applySectionBoxClipping(graph, undefined);
+  assert.equal(graph.cutOutline, undefined, "no outline while the cut is off");
+
+  applySectionBoxClipping(graph, { min: [0.5, -1, -1], max: [1.5, 1, 1] });
+  const outline = graph.cutOutline;
+  assert.ok(outline);
+  assert.equal(outline.visible, true);
+  assert.equal(outline.parent, graph.scene, "in the scene, outside the clipped root");
+  assert.deepEqual(outline.box.min.toArray(), [0.5, -1, -1]);
+  assert.deepEqual(outline.box.max.toArray(), [1.5, 1, 1]);
+  assert.equal(outline.material.depthTest, false);
+  assert.equal(outline.material.clippingPlanes, null);
+  assert.equal(graph.renderableObjects.length, renderables);
+  assert.deepEqual(graph.bounds, bounds);
+
+  applySectionBoxClipping(graph, null);
+  assert.equal(outline.visible, false);
+});
+
+// Commit a narrow cut that excludes a pipe, then drag a handle outward: the pipe
+// stayed hidden until release, and a graph rebuilt under the cut did not even
+// contain it. The graph is built uncut and the preview flips visibility.
+test("dragging a committed cut outward brings back what it culled, with no rebuild", () => {
+  const pipe = (id, x) => ({ id: `object:${id}`, kind: "pipe", name: id, geometry_asset_id: `asset:${id}`, layer_ids: [`layer:${id}`] });
+  const asset = (id, x) => ({
+    id: `asset:${id}`, format: "tube", bounds: [x, -0.05, -0.05, x + 1, 0.05, 0.05], object_ids: [`object:${id}`],
+    generation_config: { points: [[x, 0, 0], [x + 1, 0, 0]], radius_m: 0.05 }
+  });
+  const loaded = createViewerState({ scene: {
+    scene_id: "scene:cut",
+    objects: [pipe("near", 0), pipe("far", 5), pipe("hidden", 5)],
+    geometry_assets: [asset("near", 0), asset("far", 5), asset("hidden", 5)],
+    overlays: []
+  } });
+  const narrow = { mode: "custom", min: [-0.5, -1, -1], max: [1.5, 1, 1] };
+  const state = applySectionBox(setLayerVisibility(loaded, "layer:hidden", false), narrow);
+  assert.deepEqual(state.visibleObjectIds, ["object:near"]);
+
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph, disposeThreeSceneGraph);
+  const graph = cache.get(state);
+  rendererModule.updateSceneGraphVisibility(graph, state);
+  const far = graph.objectsByObjectId.get("object:far");
+  assert.ok(far, "built although the committed box culls it");
+  assert.equal(far.visible, false);
+
+  rendererModule.previewSectionBoxVisibility(graph, state, { min: [-0.5, -1, -1], max: [5.5, 1, 1] });
+  assert.equal(far.visible, true, "the widened preview reaches it");
+  assert.notEqual(graph.objectsByObjectId.get("object:hidden")?.visible, true, "a hidden layer stays hidden");
+  rendererModule.previewSectionBoxVisibility(graph, state, narrow);
+  assert.equal(far.visible, false);
+
+  // Released wide: the commit needs no rebuild either.
+  const wide = applySectionBox(state, { mode: "custom", min: [-0.5, -1, -1], max: [5.5, 1, 1] });
+  assert.equal(cache.get(wide), graph);
+  cache.clear();
+});
+
 test("section box clipping keeps a crossing pipe in the coarse scene graph", () => {
   const state = fixtureState();
   state.sectionBox = { min: [0.5, -1, -1], max: [1.5, 1, 1] };
@@ -1460,6 +1908,39 @@ const PICK_MARKER = {
   generation_config: { point: [0, 0, 0], radius_m: 0.2 }
 };
 
+test("sizing samples and FE nodes stay screen-sized and pick locally while targets retain geometry", () => {
+  const samples = [.0006, .078].map((radius, index) => ({
+    id: `geometry:mesh_size:mesh:${index}`, format: "point", bounds: [-radius,-radius,-radius,radius,radius,radius],
+    object_ids: [`object:mesh_size:mesh:${index}`],
+    generation_config: { source: "tuba.analysis_mesh.review", point: [index,0,0], radius_m: radius, color: index ? "#2563eb" : "#e65a28" }
+  }));
+  const target = { ...PICK_MARKER, id: "geometry:mesh_target:mesh:sphere", object_ids: ["object:mesh_target"],
+    generation_config: { source: "tuba.analysis_mesh.review", point: [2,0,0], radius_m: .2 } };
+  const node = { ...PICK_MARKER, id: "geometry:analysis_mesh:mesh:node:N1", object_ids: ["object:node"],
+    generation_config: { source: "tuba.analysis_mesh.node", point: [3,0,0], radius_m: .0075 } };
+  const graph = pickGraph([...samples, target, node]);
+  for (const sample of samples) {
+    const marker = graph.objectsByObjectId.get(sample.object_ids[0]);
+    assert.equal(marker.isPoints, true);
+    assert.equal(marker.material.size, 9);
+    assert.equal(marker.material.customProgramCacheKey(), "tuba-point-ball");
+    assert.equal(marker.material.sizeAttenuation, false);
+    assert.equal(marker.material.color.getHexString(), sample.generation_config.color.slice(1));
+  }
+  assert.equal(graph.objectsByObjectId.get("object:mesh_target").geometry.parameters.radius, .2);
+  const feNode = graph.objectsByObjectId.get("object:node");
+  assert.equal(feNode.isPoints, true);
+  assert.equal(feNode.material.size, 4);
+  assert.equal(feNode.material.customProgramCacheKey(), "tuba-point-dot");
+  assert.equal(feNode.material.sizeAttenuation, false);
+  for (const zoom of [.25, 1, 4]) {
+    graph.camera.zoom = zoom;
+    assert.equal(pickRenderedObject(graph, {x:253,y:250}, PICK_VIEWPORT), samples[0].object_ids[0]);
+    assert.equal(pickRenderedObject(graph, {x:240,y:250}, PICK_VIEWPORT), null);
+  }
+  disposeThreeSceneGraph(graph);
+});
+
 test("pickRenderedObject does not let a line off the cursor steal the pick", () => {
   const graph = pickGraph([
     PICK_MARKER,
@@ -1576,10 +2057,14 @@ test("clearing hover preserves an existing selection highlight", () => {
   applyHoverHighlight(graph, "object:pipe");
   applyHoverHighlight(graph, "object:issue");
 
-  assert.equal(graph.objectsByObjectId.get("object:pipe").material.emissive.getHex(), 0xf59e0b);
+  const pipe = graph.objectsByObjectId.get("object:pipe");
+  assert.equal(pipe.userData.selected, true);
+  assert.equal(pipe.userData.hovered, false);
+  // The outline pass draws the highlight; the pipe itself is never repainted.
+  assert.equal(pipe.material.emissive.getHex(), 0);
 });
 
-test("hover tints a support glyph the emissive channel cannot reach", () => {
+test("a support glyph is outlined, never repainted, when hovered or selected", () => {
   const graph = createThreeSceneGraph({
     bounds: [0, -1, -1, 2, 1, 1],
     geometryAssets: [
@@ -1594,25 +2079,24 @@ test("hover tints a support glyph the emissive channel cannot reach", () => {
     geometryPayloads: [],
     visibleObjectIds: ["object:support:anchor"]
   });
-  const block = graph.objectsByObjectId
-    .get("object:support:anchor")
-    .children.find((part) => part.userData.supportPart === "fixed-block");
-    assert.equal(block.material.color.getHex(), SUPPORT_NEUTRAL);
+  const glyph = graph.objectsByObjectId.get("object:support:anchor");
+  const block = glyph.children.find((part) => part.userData.supportPart === "fixed-block");
+  assert.equal(glyph.userData.outlineSurface, true, "a support has a surface to outline");
+  assert.equal(glyph.userData.highlightOutline, undefined, "and gets no box");
 
   applyHoverHighlight(graph, "object:support:anchor");
-  assert.equal(block.userData.hovered, true);
-  assert.equal(block.material.color.getHex(), 0x1d4ed8);
-
-  // Hover outranks selection, so a render while the cursor rests here keeps it
-  // blue rather than dropping it back to the selection amber.
   applySelectionHighlight(graph, ["object:support:anchor"]);
-  assert.equal(block.material.color.getHex(), 0x1d4ed8);
+  assert.equal(block.userData.hovered, true);
+  assert.equal(block.userData.selected, true);
+  assert.equal(block.material.color.getHex(), SUPPORT_NEUTRAL, "colour carries the support role, not the selection");
 
   applyHoverHighlight(graph, null);
-  assert.equal(block.material.color.getHex(), 0xf59e0b);
+  applySelectionHighlight(graph, []);
+  assert.equal(block.material.color.getHex(), SUPPORT_NEUTRAL);
 });
 
-test("selection tints and then restores a load arrow drawn with basic materials", () => {
+test("a load arrow is boxed, never repainted, when selected", () => {
+  // The outline pass traces meshes only, and an arrow is mostly a line.
   const graph = createThreeSceneGraph({
     bounds: [0, -1, -1, 0, 1, 1],
     geometryAssets: [
@@ -1628,14 +2112,78 @@ test("selection tints and then restores a load arrow drawn with basic materials"
     visibleObjectIds: ["object:load"]
   });
   const arrow = graph.objectsByObjectId.get("object:load");
+  assert.equal(arrow.userData.outlineSurface, false);
 
   applySelectionHighlight(graph, ["object:load"]);
-  assert.equal(arrow.cone.material.color.getHex(), 0xf59e0b);
-  assert.equal(arrow.line.material.color.getHex(), 0xf59e0b);
+  assert.equal(arrow.userData.highlightOutline.visible, true);
+  assert.equal(arrow.cone.material.color.getHex(), 0xc026d3, "the authored colour stays");
+  assert.equal(arrow.line.material.color.getHex(), 0xc026d3);
 
   applySelectionHighlight(graph, []);
-  assert.equal(arrow.cone.material.color.getHex(), 0xc026d3, "the authored colour returns");
-  assert.equal(arrow.line.material.color.getHex(), 0xc026d3);
+  assert.equal(arrow.userData.highlightOutline.visible, false);
+});
+
+test("support glyphs take role colours in Build and follow a stage move without a rebuild", () => {
+  const supports = [
+    { id: "joint", support_type: "custom", blocked_dof: [1, 1, 1, 0, 0, 0] },
+    { id: "spring", support_type: "custom", stiffness_matrix: [0, 0, 1e5, 0, 0, 0] },
+    { id: "moved", support_type: "anchor", imposed_displacement: [0, 0, 0.08, 0, 0, 0] }
+  ];
+  const graph = createThreeSceneGraph({
+    stage: "build",
+    bounds: [0, -1, -1, 4, 1, 1],
+    geometryAssets: supports.map((support, index) => ({
+      id: `geometry:support:${support.id}`,
+      format: "point",
+      bounds: [index, 0, 0, index, 0, 0],
+      object_ids: [`object:support:${support.id}`],
+      generation_config: { point: [index, 0, 0], source: "tuba.support", ...support }
+    })),
+    geometryPayloads: [],
+    visibleObjectIds: supports.map(({ id }) => `object:support:${id}`)
+  });
+  const colourOf = (id, role) => graph.objectsByObjectId.get(`object:support:${id}`)
+    .children.find((part) => part.userData.supportPart === role).material.color.getHexString();
+  const build = (part) => SUPPORT_BUILD_COLORS[part].slice(1);
+  assert.equal(colourOf("joint", "restraint-cone"), build("restraint"));
+  assert.equal(colourOf("spring", "spring-coil"), build("spring"));
+  assert.equal(colourOf("moved", "prescribed-displacement"), build("prescribed"));
+  assert.equal(colourOf("moved", "prescribed-shaft"), build("prescribed"));
+
+  // A studio with nothing solved shows the build bundle in both stages, so a
+  // stage move reaches the glyphs without a new graph.
+  applySupportStage(graph, "review");
+  const neutral = SUPPORT_REVIEW_COLORS.restraint.slice(1);
+  for (const [id, role] of [["joint", "restraint-cone"], ["spring", "spring-coil"], ["moved", "prescribed-displacement"], ["moved", "prescribed-shaft"]]) {
+    assert.equal(colourOf(id, role), neutral, `${id} ${role} is neutral in Review`);
+  }
+  applySupportStage(graph, "build");
+  assert.equal(colourOf("joint", "restraint-cone"), build("restraint"));
+  // The ground is not a role: a gold plate under a spring would claim a
+  // restraint the spring does not have.
+  assert.equal(colourOf("spring", "ground-hatch"), SUPPORT_GROUND_COLOR.slice(1));
+});
+
+test("a line mark that shares its selection with an outlined surface gets no box", () => {
+  // A contact marker with its support, a component's axis arrows with the
+  // component: the surface's outline already shows them.
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 2, 1, 1],
+    objects: [{ id: "object:support:s", kind: "support" }, { id: "object:load", kind: "applied_load" }],
+    geometryAssets: [
+      { id: "geometry:support:s", format: "point", bounds: [0, 0, 0, 0, 0, 0], object_ids: ["object:support:s"],
+        generation_config: { point: [0, 0, 0], source: "tuba.support", support_type: "anchor" } },
+      { id: "geometry:support:s:arrow", format: "vector", bounds: [0, 0, 0, 0, 0, 1], object_ids: ["object:support:s"],
+        generation_config: { start: [0, 0, 0], end: [0, 0, 1], vector_kind: "force" } },
+      { id: "geometry:load", format: "vector", bounds: [1, 0, 0, 1, 0, 1], object_ids: ["object:load"],
+        generation_config: { start: [1, 0, 0], end: [1, 0, 1], vector_kind: "force" } }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:s", "object:load"]
+  });
+  const shared = graph.root.children.find((object) => object.userData.assetId === "geometry:support:s:arrow");
+  assert.equal(shared.userData.highlightOutline, undefined, "the support's outline covers its arrow");
+  assert.ok(graph.objectsByObjectId.get("object:load").userData.highlightOutline, "a load selected on its own is boxed");
 });
 
 test("applySelectionHighlight marks focused clash review objects", () => {
@@ -1953,3 +2501,182 @@ test("applied loads render badges for force, moment, and line loads", () => {
   assert.ok(canvasCalls.includes("q = 350 N/m"));
 });
 
+test("Show values hides the load and friction badges in place, without a rebuild", () => {
+  const root = new Group();
+  const arrow = new Group();
+  const force = new Sprite();
+  force.userData.loadPart = "load-badge";
+  const friction = new Sprite();
+  friction.userData.supportPart = "friction-badge";
+  const shaft = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial());
+  arrow.add(force, shaft);
+  root.add(arrow, friction);
+  const graph = { root };
+
+  applyValueLabelVisibility(graph, false);
+  assert.equal(force.visible, false);
+  assert.equal(friction.visible, false);
+  assert.equal(shaft.visible, true, "only the value labels go, not the glyph");
+  applyValueLabelVisibility(graph, true);
+  assert.equal(force.visible, true);
+  assert.equal(friction.visible, true);
+});
+
+
+test("a field's own surface is coloured per vertex on the field's legend, untinted", () => {
+  // A mixed run's one von Mises field spans a solid (per vertex) and a pipe
+  // (per element), on one range of 0..100.
+  const state = {
+    ...fixtureState(),
+    objects: [{ id: "object:solid", kind: "volume_stress_field" }],
+    geometryAssets: [{
+      id: "geometry:solid", format: "mesh", bounds: [0, 0, 0, 1, 1, 0], object_ids: ["object:solid"],
+      generation_config: { source: "tuba.result_state.volume_stress", vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]], faces: [[0, 1, 2]],
+        vertex_values: [10, 20, 30], legend: { range: { min: 10, max: 30 } } }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:solid"],
+    overlays: [{ id: "overlay:stress", kind: "solver_result", object_ids: ["object:solid", "object:element:P"],
+      data: { result_type: "stress", values: { "object:solid": 30, "object:element:P": 100 }, legend: { range: { min: 0, max: 100 } } } }],
+    resultFields: [{ id: "field:stress", overlay_id: "overlay:stress", load_case: "Hot", components: ["magnitude"], range: [0, 100] }],
+    coloring: { loadCase: "Hot", fieldId: "field:stress", component: "magnitude" },
+    colorChannel: "results"
+  };
+  const mesh = createThreeSceneGraph(state).objectsByObjectId.get("object:solid");
+  assert.equal(mesh.material.color.getHex(), 0xffffff, "vertex colours are not multiplied by the peak tint");
+  const first = mesh.geometry.getAttribute("color");
+  const expected = new Color(colorForScalarValue(10, getScalarLegend(state)));
+  assert.ok(Math.abs(first.getX(0) - expected.r) < 1e-6 && Math.abs(first.getZ(0) - expected.b) < 1e-6,
+    "10 is read on the field's 0..100 scale, not the surface's own 10..30");
+});
+
+// A badge sized in world units grew with every zoom step until it hid the small
+// tee being zoomed into. It now keeps 20 CSS px whatever the zoom.
+test("value badges keep one on-screen height at any zoom, and fits ignore it", () => {
+  const state = fixtureState();
+  state.geometryAssets.push({ id: "geometry:force", format: "vector", bounds: [0, 0, 0, 0, 0, 1], object_ids: ["object:force"],
+    generation_config: { source: "tuba.applied_loads", vector_kind: "force", start: [0, 0, 1], end: [0, 0, 0], components: [0, 0, -3500], unit: "N" } });
+  state.objects = [{ id: "object:force", kind: "applied_load", geometry_asset_id: "geometry:force", layer_ids: ["design:loads"] }];
+  state.visibleObjectIds = ["object:force"];
+  const canvases = [];
+  const canvasFactory = () => {
+    const canvas = { width: 0, height: 0, getContext: () => ({ measureText: (text) => ({ width: text.length * 20 }), fillRect() {}, fillText() {} }) };
+    canvases.push(canvas);
+    return canvas;
+  };
+  const graph = createThreeSceneGraph(state, { canvasFactory });
+  const badge = graph.objectsByObjectId.get("object:force").children.find((part) => part.userData.loadPart === "load-badge");
+  const viewport = { width: 800, height: 600 };
+  const camera = new OrthographicCamera();
+  resizeCameraViewport(camera, viewport.width, viewport.height);
+  fitCameraToBounds(camera, graph.bounds);
+  graph.camera = camera;
+  const pixelsTall = () => {
+    scaleValueLabels(graph, viewport);
+    camera.updateMatrixWorld();
+    const anchor = badge.getWorldPosition(new Vector3());
+    const top = anchor.clone().add(new Vector3(0, badge.scale.y, 0).applyQuaternion(camera.quaternion));
+    return (top.project(camera).y - anchor.project(camera).y) * viewport.height / 2;
+  };
+
+  assert.ok(Math.abs(pixelsTall() - 20) < 1e-9);
+  zoomCameraBy(camera, 8);
+  assert.ok(Math.abs(pixelsTall() - 20) < 1e-9, "zoomed in, the badge is no taller on screen");
+  assert.ok(Math.abs(badge.scale.x / badge.scale.y - canvases[0].width / canvases[0].height) < 1e-9, "the text is not stretched");
+
+  // Zoomed out the badge is metres wide in world units; a fit must not frame it.
+  const fitted = graph.depthBounds;
+  zoomCameraBy(camera, 0.05 / 8);
+  pixelsTall();
+  const scale = badge.scale.clone();
+  updateSceneGraphBounds(graph, { ...state, visibleObjectIds: [...state.visibleObjectIds] });
+  assert.deepEqual(graph.depthBounds, fitted);
+  assert.ok(badge.scale.equals(scale), "measuring leaves the badge its size");
+});
+
+
+test("a solid's result surface follows the shape the members are drawn at", () => {
+  // Solved 0.01 m up; the exaggerated state is drawn x10 by the slider.
+  const geometryStates = [
+    { id: "overlay:shape:physical", kind: "geometry_state", data: { id: "shape:physical", purpose: "engineering" } },
+    { id: "overlay:shape:visual", kind: "geometry_state", data: { id: "shape:visual", purpose: "visualization", visual_scale: 10 } }
+  ];
+  const state = (activeGeometryStateId) => ({
+    ...fixtureState(),
+    objects: [{ id: "object:solid", kind: "volume_displacement_field" }],
+    geometryAssets: [{
+      id: "geometry:solid", format: "mesh", bounds: [0, 0, 0, 1, 1, 0.01], object_ids: ["object:solid"],
+      generation_config: { source: "tuba.result_state.volume_displacement", deformation_scale: 1,
+        vertices: [[0, 0, 0.01], [1, 0, 0.01], [0, 1, 0.01]], base_vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        faces: [[0, 1, 2]], vertex_values: [0.01, 0.01, 0.01] }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:solid"],
+    geometryStates,
+    activeGeometryStateId,
+    visualDeformationScale: 10
+  });
+  // Meshes morph on the GPU between the solved and the base shape: an influence
+  // of 1 - scale, so -9 draws x10 and 0 draws the solved shape as it is.
+  const influence = (graph) => graph.objectsByObjectId.get("object:solid").morphTargetInfluences[0];
+  assert.equal(influence(createThreeSceneGraph(state("shape:visual"))), -9, "x10 with the exaggerated members");
+  assert.equal(influence(createThreeSceneGraph(state("shape:physical"))), 0, "true scale with the actual deformation, whatever the slider reads");
+});
+
+// A section loop extruded along X, laid out like section_mesh.py: the start loop,
+// then the end loop, sides as quads, caps as fans.
+function prismAsset(id, loop, length = 2) {
+  const n = loop.length;
+  const vertices = [...loop.map(([y, z]) => [0, y, z]), ...loop.map(([y, z]) => [length, y, z])];
+  const faces = [];
+  for (let i = 0; i < n; i += 1) faces.push([i, (i + 1) % n, n + (i + 1) % n, n + i]);
+  for (let i = 1; i < n - 1; i += 1) faces.push([0, i + 1, i], [n, n + i, n + i + 1]);
+  return {
+    id: `geometry:${id}`,
+    format: "mesh",
+    bounds: [0, -0.1, -0.1, length, 0.1, 0.1],
+    object_ids: [`object:${id}`],
+    generation_config: { source: "tuba.element", points: [[0, 0, 0], [length, 0, 0]], vertices, faces }
+  };
+}
+
+test("a profiled member draws its corner lines, and a round one does not", () => {
+  const square = [[-0.03, -0.03], [0.03, -0.03], [0.03, 0.03], [-0.03, 0.03]];
+  const round = Array.from({ length: 16 }, (_, i) => [0.03 * Math.cos(i * Math.PI / 8), 0.03 * Math.sin(i * Math.PI / 8)]);
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 2, 1, 1],
+    geometryAssets: [prismAsset("rhs", square), prismAsset("chs", round)],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:rhs", "object:chs"]
+  });
+  const corners = (id) => graph.objectsByObjectId.get(id).children.find((part) => part.userData.memberCorners);
+
+  const rhs = graph.objectsByObjectId.get("object:rhs");
+  const lines = corners("object:rhs");
+  // Four corners along the member, and no rings at its ends.
+  assert.equal(lines.geometry.index.count, 8);
+  // Sharing the mesh's positions is what keeps them on a deformed member.
+  assert.equal(lines.geometry.getAttribute("position"), rhs.geometry.getAttribute("position"));
+  // Deformation rewrites those positions, so the lines' own bounding sphere goes
+  // stale; culling by it dropped corners still on screen.
+  assert.equal(lines.frustumCulled, false);
+  assert.equal(corners("object:chs"), undefined, "a 16-gon has no corner sharp enough to draw");
+});
+
+test("an FE mesh is coloured per member like Gmsh, not with the default member tint", () => {
+  const ref = "element:L1";
+  const asset = (id, source, format, extra) => ({ id: `geometry:${id}`, format, object_ids: [`object:${id}`],
+    generation_config: { source, source_ref: ref, ...extra } });
+  const node = asset("n", "tuba.analysis_mesh.node", "point", { point: [0,0,0] });
+  const element = asset("e", "tuba.analysis_mesh.element", "polyline", { points: [[0,0,0],[1,0,0]] });
+  const state = { colorChannel: "model", modelColorBy: "default", objects: [
+    { id: "object:L1", kind: "rack_member", entity_ref: ref },
+    { id: "object:n", kind: "analysis_mesh_node", entity_ref: ref },
+    { id: "object:e", kind: "analysis_mesh_element", entity_ref: ref }] };
+  assert.equal(prepareAssetRenderConfig(element, {}, state).color, undefined);
+  const graph = pickGraph([node, element]);
+  const nodeColor = graph.objectsByObjectId.get("object:n").material.color.getHex();
+  assert.equal(graph.objectsByObjectId.get("object:e").material.color.getHex(), nodeColor);
+  assert.notEqual(nodeColor, 0x059669);
+  disposeThreeSceneGraph(graph);
+});

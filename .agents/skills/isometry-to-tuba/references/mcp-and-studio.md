@@ -33,6 +33,8 @@ Call `check_clashes(include_self=True, include_duplicate_nodes=True)` with the p
 
 Run `verify_model()` for the cold-model gate when preparing evaluation. Read blockers and advisories. This gate does not know whether every drawing support was imported, so source reconciliation remains mandatory. Do not change clearance or omit self/duplicate checks merely to suppress failures.
 
+Studio, CLI and MCP project solves enforce that gate and the project script style check through `solve_project`. `force=True` reruns reusable evidence; it never bypasses blocking findings. A failed gate preserves existing evidence and staging.
+
 Save concise verification evidence with the project: checkout/import path, source fingerprint or revision, tool names/arguments, findings and unresolved source entries. Avoid embedding complete flat node dumps in authored code or the handoff.
 
 ## Studio and evaluation

@@ -13,7 +13,6 @@ import {
   isReviewStatus,
   parseFindingSubjectId,
   recordDisposition,
-  resolveSubject,
   reviewRecordCsv,
   reviewStatus,
   toReviewRecord
@@ -446,16 +445,4 @@ test("a disposition whose subject has vanished is still in the record", () => {
   assert.equal(entry.subject_id, "issue:gone");
   assert.equal(entry.subject_kind, "issue");
   assert.equal(entry.title, null);
-});
-
-test("a subject resolves to an issue or a finding, and to nothing otherwise", () => {
-  const base = state();
-  assert.equal(resolveSubject(base, "issue:1").kind, "issue");
-  const finding = resolveSubject(base, findingSubjectId({ objectId: "object:x" }, { fieldId: "f", component: "N", resultStateId: "rs" }));
-  assert.equal(finding.kind, "finding");
-  assert.equal(finding.address.object_id, "object:x");
-  assert.equal(resolveSubject(base, "issue:missing"), null);
-  assert.equal(resolveSubject(base, ""), null);
-  assert.equal(resolveSubject(base, null), null);
-  assert.equal(resolveSubject(base, "not-prefixed"), null);
 });

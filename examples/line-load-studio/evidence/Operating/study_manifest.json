@@ -2366,7 +2366,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "956841dd7a421005cdd594ed509d7b96d93c80a2743a0445a8b068ec85b5fb7d",
+      "fingerprint": "67298d6c3727e9bfad17d0fae822235d2ab7d7286e727df069e2d23e6244dc08",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2386,6 +2386,7 @@
     "metadata": {
       "compiler_inputs": {
         "attached_support_coupling": "rotation_offset",
+        "beam_stress": "SIPO_ELNO",
         "contact_law": "DIS_CHOC",
         "contact_stiffness_defaults": [
           10000000000.0,
@@ -2404,7 +2405,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "956841dd7a421005cdd594ed509d7b96d93c80a2743a0445a8b068ec85b5fb7d",
+      "fingerprint": "67298d6c3727e9bfad17d0fae822235d2ab7d7286e727df069e2d23e6244dc08",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

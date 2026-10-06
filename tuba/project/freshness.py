@@ -99,8 +99,13 @@ def export_study(
     """Export what a solve of *operation* compiles into *output_dir*, choosing as :func:`_identity` does.
 
     A study with a volume export compiles 3D solids without the tensor-stress table (spec decision 19);
-    every other study compiles its beams and pipes. Solves and the studio's command preview share this choice.
+    imported solid regions select the STEP compiler, and other studies compile beams and pipes.
+    Solves and the studio's command preview share this choice.
     """
+    if any(region.role in {"solid_3d", "shell_2d", "reference"} for region in model.analysis_regions.values()):
+        if volume_export:
+            raise ValueError("Mixed solid/shell regions cannot be combined with native VOLUME_EXPORT selections.")
+        return solver.export_mixed_analysis_study(model, operation, output_dir)
     if volume_export:
         return solver.export_volume_study(model, operation, output_dir, **dict(volume_export), export_tensor_stress=False)
     return solver.export_analysis_study(model, operation, output_dir)
@@ -112,6 +117,10 @@ def _identity(
     operation: str,
     volume_export: Mapping[str, Any] | None,
 ) -> SolverInputIdentity:
+    if any(region.role in {"solid_3d", "shell_2d", "reference"} for region in model.analysis_regions.values()):
+        if volume_export:
+            raise ValueError("Mixed solid/shell regions cannot be combined with native VOLUME_EXPORT selections.")
+        return solver.mixed_study_inputs(model, operation).solver_input_identity
     if volume_export:
         return solver.volume_study_inputs(model, operation, **dict(volume_export)).solver_input_identity
     return solver.analysis_study_inputs(model, operation).solver_input_identity

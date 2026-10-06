@@ -30,7 +30,7 @@ try {
   await dialog.getByRole("button", { name: "Download new project ZIP" }).click();
   await (await converted).saveAs(`${output}/converted.zip`);
   const exported = page.waitForEvent("download");
-  await dialog.getByRole("button", { name: "Download model IFC (geometry only)" }).click();
+  await dialog.getByRole("button", { name: "Download IFC", exact: true }).click();
   await (await exported).saveAs(`${output}/export.ifc`);
 
   await dialog.getByRole("button", { name: "Remove plant.ifc" }).click();

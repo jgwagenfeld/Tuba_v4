@@ -1,5 +1,5 @@
 setting '--memory' value to 3686.40 MB (keyword RESERVE_MEMOIRE)
-copying '/mnt/d/tmp/tuba-newlines/examples/elements-supports-review/.tuba/staging/LoadCase1/study.mail' to 'fort.20'...
+copying '/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/study.mail' to 'fort.20'...
 Ouverture en écriture du fichier ./vola.1
 
 <INFO> Démarrage de l'exécution.
@@ -9,11 +9,11 @@ Ouverture en écriture du fichier ./vola.1
                                     révision n/a - branche 'n/a'                                    
                                      Copyright EDF 1991 - 2026                                      
                                                                                                     
-                              Exécution du : Sat Sep 19 13:04:11 2026                               
+                              Exécution du : Sun Oct  4 19:15:55 2026                               
                                 Nom de la machine : DESKTOP-QH6C3T8                                 
                                         Architecture : 64bit                                        
                                     Type de processeur : x86_64                                     
-      Système d'exploitation : Linux-5.15.153.1-microsoft-standard-WSL2-x86_64-with-glibc2.39       
+       Système d'exploitation : Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.39       
                                   Langue des messages : C (UTF-8)                                   
                                      Version de Python : 3.14.6                                     
                                       Version de NumPy : 2.4.6                                      
@@ -65,21 +65,23 @@ Nom de la base                          :  ELEMBASE
 
 Relecture des catalogues des éléments faite.
 
-Fin de lecture (durée  0.125028  s.) 
+Fin de lecture (durée  0.131941  s.) 
 
                       Mémoire limite pour l'allocation dynamique : 4198.46 Mo                       
                          ajouté à l'initialisation du processus : 559.00 Mo                         
-                               Limite cible du processus : 4757.46 Mo                               
+                               Limite cible du processus : 4757.45 Mo                               
                          Taille limite des fichiers d'échange : 2048.00 Go                          
-/tmp/run_aster_yxwyahr2/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/.aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
   DEBUT(PAR_LOT='NON');
-# Mémoire (Mo) :   559.00 /   549.89 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0001   user+syst:        0.08s (syst:        0.60s, elaps:        0.70s)
+# Mémoire (Mo) :   559.00 /   549.91 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0001   user+syst:        0.06s (syst:        0.54s, elaps:        6.03s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt16
 # ----------------------------------------------------------------------------------------------
-# Commande #0002 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 16
+# Commande #0002 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 16
 MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
                       INFO=1,
                       UNITE=20,
@@ -91,7 +93,7 @@ Vérification du maillage.
 
 ------------ MAILLAGE 00000001 - IMPRESSIONS NIVEAU  1 ------------
 
-SA-19-SEPT-2026 13:04:12                                                        
+DI-04-OCTO-2026 19:16:02                                                        
 
 NOMBRE DE NOEUDS                          63
 
@@ -106,13 +108,15 @@ NOMBRE DE GROUPES DE MAILLES              18
 --------------------------------------------------------------------------------
 
 # Résultat commande #0002 (LIRE_MAILLAGE): MAIL0 ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   559.00 /   550.66 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0002   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   559.00 /   550.69 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0002   user+syst:        0.01s (syst:        0.00s, elaps:        0.20s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt20
 # ----------------------------------------------------------------------------------------------
-# Commande #0003 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 20
+# Commande #0003 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 20
 MAIL = CREA_MAILLAGE(CREA_POI1=(_F(GROUP_NO='GN_N1',
                                    NOM_GROUP_MA='DIS_N1'),
                                 _F(GROUP_NO='GN_N3',
@@ -125,7 +129,7 @@ MAIL = CREA_MAILLAGE(CREA_POI1=(_F(GROUP_NO='GN_N1',
 
 ------------ MAILLAGE 00000002 - IMPRESSIONS NIVEAU  1 ------------
 
-ASTER 18.00.12 CONCEPT 00000002 CALCULE LE 19/09/2026 A 13:04:12 DE TYPE        
+ASTER 18.00.12 CONCEPT 00000002 CALCULE LE 04/10/2026 A 19:16:02 DE TYPE        
 MAILLAGE_SDASTER                                                                
 
 NOMBRE DE NOEUDS                          63
@@ -142,13 +146,15 @@ NOMBRE DE GROUPES DE MAILLES              21
 --------------------------------------------------------------------------------
 
 # Résultat commande #0003 (CREA_MAILLAGE): MAIL ('<00000002>') de type <Mesh>
-# Mémoire (Mo) :   559.00 /   550.66 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   559.00 /   550.69 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0003   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt30
 # ----------------------------------------------------------------------------------------------
-# Commande #0004 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 30
+# Commande #0004 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 30
 MODELE = AFFE_MODELE(AFFE=(_F(GROUP_MA='AllPipes',
                               MODELISATION='TUYAU_3M',
                               PHENOMENE='MECANIQUE'),
@@ -192,15 +198,16 @@ POU_D_T          _                SEG2         MECA_POU_D_T     16
 TUYAU_3M         _                SEG3         MET3SEG3         18
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
 # Résultat commande #0004 (AFFE_MODELE): MODELE ('<00000003>') de type <Model>
-# Mémoire (Mo) :   680.73 /   680.73 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0004   user+syst:        0.04s (syst:        0.00s, elaps:        0.04s)
+# Mémoire (Mo) :   680.75 /   680.75 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0004   user+syst:        0.04s (syst:        0.00s, elaps:        0.05s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt77
 # ----------------------------------------------------------------------------------------------
-# Commande #0005 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 77
-MAT_STEEL = DEFI_MATERIAU(CABLE=_F(EC_SUR_E=1.0),
-                          ELAS=_F(ALPHA=1.2e-05,
+# Commande #0005 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 77
+MAT_STEEL = DEFI_MATERIAU(ELAS=_F(ALPHA=1.2e-05,
                                   B_ENDOGE=0.0,
                                   COEF_AMOR=1.0,
                                   E=200000000000.0,
@@ -210,13 +217,35 @@ MAT_STEEL = DEFI_MATERIAU(CABLE=_F(EC_SUR_E=1.0),
                           INFO=1)
 
 # Résultat commande #0005 (DEFI_MATERIAU): MAT_STEEL ('<00000004>') de type <Material>
-# Mémoire (Mo) :   680.73 /   680.73 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0005   user+syst:        0.08s (syst:        0.01s, elaps:        0.10s)
+# Mémoire (Mo) :   680.75 /   680.75 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0005   user+syst:        0.16s (syst:        0.00s, elaps:        0.17s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt87
+.. _stg1_txt86
 # ----------------------------------------------------------------------------------------------
-# Commande #0006 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 87
+# Commande #0006 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 86
+MC0 = DEFI_MATERIAU(CABLE=_F(EC_SUR_E=1.0),
+                    ELAS=_F(ALPHA=1.2e-05,
+                            B_ENDOGE=0.0,
+                            COEF_AMOR=1.0,
+                            E=200000000000.0,
+                            K_DESSIC=0.0,
+                            NU=0.3,
+                            RHO=7850.0),
+                    INFO=1)
+
+# Résultat commande #0006 (DEFI_MATERIAU): MC0 ('<00000005>') de type <Material>
+# Mémoire (Mo) :   680.75 /   680.75 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0006   user+syst:        0.12s (syst:        0.00s, elaps:        0.11s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt96
+# ----------------------------------------------------------------------------------------------
+# Commande #0007 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 96
 CM0 = DEFI_MATERIAU(DIS_CONTACT=_F(CONTACT='1D',
                                    COULOMB=0.0,
                                    DIST_1=1.0,
@@ -228,31 +257,37 @@ CM0 = DEFI_MATERIAU(DIS_CONTACT=_F(CONTACT='1D',
                                    RIGI_TAN=100000000.0),
                     INFO=1)
 
-# Résultat commande #0006 (DEFI_MATERIAU): CM0 ('<00000005>') de type <Material>
-# Mémoire (Mo) :   680.73 /   680.73 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0006   user+syst:        0.09s (syst:        0.01s, elaps:        0.10s)
+# Résultat commande #0007 (DEFI_MATERIAU): CM0 ('<00000006>') de type <Material>
+# Mémoire (Mo) :   680.75 /   680.75 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0007   user+syst:        0.12s (syst:        0.00s, elaps:        0.13s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt89
+.. _stg1_txt98
 # ----------------------------------------------------------------------------------------------
-# Commande #0007 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 89
+# Commande #0008 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 98
 CHMAT = AFFE_MATERIAU(AFFE=(_F(GROUP_MA='G5AF7883',
                                MATER=MAT_STEEL),
+                            _F(GROUP_MA='cable_0',
+                               MATER=MC0),
                             _F(GROUP_MA='GE3D248C',
                                MATER=CM0)),
                       INFO=1,
                       MAILLAGE=MAIL)
 
-# Résultat commande #0007 (AFFE_MATERIAU): CHMAT ('<00000006>') de type <MaterialField>
-# Mémoire (Mo) :   680.73 /   680.73 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0007   user+syst:        0.07s (syst:        0.00s, elaps:        0.08s)
+# Résultat commande #0008 (AFFE_MATERIAU): CHMAT ('<00000007>') de type <MaterialField>
+# Mémoire (Mo) :   680.75 /   680.75 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0008   user+syst:        0.12s (syst:        0.00s, elaps:        0.13s)
 # ----------------------------------------------------------------------------------------------
-/tmp/run_aster_yxwyahr2/study.comm.changed.py:101: DeprecationWarning: This feature has a new implementation, 'SECTION' will be removed in the future. Use 'AIRE' instead
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/.aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py:111: DeprecationWarning: This feature has a new implementation, 'SECTION' will be removed in the future. Use 'AIRE' instead
   CARA = AFFE_CARA_ELEM(
 
-.. _stg1_txt101
+.. _stg1_txt111
 # ----------------------------------------------------------------------------------------------
-# Commande #0008 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 101
+# Commande #0009 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 111
 CARA = AFFE_CARA_ELEM(BARRE=_F(CARA=('R', 'EP'),
                                GROUP_MA='bar_0',
                                SECTION='CERCLE',
@@ -346,16 +381,18 @@ CARA = AFFE_CARA_ELEM(BARRE=_F(CARA=('R', 'EP'),
    NOMBRE TOTAL D ELEMENTS TUYAU DROITS      18
    NOMBRE TOTAL D ELEMENTS TUYAU COUDES       0
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
-# Résultat commande #0008 (AFFE_CARA_ELEM): CARA ('<00000007>') de type <ElementaryCharacteristics>
+# Résultat commande #0009 (AFFE_CARA_ELEM): CARA ('<00000008>') de type <ElementaryCharacteristics>
 # Dépend de :
 # - MODELE ('<00000003>') de type <Model>
-# Mémoire (Mo) :   680.99 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0008   user+syst:        0.10s (syst:        0.00s, elaps:        0.10s)
+# Mémoire (Mo) :   681.01 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0009   user+syst:        0.17s (syst:        0.00s, elaps:        0.19s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt196
+.. _stg1_txt206
 # ----------------------------------------------------------------------------------------------
-# Commande #0009 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 196
+# Commande #0010 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 206
 BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N0',
                                   WO=0.0),
@@ -366,14 +403,16 @@ BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_AFFE='OUI',
                       VERI_NORM='OUI')
 
-# Résultat commande #0009 (AFFE_CHAR_MECA): BC_0 ('<00000008>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   680.99 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0009   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0010 (AFFE_CHAR_MECA): BC_0 ('<00000009>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.01 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0010   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt205
+.. _stg1_txt215
 # ----------------------------------------------------------------------------------------------
-# Commande #0010 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 205
+# Commande #0011 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 215
 BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRZ=0.0,
                                   DX=0.0,
                                   DY=0.0,
@@ -386,14 +425,16 @@ BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRZ=0.0,
                       VERI_AFFE='OUI',
                       VERI_NORM='OUI')
 
-# Résultat commande #0010 (AFFE_CHAR_MECA): BC_2 ('<00000009>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   680.99 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0010   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0011 (AFFE_CHAR_MECA): BC_2 ('<0000000a>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.01 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0011   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt216
+.. _stg1_txt226
 # ----------------------------------------------------------------------------------------------
-# Commande #0011 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 216
+# Commande #0012 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 226
 BC_5 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRX=0.0,
                                   DRY=0.0,
                                   DRZ=0.0,
@@ -408,14 +449,16 @@ BC_5 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRX=0.0,
                       VERI_AFFE='OUI',
                       VERI_NORM='OUI')
 
-# Résultat commande #0011 (AFFE_CHAR_MECA): BC_5 ('<0000000a>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   680.99 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0011   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0012 (AFFE_CHAR_MECA): BC_5 ('<0000000b>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.01 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0012   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt229
+.. _stg1_txt239
 # ----------------------------------------------------------------------------------------------
-# Commande #0012 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 229
+# Commande #0013 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 239
 GROUND0 = AFFE_CHAR_MECA(DDL_IMPO=_F(DX=0.0,
                                      DY=0.0,
                                      DZ=0.0,
@@ -427,14 +470,16 @@ GROUND0 = AFFE_CHAR_MECA(DDL_IMPO=_F(DX=0.0,
                          VERI_AFFE='OUI',
                          VERI_NORM='OUI')
 
-# Résultat commande #0012 (AFFE_CHAR_MECA): GROUND0 ('<0000000b>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0012   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0013 (AFFE_CHAR_MECA): GROUND0 ('<0000000c>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.09 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0013   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt231
+.. _stg1_txt241
 # ----------------------------------------------------------------------------------------------
-# Commande #0013 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 231
+# Commande #0014 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 241
 GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          INFO=1,
                          MODELE=MODELE,
@@ -444,14 +489,16 @@ GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          VERI_AFFE='OUI',
                          VERI_NORM='OUI')
 
-# Résultat commande #0013 (AFFE_CHAR_MECA): GRAVITY ('<0000000c>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0013   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0014 (AFFE_CHAR_MECA): GRAVITY ('<0000000d>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.09 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0014   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt240
+.. _stg1_txt250
 # ----------------------------------------------------------------------------------------------
-# Commande #0014 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 240
+# Commande #0015 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 250
 PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           FORCE_TUYAU=_F(GROUP_MA='AllPipes',
                                          PRES=1000000.0),
@@ -461,14 +508,16 @@ PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           VERI_AFFE='OUI',
                           VERI_NORM='OUI')
 
-# Résultat commande #0014 (AFFE_CHAR_MECA): PRESSURE ('<0000000d>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.99 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0014   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0015 (AFFE_CHAR_MECA): PRESSURE ('<0000000e>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   681.09 /   681.01 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0015   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt249
+.. _stg1_txt259
 # ----------------------------------------------------------------------------------------------
-# Commande #0015 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 249
+# Commande #0016 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 259
 TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=20.0),
@@ -477,14 +526,16 @@ TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                             OPERATION='AFFE',
                             TYPE_CHAM='NOEU_TEMP_R')
 
-# Résultat commande #0015 (CREA_CHAMP): TEMP_REF_FIELD ('<0000000e>') de type <FieldOnNodesReal>
-# Mémoire (Mo) :   681.12 /   681.12 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0015   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0016 (CREA_CHAMP): TEMP_REF_FIELD ('<0000000f>') de type <FieldOnNodesReal>
+# Mémoire (Mo) :   681.14 /   681.14 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0016   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt260
+.. _stg1_txt270
 # ----------------------------------------------------------------------------------------------
-# Commande #0016 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 260
+# Commande #0017 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 270
 TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=120.0),
@@ -493,16 +544,18 @@ TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                             OPERATION='AFFE',
                             TYPE_CHAM='NOEU_TEMP_R')
 
-# Résultat commande #0016 (CREA_CHAMP): TEMP_HOT_FIELD ('<0000000f>') de type <FieldOnNodesReal>
-# Mémoire (Mo) :   681.38 /   681.38 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0016   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0017 (CREA_CHAMP): TEMP_HOT_FIELD ('<00000010>') de type <FieldOnNodesReal>
+# Mémoire (Mo) :   681.40 /   681.40 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0017   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 /home/jan/miniforge3/envs/tuba-code-aster/lib/python3.14/site-packages/code_aster/Supervis/ExecuteCommand.py:183: DeprecationWarning: This feature is obsolete, 'CREA_RESU/NOM_CHAM' will be removed in the future.
   return cmd.run_(**kwargs)
 
-.. _stg1_txt271
+.. _stg1_txt281
 # ----------------------------------------------------------------------------------------------
-# Commande #0017 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 271
+# Commande #0018 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 281
 TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
                                CRITERE='RELATIF',
                                INST=0.0,
@@ -516,16 +569,20 @@ TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
                       OPERATION='AFFE',
                       TYPE_RESU='EVOL_THER')
 
-# Résultat commande #0017 (CREA_RESU): TEMP_EVOL ('<00000010>') de type <ThermalResult>
-# Mémoire (Mo) :   681.50 /   681.50 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0017   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0018 (CREA_RESU): TEMP_EVOL ('<00000011>') de type <ThermalResult>
+# Mémoire (Mo) :   681.53 /   681.53 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0018   user+syst:        0.03s (syst:        0.00s, elaps:        0.03s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt281
+.. _stg1_txt291
 # ----------------------------------------------------------------------------------------------
-# Commande #0018 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 281
+# Commande #0019 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 291
 CHMAT = AFFE_MATERIAU(AFFE=(_F(GROUP_MA='G5AF7883',
                                MATER=MAT_STEEL),
+                            _F(GROUP_MA='cable_0',
+                               MATER=MC0),
                             _F(GROUP_MA='GE3D248C',
                                MATER=CM0)),
                       AFFE_VARC=_F(EVOL=TEMP_EVOL,
@@ -538,27 +595,31 @@ CHMAT = AFFE_MATERIAU(AFFE=(_F(GROUP_MA='G5AF7883',
                       INFO=1,
                       MAILLAGE=MAIL)
 
-# Résultat commande #0018 (AFFE_MATERIAU): CHMAT ('<00000011>') de type <MaterialField>
-# Mémoire (Mo) :   681.50 /   681.50 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0018   user+syst:        0.05s (syst:        0.00s, elaps:        0.06s)
+# Résultat commande #0019 (AFFE_MATERIAU): CHMAT ('<00000012>') de type <MaterialField>
+# Mémoire (Mo) :   681.53 /   681.53 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0019   user+syst:        0.14s (syst:        0.00s, elaps:        0.15s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt300
+.. _stg1_txt311
 # ----------------------------------------------------------------------------------------------
-# Commande #0019 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 300
+# Commande #0020 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 311
 lst_inst = DEFI_LIST_REEL(DEBUT=0.0,
                           INFO=1,
                           INTERVALLE=_F(JUSQU_A=1.0,
                                         NOMBRE=10))
 
-# Résultat commande #0019 (DEFI_LIST_REEL): lst_inst ('<00000012>') de type <ListOfFloats>
-# Mémoire (Mo) :   681.50 /   681.50 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0019   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0020 (DEFI_LIST_REEL): lst_inst ('<00000013>') de type <ListOfFloats>
+# Mémoire (Mo) :   681.53 /   681.53 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0020   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt301
+.. _stg1_txt312
 # ----------------------------------------------------------------------------------------------
-# Commande #0020 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 301
+# Commande #0021 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 312
 times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst),
                        ECHEC=_F(ACTION='DECOUPE',
                                 EVENEMENT='ERREUR',
@@ -576,16 +637,18 @@ L'événement 1 est pour capturer les erreurs.
 Si cet événement se déclenche, on découpe le pas de temps.
 La découpe du pas de temps est manuelle.
 On découpe le pas de temps en 4 incréments jusqu'à ce que le niveau atteigne 3.
-# Résultat commande #0020 (DEFI_LIST_INST): times ('<00000013>') de type <TimesList>
+# Résultat commande #0021 (DEFI_LIST_INST): times ('<00000014>') de type <TimesList>
 # Dépend de :
-# - lst_inst ('<00000012>') de type <ListOfFloats>
-# Mémoire (Mo) :   681.50 /   681.50 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0020   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# - lst_inst ('<00000013>') de type <ListOfFloats>
+# Mémoire (Mo) :   681.53 /   681.53 /   212.13 /   200.23 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0021   user+syst:        0.03s (syst:        0.00s, elaps:        0.03s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt303
+.. _stg1_txt314
 # ----------------------------------------------------------------------------------------------
-# Commande #0021 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 303
+# Commande #0022 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 314
 RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
                                   INFO_TEMPS='NON'),
                      ARCHIVAGE=_F(CHAM_EXCLU=('RESI_NOEU', 'RESI_RELA_NOEU'),
@@ -862,17 +925,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  7.254684780739e-10 au noeud et degré de liberté <27     
 DX>
-Temps CPU consommé dans ce pas de temps    : 59.090 s
+Temps CPU consommé dans ce pas de temps    : 1 min 26 s
 
 * Nombre d'itérations de Newton                     : 100
-* Temps total intégration comportement              : 55.632 s (483 intégrations)
-* Temps total factorisation matrice                 : 0.771 s (100 factorisations)
-* Temps construction second membre                  : 1.844 s
-* Temps total résolution K.U=F                      : 0.085 s (100 résolutions)
+* Temps total intégration comportement              : 1 min 20 s (483 intégrations)
+* Temps total factorisation matrice                 : 2.387 s (100 factorisations)
+* Temps construction second membre                  : 2.697 s
+* Temps total résolution K.U=F                      : 0.161 s (100 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 283
-* Temps autres opérations                           : 0.756 s
-Mémoire (Mo) :   692.77 /   691.25 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 1.424 s
+Mémoire (Mo) :   692.74 /   690.88 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1020,17 +1083,17 @@ On utilise la découpe manuelle.
 Découpe uniforme à partir de l'instant  1.000000000000e-01 en 4 pas de temps.
 (soit un incrément constant de  2.500000000000e-02)
 <Action> On découpe le pas de temps.
-Temps CPU consommé dans ce pas de temps    : 1 min  4 s
+Temps CPU consommé dans ce pas de temps    : 1 min 42 s
 
 * Nombre d'itérations de Newton                     : 100
-* Temps total intégration comportement              : 1 min  0 s (497 intégrations)
-* Temps total factorisation matrice                 : 0.866 s (100 factorisations)
-* Temps construction second membre                  : 2.028 s
-* Temps total résolution K.U=F                      : 0.101 s (100 résolutions)
+* Temps total intégration comportement              : 1 min 25 s (497 intégrations)
+* Temps total factorisation matrice                 : 12.560 s (100 factorisations)
+* Temps construction second membre                  : 3.023 s
+* Temps total résolution K.U=F                      : 0.162 s (100 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 297
-* Temps autres opérations                           : 0.809 s
-Mémoire (Mo) :   693.66 /   691.37 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 1.351 s
+Mémoire (Mo) :   693.56 /   691.41 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
  CELD: TEMP                        0
 -------------------------------------------------------------------------------------------------------
@@ -1069,17 +1132,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  7.391018113536e-13 au noeud et degré de liberté <8      
 DX>
-Temps CPU consommé dans ce pas de temps    : 1.426 s
+Temps CPU consommé dans ce pas de temps    : 3.100 s
 
 * Nombre d'itérations de Newton                     : 4
-* Temps total intégration comportement              : 1.234 s (8 intégrations)
-* Temps total factorisation matrice                 : 0.035 s (4 factorisations)
-* Temps construction second membre                  : 0.067 s
-* Temps total résolution K.U=F                      : 0.005 s (4 résolutions)
+* Temps total intégration comportement              : 2.520 s (8 intégrations)
+* Temps total factorisation matrice                 : 0.250 s (4 factorisations)
+* Temps construction second membre                  : 0.179 s
+* Temps total résolution K.U=F                      : 0.014 s (4 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 3
-* Temps autres opérations                           : 0.084 s
-Mémoire (Mo) :   693.66 /   691.37 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.137 s
+Mémoire (Mo) :   693.56 /   691.02 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1127,17 +1190,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  3.662289850624e-13 au noeud et degré de liberté <8      
 DX>
-Temps CPU consommé dans ce pas de temps    : 1.387 s
+Temps CPU consommé dans ce pas de temps    : 3.287 s
 
 * Nombre d'itérations de Newton                     : 4
-* Temps total intégration comportement              : 1.202 s (8 intégrations)
-* Temps total factorisation matrice                 : 0.031 s (4 factorisations)
-* Temps construction second membre                  : 0.086 s
-* Temps total résolution K.U=F                      : 0.003 s (4 résolutions)
+* Temps total intégration comportement              : 1.592 s (8 intégrations)
+* Temps total factorisation matrice                 : 1.475 s (4 factorisations)
+* Temps construction second membre                  : 0.107 s
+* Temps total résolution K.U=F                      : 0.007 s (4 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 0
-* Temps autres opérations                           : 0.065 s
-Mémoire (Mo) :   693.66 /   691.83 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.105 s
+Mémoire (Mo) :   693.79 /   691.50 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1196,17 +1259,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  2.788205849866e-13 au noeud et degré de liberté <6      
 DZ>
-Temps CPU consommé dans ce pas de temps    : 1.532 s
+Temps CPU consommé dans ce pas de temps    : 1.945 s
 
 * Nombre d'itérations de Newton                     : 4
-* Temps total intégration comportement              : 1.320 s (8 intégrations)
-* Temps total factorisation matrice                 : 0.033 s (4 factorisations)
-* Temps construction second membre                  : 0.084 s
-* Temps total résolution K.U=F                      : 0.004 s (4 résolutions)
+* Temps total intégration comportement              : 1.662 s (8 intégrations)
+* Temps total factorisation matrice                 : 0.101 s (4 factorisations)
+* Temps construction second membre                  : 0.078 s
+* Temps total résolution K.U=F                      : 0.007 s (4 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 0
-* Temps autres opérations                           : 0.090 s
-Mémoire (Mo) :   694.46 /   692.32 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.097 s
+Mémoire (Mo) :   694.16 /   692.01 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1235,17 +1298,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  1.761520467494e-13 au noeud et degré de liberté <8      
 DX>
-Temps CPU consommé dans ce pas de temps    : 1.456 s
+Temps CPU consommé dans ce pas de temps    : 1.982 s
 
 * Nombre d'itérations de Newton                     : 4
-* Temps total intégration comportement              : 1.268 s (8 intégrations)
-* Temps total factorisation matrice                 : 0.033 s (4 factorisations)
-* Temps construction second membre                  : 0.081 s
-* Temps total résolution K.U=F                      : 0.004 s (4 résolutions)
+* Temps total intégration comportement              : 1.677 s (8 intégrations)
+* Temps total factorisation matrice                 : 0.102 s (4 factorisations)
+* Temps construction second membre                  : 0.098 s
+* Temps total résolution K.U=F                      : 0.011 s (4 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 0
-* Temps autres opérations                           : 0.070 s
-Mémoire (Mo) :   695.10 /   692.81 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.094 s
+Mémoire (Mo) :   694.82 /   692.81 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1287,17 +1350,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  1.759633428270e-10 au noeud et degré de liberté <26     
 DX>
-Temps CPU consommé dans ce pas de temps    : 9.309 s
+Temps CPU consommé dans ce pas de temps    : 15.613 s
 
 * Nombre d'itérations de Newton                     : 17
-* Temps total intégration comportement              : 8.635 s (64 intégrations)
-* Temps total factorisation matrice                 : 0.149 s (17 factorisations)
-* Temps construction second membre                  : 0.336 s
-* Temps total résolution K.U=F                      : 0.017 s (17 résolutions)
+* Temps total intégration comportement              : 13.893 s (64 intégrations)
+* Temps total factorisation matrice                 : 0.871 s (17 factorisations)
+* Temps construction second membre                  : 0.489 s
+* Temps total résolution K.U=F                      : 0.024 s (17 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 30
-* Temps autres opérations                           : 0.173 s
-Mémoire (Mo) :   695.10 /   693.23 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.336 s
+Mémoire (Mo) :   694.82 /   693.25 /   212.13 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1338,17 +1401,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  3.863631206670e-10 au noeud et degré de liberté <27     
 DX>
-Temps CPU consommé dans ce pas de temps    : 7.756 s
+Temps CPU consommé dans ce pas de temps    : 13.637 s
 
 * Nombre d'itérations de Newton                     : 16
-* Temps total intégration comportement              : 7.390 s (58 intégrations)
-* Temps total factorisation matrice                 : 0.121 s (16 factorisations)
-* Temps construction second membre                  : 0.254 s
-* Temps total résolution K.U=F                      : 0.021 s (16 résolutions)
+* Temps total intégration comportement              : 11.914 s (58 intégrations)
+* Temps total factorisation matrice                 : 0.959 s (16 factorisations)
+* Temps construction second membre                  : 0.457 s
+* Temps total résolution K.U=F                      : 0.024 s (16 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 26
-* Temps autres opérations                           : 0.000 s
-Mémoire (Mo) :   696.00 /   693.71 /   212.54 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.283 s
+Mémoire (Mo) :   694.94 /   693.41 /   212.54 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1417,17 +1480,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  1.401172625836e-09 au noeud et degré de liberté <8      
 DX>
-Temps CPU consommé dans ce pas de temps    : 21.965 s
+Temps CPU consommé dans ce pas de temps    : 57.452 s
 
 * Nombre d'itérations de Newton                     : 44
-* Temps total intégration comportement              : 20.559 s (184 intégrations)
-* Temps total factorisation matrice                 : 0.316 s (44 factorisations)
-* Temps construction second membre                  : 0.703 s
-* Temps total résolution K.U=F                      : 0.038 s (44 résolutions)
+* Temps total intégration comportement              : 34.071 s (184 intégrations)
+* Temps total factorisation matrice                 : 21.517 s (44 factorisations)
+* Temps construction second membre                  : 1.182 s
+* Temps total résolution K.U=F                      : 0.084 s (44 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 96
-* Temps autres opérations                           : 0.350 s
-Mémoire (Mo) :   696.00 /   694.13 /   213.00 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.598 s
+Mémoire (Mo) :   695.32 /   693.80 /   213.00 /   203.60 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1480,17 +1543,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  1.109960610388e-11 au noeud et degré de liberté <27     
 DX>
-Temps CPU consommé dans ce pas de temps    : 11.599 s
+Temps CPU consommé dans ce pas de temps    : 27.924 s
 
 * Nombre d'itérations de Newton                     : 28
-* Temps total intégration comportement              : 10.843 s (121 intégrations)
-* Temps total factorisation matrice                 : 0.165 s (28 factorisations)
-* Temps construction second membre                  : 0.395 s
-* Temps total résolution K.U=F                      : 0.029 s (28 résolutions)
+* Temps total intégration comportement              : 20.758 s (121 intégrations)
+* Temps total factorisation matrice                 : 6.031 s (28 factorisations)
+* Temps construction second membre                  : 0.693 s
+* Temps total résolution K.U=F                      : 0.043 s (28 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 65
-* Temps autres opérations                           : 0.167 s
-Mémoire (Mo) :   696.93 /   694.64 /   213.48 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.399 s
+Mémoire (Mo) :   695.84 /   694.31 /   213.48 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1524,17 +1587,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  2.570469867336e-11 au noeud et degré de liberté <7      
 DX>
-Temps CPU consommé dans ce pas de temps    : 2.394 s
+Temps CPU consommé dans ce pas de temps    : 6.034 s
 
 * Nombre d'itérations de Newton                     : 9
-* Temps total intégration comportement              : 2.169 s (27 intégrations)
-* Temps total factorisation matrice                 : 0.053 s (9 factorisations)
-* Temps construction second membre                  : 0.092 s
-* Temps total résolution K.U=F                      : 0.006 s (9 résolutions)
+* Temps total intégration comportement              : 5.213 s (27 intégrations)
+* Temps total factorisation matrice                 : 0.432 s (9 factorisations)
+* Temps construction second membre                  : 0.242 s
+* Temps total résolution K.U=F                      : 0.007 s (9 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 9
-* Temps autres opérations                           : 0.074 s
-Mémoire (Mo) :   697.75 /   695.46 /   213.94 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.140 s
+Mémoire (Mo) :   696.82 /   695.20 /   213.95 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1613,17 +1676,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  6.750093328810e-12 au noeud et degré de liberté <24     
 DX>
-Temps CPU consommé dans ce pas de temps    : 27.582 s
+Temps CPU consommé dans ce pas de temps    : 45.192 s
 
 * Nombre d'itérations de Newton                     : 54
-* Temps total intégration comportement              : 25.962 s (252 intégrations)
-* Temps total factorisation matrice                 : 0.375 s (54 factorisations)
-* Temps construction second membre                  : 0.814 s
-* Temps total résolution K.U=F                      : 0.050 s (54 résolutions)
+* Temps total intégration comportement              : 41.031 s (252 intégrations)
+* Temps total factorisation matrice                 : 1.983 s (54 factorisations)
+* Temps construction second membre                  : 1.384 s
+* Temps total résolution K.U=F                      : 0.122 s (54 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 144
-* Temps autres opérations                           : 0.381 s
-Mémoire (Mo) :   697.89 /   695.59 /   214.41 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.671 s
+Mémoire (Mo) :   697.49 /   695.20 /   214.41 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1657,17 +1720,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  8.276784858314e-09 au noeud et degré de liberté <8      
 DX>
-Temps CPU consommé dans ce pas de temps    : 2.401 s
+Temps CPU consommé dans ce pas de temps    : 7.226 s
 
 * Nombre d'itérations de Newton                     : 9
-* Temps total intégration comportement              : 2.219 s (33 intégrations)
-* Temps total factorisation matrice                 : 0.040 s (9 factorisations)
-* Temps construction second membre                  : 0.078 s
-* Temps total résolution K.U=F                      : 0.005 s (9 résolutions)
+* Temps total intégration comportement              : 6.171 s (33 intégrations)
+* Temps total factorisation matrice                 : 0.637 s (9 factorisations)
+* Temps construction second membre                  : 0.269 s
+* Temps total résolution K.U=F                      : 0.009 s (9 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 15
-* Temps autres opérations                           : 0.060 s
-Mémoire (Mo) :   698.23 /   696.07 /   214.87 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.140 s
+Mémoire (Mo) :   697.78 /   696.09 /   214.88 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1699,17 +1762,17 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  1.130044394038e-11 au noeud et degré de liberté <26     
 DX>
-Temps CPU consommé dans ce pas de temps    : 1.652 s
+Temps CPU consommé dans ce pas de temps    : 4.108 s
 
 * Nombre d'itérations de Newton                     : 7
-* Temps total intégration comportement              : 1.498 s (21 intégrations)
-* Temps total factorisation matrice                 : 0.033 s (7 factorisations)
-* Temps construction second membre                  : 0.066 s
-* Temps total résolution K.U=F                      : 0.004 s (7 résolutions)
+* Temps total intégration comportement              : 3.493 s (21 intégrations)
+* Temps total factorisation matrice                 : 0.312 s (7 factorisations)
+* Temps construction second membre                  : 0.170 s
+* Temps total résolution K.U=F                      : 0.005 s (7 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 7
-* Temps autres opérations                           : 0.052 s
-Mémoire (Mo) :   698.88 /   696.73 /   215.34 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.126 s
+Mémoire (Mo) :   698.62 /   696.47 /   215.34 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -1720,29 +1783,29 @@ Champ stocké <COMPORTEMENT> à l'instant  1.000000000000e+00 pour le numéro d'
 Champ stocké <STRX_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 13
 [100%] Instant calculé : 1.00000e+00, dernier instant archivé : 1.00000e+00, au numéro d'ordre :   
 13
-Temps CPU consommé dans le calcul          : 3 min 33 s
+Temps CPU consommé dans le calcul          : 6 min 16 s
 
-dont temps CPU "perdu" dans les découpes            : 1 min  4 s
+dont temps CPU "perdu" dans les découpes            : 1 min 42 s
 * Nombre de pas de temps                            : 14
 * Nombre d'itérations de Newton                     : 400
-* Temps dans l'archivage                            : 0.027 s
+* Temps dans l'archivage                            : 0.036 s
 * Temps dans le post-traitement                     : 0.000 s
-* Temps total intégration comportement              : 3 min 20 s (1772 intégrations)
-* Temps total factorisation matrice                 : 3.022 s (400 factorisations)
-* Temps construction second membre                  : 6.930 s
-* Temps total résolution K.U=F                      : 0.370 s (400 résolutions)
+* Temps total intégration comportement              : 5 min  9 s (1772 intégrations)
+* Temps total factorisation matrice                 : 49.616 s (400 factorisations)
+* Temps construction second membre                  : 11.067 s
+* Temps total résolution K.U=F                      : 0.680 s (400 résolutions)
 * Temps assemblage matrice                          : 0.000 s
 * Nombre d'itérations de recherche linéaire         : 975
-#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      3.42      0.35      3.38
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    206.03      1.38    206.88
-# Résultat commande #0021 (STAT_NON_LINE): RESU ('<00000014>') de type <NonLinearResult>
-# Mémoire (Mo) :   698.88 /   692.95 /   215.34 /   203.61 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0021   user+syst:      211.04s (syst:        1.85s, elaps:      215.15s)
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      5.32      0.74     50.28
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    319.62      2.65    320.26
+# Résultat commande #0022 (STAT_NON_LINE): RESU ('<00000015>') de type <NonLinearResult>
+# Mémoire (Mo) :   698.62 /   692.68 /   215.34 /   203.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0022   user+syst:      327.64s (syst:        3.62s, elaps:      375.25s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt183
 # ----------------------------------------------------------------------------------------------
-# Commande #0022 de /home/jan/miniforge3/envs/tuba-code-aster/lib/python3
+# Commande #0023 de /home/jan/miniforge3/envs/tuba-code-aster/lib/python3
 14/site-packages/code_aster/Supervis/ExecuteCommand.py, ligne 183
 CALC_CHAMP(CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
            CRITERE='RELATIF',
@@ -1907,15 +1970,50 @@ Le système linéaire à résoudre a 946 degrés de liberté:
  CELD: TEMP                        0
  CELD: TEMP                        0
  CELD: TEMP                        0
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.54      0.03      0.54
-# Résultat commande #0022 (CALC_CHAMP): RESU ('<00000014>') de type <NonLinearResult>
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0022   user+syst:        0.75s (syst:        0.03s, elaps:        0.80s)
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      1.47      0.22      1.43
+# Résultat commande #0023 (CALC_CHAMP): RESU ('<00000015>') de type <NonLinearResult>
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0023   user+syst:        1.88s (syst:        0.25s, elaps:        2.11s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt345
+.. _stg1_txt183
 # ----------------------------------------------------------------------------------------------
-# Commande #0023 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 345
+# Commande #0024 de /home/jan/miniforge3/envs/tuba-code-aster/lib/python3
+14/site-packages/code_aster/Supervis/ExecuteCommand.py, ligne 183
+CALC_CHAMP(CONTRAINTE='SIPO_ELNO',
+           CRITERE='RELATIF',
+           GROUP_MA='G_TUBE',
+           INFO=1,
+           PARALLELISME_TEMPS='NON',
+           PRECISION=1e-06,
+           RESULTAT=RESU,
+           reuse=RESU)
+
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.11      0.00      0.09
+# Résultat commande #0024 (CALC_CHAMP): RESU ('<00000015>') de type <NonLinearResult>
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0024   user+syst:        0.26s (syst:        0.00s, elaps:        0.26s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt363
+# ----------------------------------------------------------------------------------------------
+# Commande #0025 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 363
 IMPR_RESU(FICHIER_UNIQUE='NON',
           FORMAT='MED',
           INFO=1,
@@ -1948,13 +2046,15 @@ Création du fichier au format MED 3.3.1.
      Dans certains cas, le fichier MED produit peut devenir volumineux. Dans ce
      cas, l'utilisation du mot-clé NOM_CMP est conseillée.
 
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0023   user+syst:        0.04s (syst:        0.01s, elaps:        0.05s)
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0025   user+syst:        0.18s (syst:        0.11s, elaps:        7.98s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt357
+.. _stg1_txt375
 # ----------------------------------------------------------------------------------------------
-# Commande #0024 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 357
+# Commande #0026 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 375
 TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -1965,14 +2065,16 @@ TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               TOUT='OUI'),
                       TYPE_TABLE='TABLE')
 
-# Résultat commande #0024 (CREA_TABLE): TAB_EFFO ('<00000015>') de type <Table>
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0024   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0026 (CREA_TABLE): TAB_EFFO ('<00000016>') de type <Table>
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0026   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt367
+.. _stg1_txt385
 # ----------------------------------------------------------------------------------------------
-# Commande #0025 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 367
+# Commande #0027 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 385
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -1986,13 +2088,15 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_EFFO,
            UNITE=38)
 
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0025   user+syst:        0.06s (syst:        0.00s, elaps:        0.07s)
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0027   user+syst:        0.20s (syst:        0.00s, elaps:        0.20s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt376
+.. _stg1_txt394
 # ----------------------------------------------------------------------------------------------
-# Commande #0026 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 376
+# Commande #0028 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 394
 TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -2003,14 +2107,16 @@ TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               TOUT='OUI'),
                       TYPE_TABLE='TABLE')
 
-# Résultat commande #0026 (CREA_TABLE): TAB_DEPL ('<00000016>') de type <Table>
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0026   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Résultat commande #0028 (CREA_TABLE): TAB_DEPL ('<00000017>') de type <Table>
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0028   user+syst:        0.03s (syst:        0.00s, elaps:        0.03s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt386
+.. _stg1_txt404
 # ----------------------------------------------------------------------------------------------
-# Commande #0027 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 386
+# Commande #0029 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 404
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -2024,13 +2130,15 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_DEPL,
            UNITE=39)
 
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0027   user+syst:        0.05s (syst:        0.00s, elaps:        0.06s)
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0029   user+syst:        0.20s (syst:        0.00s, elaps:        0.22s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt395
+.. _stg1_txt413
 # ----------------------------------------------------------------------------------------------
-# Commande #0028 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 395
+# Commande #0030 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 413
 TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -2041,14 +2149,16 @@ TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               TOUT='OUI'),
                       TYPE_TABLE='TABLE')
 
-# Résultat commande #0028 (CREA_TABLE): TAB_REAC ('<00000017>') de type <Table>
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0028   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0030 (CREA_TABLE): TAB_REAC ('<00000018>') de type <Table>
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0030   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt405
+.. _stg1_txt423
 # ----------------------------------------------------------------------------------------------
-# Commande #0029 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 405
+# Commande #0031 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 423
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -2062,13 +2172,15 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_REAC,
            UNITE=40)
 
-# Mémoire (Mo) :   752.32 /   738.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0029   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :   752.05 /   737.98 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0031   user+syst:        0.24s (syst:        0.00s, elaps:        0.29s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt414
+.. _stg1_txt432
 # ----------------------------------------------------------------------------------------------
-# Commande #0030 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 414
+# Commande #0032 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 432
 TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -2079,14 +2191,16 @@ TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               TOUT='OUI'),
                       TYPE_TABLE='TABLE')
 
-# Résultat commande #0030 (CREA_TABLE): TAB_SIEQ ('<00000018>') de type <Table>
-# Mémoire (Mo) :   752.32 /   738.87 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0030   user+syst:        0.17s (syst:        0.00s, elaps:        0.17s)
+# Résultat commande #0032 (CREA_TABLE): TAB_SIEQ ('<00000019>') de type <Table>
+# Mémoire (Mo) :   752.05 /   738.90 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0032   user+syst:        0.63s (syst:        0.03s, elaps:        0.64s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt424
+.. _stg1_txt442
 # ----------------------------------------------------------------------------------------------
-# Commande #0031 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 424
+# Commande #0033 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 442
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -2100,13 +2214,57 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_SIEQ,
            UNITE=41)
 
-# Mémoire (Mo) :   764.04 /   745.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0031   user+syst:        0.29s (syst:        0.03s, elaps:        0.32s)
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0033   user+syst:        0.61s (syst:        0.03s, elaps:        0.76s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt434
+.. _stg1_txt451
 # ----------------------------------------------------------------------------------------------
-# Commande #0032 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 434
+# Commande #0034 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 451
+TAB_SIPO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
+                              GROUP_MA='G_TUBE',
+                              INST=1.0,
+                              INTITULE='RESU',
+                              NOM_CHAM='SIPO_ELNO',
+                              NOM_CMP=('SN', 'SMFY', 'SMFZ'),
+                              PRECISION=1e-06,
+                              RESULTAT=RESU),
+                      TYPE_TABLE='TABLE')
+
+# Résultat commande #0034 (CREA_TABLE): TAB_SIPO ('<0000001a>') de type <Table>
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0034   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt461
+# ----------------------------------------------------------------------------------------------
+# Commande #0035 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 461
+IMPR_TABLE(COMMENTAIRE='#',
+           COMM_PARA='',
+           DEBUT_LIGNE='',
+           FIN_LIGNE='\n',
+           FIN_TABLE='',
+           FORMAT='TABLEAU',
+           FORMAT_R='1PE24.16',
+           IMPR_FONCTION='NON',
+           INFO=1,
+           SEPARATEUR=',',
+           TABLE=TAB_SIPO,
+           UNITE=43)
+
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0035   user+syst:        0.11s (syst:        0.00s, elaps:        0.10s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt471
+# ----------------------------------------------------------------------------------------------
+# Commande #0036 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 471
 CT = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                         GROUP_MA='GE3D248C',
                         INST=1.0,
@@ -2118,14 +2276,16 @@ CT = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                 TYPE_TABLE='TABLE')
 
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
-# Résultat commande #0032 (CREA_TABLE): CT ('<00000019>') de type <Table>
-# Mémoire (Mo) :   764.04 /   745.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0032   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0036 (CREA_TABLE): CT ('<0000001b>') de type <Table>
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0036   user+syst:        0.02s (syst:        0.01s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt436
+.. _stg1_txt473
 # ----------------------------------------------------------------------------------------------
-# Commande #0033 de /tmp/run_aster_yxwyahr2/study.comm.changed.py, ligne 436
+# Commande #0037 de
+/mnt/d/tmp/tuba-beam-stress/examples/elements-supports-review/evidence/LoadCase1/
+aster-work/d31752ecd32642fcaac0deedb0eddeef/study.comm.changed.py, ligne 473
 VT = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                         GROUP_MA='GE3D248C',
                         INST=1.0,
@@ -2137,14 +2297,14 @@ VT = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                 TYPE_TABLE='TABLE')
 
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
-# Résultat commande #0033 (CREA_TABLE): VT ('<0000001a>') de type <Table>
-# Mémoire (Mo) :   764.04 /   745.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0033   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
+# Résultat commande #0037 (CREA_TABLE): VT ('<0000001c>') de type <Table>
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0037   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt76
 # ----------------------------------------------------------------------------------------------
-# Commande #0034 de
+# Commande #0038 de
 /home/jan/miniforge3/envs/tuba-code-aster/lib/python3.14/site-packages/code_aster/CodeCommands/fin
 py, ligne 76
 FIN(INFO_RESU='NON',
@@ -2165,16 +2325,16 @@ No database in results, objects not saved on processor #0
 <I> <FIN> ARRET NORMAL DANS "FIN" PAR APPEL A "JEFINI".
   
  <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     204.90 Mo
- <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     272.44 Mo
- <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     764.04 Mo
+ <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     272.45 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     765.12 Mo
   
  <I>       FERMETURE DES BASES EFFECTUEE
   
    STATISTIQUES CONCERNANT L'ALLOCATION DYNAMIQUE :
      TAILLE CUMULEE MAXIMUM            :                  272  Mo.
-     TAILLE CUMULEE LIBEREE            :                  921  Mo.
-     NOMBRE TOTAL D'ALLOCATIONS        :              3692873
-     NOMBRE TOTAL DE LIBERATIONS       :              3690916
+     TAILLE CUMULEE LIBEREE            :                  924  Mo.
+     NOMBRE TOTAL D'ALLOCATIONS        :              3712018
+     NOMBRE TOTAL DE LIBERATIONS       :              3709955
      APPELS AU MECANISME DE LIBERATION :                    0
      TAILLE MEMOIRE CUMULEE RECUPEREE  :                    0  Mo.
      VOLUME DES LECTURES               :                    0  Mo.
@@ -2183,14 +2343,14 @@ No database in results, objects not saved on processor #0
    MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :     204.90 Mo
      - IMPOSE DE NOMBREUX ACCES DISQUE
      - RALENTIT LA VITESSE D'EXECUTION
-   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     272.44 Mo
+   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     272.45 Mo
      - LIMITE LES ACCES DISQUE
      - AMELIORE LA VITESSE D'EXECUTION
-   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     764.04 Mo
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     765.12 Mo
      - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
        LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
   
- <I>       FIN D'EXECUTION LE : SA-19-SEPT-2026 13:07:48
+ <I>       FIN D'EXECUTION LE : DI-04-OCTO-2026 19:22:33
 INFO './glob.1' deleted
 Deleting './glob.2': No such file or directory
 INFO './vola.1' deleted
@@ -2199,53 +2359,57 @@ Deleting './vola.2': No such file or directory
  ********************************************************************************
  * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
  ********************************************************************************
- * DEBUT                    :       0.08 :       0.60 :       0.68 :       0.70 *
- * LIRE_MAILLAGE            :       0.01 :       0.00 :       0.01 :       0.01 *
+ * DEBUT                    :       0.06 :       0.54 :       0.60 :       6.03 *
+ * LIRE_MAILLAGE            :       0.01 :       0.00 :       0.01 :       0.20 *
  * CREA_MAILLAGE            :       0.01 :       0.00 :       0.01 :       0.01 *
- * AFFE_MODELE              :       0.04 :       0.00 :       0.04 :       0.04 *
- * DEFI_MATERIAU            :       0.08 :       0.01 :       0.09 :       0.10 *
- * DEFI_MATERIAU            :       0.09 :       0.01 :       0.10 :       0.10 *
- * AFFE_MATERIAU            :       0.07 :       0.00 :       0.07 :       0.08 *
- * AFFE_CARA_ELEM           :       0.10 :       0.00 :       0.10 :       0.10 *
+ * AFFE_MODELE              :       0.04 :       0.00 :       0.04 :       0.05 *
+ * DEFI_MATERIAU            :       0.16 :       0.00 :       0.16 :       0.17 *
+ * DEFI_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.11 *
+ * DEFI_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.13 *
+ * AFFE_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.13 *
+ * AFFE_CARA_ELEM           :       0.17 :       0.00 :       0.17 :       0.19 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
+ * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
  * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.00 *
- * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.01 *
- * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
- * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
- * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
- * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.02 *
  * CREA_CHAMP               :       0.01 :       0.00 :       0.01 :       0.01 *
- * CREA_CHAMP               :       0.01 :       0.00 :       0.01 :       0.00 *
- * CREA_RESU                :       0.01 :       0.00 :       0.01 :       0.00 *
- * AFFE_MATERIAU            :       0.05 :       0.00 :       0.05 :       0.06 *
- * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
- * DEFI_LIST_INST           :       0.01 :       0.00 :       0.01 :       0.01 *
- * STAT_NON_LINE            :     211.04 :       1.85 :     212.89 :     215.15 *
- * CALC_CHAMP               :       0.75 :       0.03 :       0.78 :       0.80 *
- * IMPR_RESU                :       0.04 :       0.01 :       0.05 :       0.05 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.00 *
- * IMPR_TABLE               :       0.06 :       0.00 :       0.06 :       0.07 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.00 *
- * IMPR_TABLE               :       0.05 :       0.00 :       0.05 :       0.06 *
+ * CREA_CHAMP               :       0.00 :       0.00 :       0.00 :       0.00 *
+ * CREA_RESU                :       0.03 :       0.00 :       0.03 :       0.03 *
+ * AFFE_MATERIAU            :       0.14 :       0.00 :       0.14 :       0.15 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.01 *
+ * DEFI_LIST_INST           :       0.03 :       0.00 :       0.03 :       0.03 *
+ * STAT_NON_LINE            :     327.64 :       3.62 :     331.26 :     375.25 *
+ * CALC_CHAMP               :       1.88 :       0.25 :       2.13 :       2.11 *
+ * CALC_CHAMP               :       0.26 :       0.00 :       0.26 :       0.26 *
+ * IMPR_RESU                :       0.18 :       0.11 :       0.29 :       7.98 *
+ * CREA_TABLE               :       0.02 :       0.00 :       0.02 :       0.02 *
+ * IMPR_TABLE               :       0.20 :       0.00 :       0.20 :       0.20 *
+ * CREA_TABLE               :       0.03 :       0.00 :       0.03 :       0.03 *
+ * IMPR_TABLE               :       0.20 :       0.00 :       0.20 :       0.22 *
+ * CREA_TABLE               :       0.02 :       0.00 :       0.02 :       0.02 *
+ * IMPR_TABLE               :       0.24 :       0.00 :       0.24 :       0.29 *
+ * CREA_TABLE               :       0.63 :       0.03 :       0.66 :       0.64 *
+ * IMPR_TABLE               :       0.61 :       0.03 :       0.64 :       0.76 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.02 *
+ * IMPR_TABLE               :       0.11 :       0.00 :       0.11 :       0.10 *
+ * CREA_TABLE               :       0.02 :       0.01 :       0.03 :       0.02 *
  * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
- * IMPR_TABLE               :       0.05 :       0.00 :       0.05 :       0.05 *
- * CREA_TABLE               :       0.17 :       0.00 :       0.17 :       0.17 *
- * IMPR_TABLE               :       0.29 :       0.03 :       0.32 :       0.32 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
- * CREA_TABLE               :       0.00 :       0.00 :       0.00 :       0.01 *
- * FIN                      :       0.05 :       0.00 :       0.05 :       0.05 *
+ * FIN                      :       0.14 :       0.01 :       0.15 :       0.24 *
  *  . sdveri                :       0.00 :       0.00 :       0.00 :       0.00 *
- *  . check syntax          :       0.16 :       0.00 :       0.16 :       0.17 *
- *  . fortran               :     212.13 :       2.49 :     214.62 :     216.96 *
- *  . cleanup               :       0.51 :       0.02 :       0.53 :       0.54 *
+ *  . check syntax          :       0.43 :       0.02 :       0.45 :       0.45 *
+ *  . fortran               :     330.77 :       4.54 :     335.31 :     392.60 *
+ *  . cleanup               :       1.40 :       0.00 :       1.40 :       1.40 *
  ********************************************************************************
- * TOTAL_JOB                :     213.24 :       2.58 :     215.82 :     218.20 *
+ * TOTAL_JOB                :     333.55 :       4.63 :     338.18 :     395.88 *
  ********************************************************************************
 
-# Mémoire (Mo) :   764.04 /   745.26 /   272.44 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0034   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :   765.12 /   745.34 /   272.45 /   204.90 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0038   user+syst:        0.14s (syst:        0.01s, elaps:        0.24s)
 # ----------------------------------------------------------------------------------------------
 
-EXECUTION_CODE_ASTER_EXIT_5923=0
+EXECUTION_CODE_ASTER_EXIT_11344=0
 
 
 

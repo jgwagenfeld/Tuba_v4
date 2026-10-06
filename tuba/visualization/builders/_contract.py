@@ -65,6 +65,8 @@ class SceneRequest:
     geometry_states: Iterable[GeometryState] | None = None
     analysis_meshes: Iterable[AnalysisMesh] | None = None
     include_analysis_mesh: bool | None = None
+    #: Authored study selection of native pipe solids; shape alone never implies 3D coupling.
+    volume_export: dict[str, Any] | None = None
     ifc_guid_map: dict[str | EntityRef, str] | None = None
     ifc_context: dict[str, Any] | None = None
     field_notes: Iterable[dict[str, Any]] | None = None

@@ -395,6 +395,8 @@ test("metadata-only layers surface as category identity, not as a toggle", () =>
   assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes"]);
   assert.deepEqual(mesh.leaves, [{ layerId: "analysis_mesh:nodes", label: "Nodes", count: 12 }]);
   assert.equal(mesh.meshIdentity.modelisations[0].modelisation, "TUYAU_3M");
+  // The same name the Display row and the Build button use.
+  assert.equal(mesh.label, "FE mesh");
 });
 
 test("categories without mesh identity report none", () => {
@@ -668,4 +670,49 @@ test("result profiles and their group filters remain independent of the analysis
   assert.deepEqual(setLayerVisibility(hidden,"deformed:mesh",false).visibleObjectIds,[]);
   const hiddenGroup = setLayerVisibility(hidden,"deformed:group:G_TUBE",false);
   assert.deepEqual(setLayerVisibility(hiddenGroup,"deformed:group:G_TUBE",true).visibleObjectIds,["profile"]);
+});
+
+test("a result field draws only its own quantity's arrows, and the layer toggle still overrides", async () => {
+  const { reduceViewerState } = await import("../src/viewerState.js");
+  const types = ["stress", "displacement", "reaction_force", "reaction_moment"];
+  const arrowKind = (type) => (type === "displacement" ? "displacement_vector" : "reaction_vector");
+  const arrows = types.slice(1).map((type) => ({
+    id: `object:${type}:N1`, kind: arrowKind(type), layer_ids: [`result:${type}`], metadata: { result_type: type }
+  }));
+  const scene = {
+    scene_id: "scene:arrows",
+    model_id: "model:arrows",
+    objects: [{ id: "object:pipe", kind: "pipe", layer_ids: ["pipe"] },
+      { id: "object:stress:field", kind: "volume_stress_field", layer_ids: ["solver_result:volume_stress"] },
+      { id: "object:port", kind: "imported_port", layer_ids: ["imported_components", "mixed_ports"] }, ...arrows],
+    geometry_assets: [],
+    overlays: types.map((type) => ({ id: `overlay:${type}`, kind: "solver_result",
+      object_ids: type === "stress" ? ["object:stress:field"] : [`object:${type}:N1`],
+      data: { result_type: type, load_case: "Hot", values: { N1: 1 } } })),
+    layers: [{ id: "pipe", category: "design", default_visible: true },
+      { id: "solver_result:volume_stress", category: "results", default_visible: true },
+      { id: "imported_components", category: "design", default_visible: true },
+      { id: "mixed_ports", category: "design", default_visible: true },
+      ...types.slice(1).map((type) => ({ id: `result:${type}`, category: "results", default_visible: true }))],
+    result_fields: types.map((type) => ({ id: `field:${type}`, overlay_id: `overlay:${type}`, load_case: "Hot",
+      components: type === "stress" ? ["magnitude"] : ["DX", "DY", "DZ", "magnitude"] })),
+    diagnostics: []
+  };
+  const drawn = (state) => state.visibleObjectIds.filter((id) => id !== "object:pipe" && id !== "object:port");
+  const portShown = (state) => state.visibleObjectIds.includes("object:port");
+
+  const stress = createViewerState({ scene, objectMap: {}, geometryPayloads: [] });
+  assert.deepEqual(drawn(stress), ["object:stress:field"], "a stress view draws its own field body and no other quantity");
+  assert.equal(portShown(stress), false, "interface markers step back while a field colours the scene");
+
+  const reaction = reduceViewerState(stress, { type: "setColoringField", fieldId: "field:reaction_force" });
+  assert.deepEqual(drawn(reaction), ["object:reaction_force:N1"], "the stress solid steps back for the reaction arrows");
+
+  const toggled = reduceViewerState(reaction, { type: "setLayerVisibility", layerId: "result:displacement", visible: true });
+  assert.deepEqual(drawn(toggled).sort(), ["object:displacement:N1", "object:reaction_force:N1"], "the toggle brings arrows back");
+
+  const model = reduceViewerState(toggled, { type: "setModelColorBy", colorBy: "material" });
+  assert.deepEqual(drawn(model).sort(), ["object:stress:field", ...arrows.map((arrow) => arrow.id)].sort(),
+    "the model channel restores what the bundle declared");
+  assert.equal(portShown(model), true);
 });

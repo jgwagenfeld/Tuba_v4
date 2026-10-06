@@ -16,6 +16,7 @@
 import { contactRecords } from "./contactReview.js";
 import { getActiveResultState, getScalarLegend, getScalarValues } from "./resultReview.js";
 import { getPropertySections } from "./selection.js";
+import { prescribedDisplacementText } from "./supportGlyphs.js";
 import { DOF_AXES, supportDofStates } from "./supports.js";
 import { displayUnit, formatNumber, formatQuantity, formatUtilization, getUnitSystem, toDisplay } from "./units.js";
 
@@ -30,6 +31,10 @@ const SUPPORT_TITLES = Object.freeze({
 const KIND_TITLES = Object.freeze({
   analysis_mesh_element: "Mesh element",
   analysis_mesh_node: "Mesh node",
+  imported_component: "Imported geometry",
+  imported_port: "Imported interface",
+  mixed_coupling: "Structural connection",
+  interface_mapping: "Interface mapping",
   clash_marker: "Clash",
   displacement_vector: "Displacement",
   obstacle: "Obstacle",
@@ -153,26 +158,12 @@ function definitionSection(config, state, system) {
   if (positive(config.friction_coefficient)) push("Friction", `${MICRO} ${formatNumber(config.friction_coefficient)}`);
   if (positive(config.mass)) push("Mass", `${formatNumber(config.mass)} kg`);
 
-  const imposed = componentsOf(config, "imposed_displacement");
-  if (imposed) {
-    push("Imposed displacement", imposed.map((value) => formatQuantity(value, "m", system)).join(", "));
-    // A prescribed movement is compiled as a penalty spring, not a hard
-    // constraint, so the number that governs it is the spring's stiffness.
-    // Without this row the displacement reads as though the solver held it
-    // exactly, which is the one thing a penalty method does not do.
-    const penalty = (Array.isArray(config.spring_stiffness) ? config.spring_stiffness : [])
-      .map(Number)
-      .filter((value) => Number.isFinite(value) && value !== 0);
-    if (penalty.length) {
-      // A stiffness is a force per unit travel. Both halves are converted to the
-      // reader's system and then divided, so the figure is per *one displayed
-      // unit* of travel: 1e6 N/m is 1 kN per mm, not the "1000 kN / 1000 mm" that
-      // printing the two converted halves independently produces.
-      const perDisplayMetre = toDisplay(penalty[0], "N", system) / (toDisplay(1, "m", system) || 1);
-      push("Prescribed by penalty spring",
-        `${formatNumber(perDisplayMetre)} ${displayUnit("N", system)} / ${displayUnit("m", system)}`);
-    }
-  }
+  // Three or six components, the non-zero ones named: "ΔZ = 80 mm · ΔRZ =
+  // 0.01 rad". No penalty row: no backend compiles a prescribed movement as a
+  // spring (volume and mixed studies impose it exactly, as DDL_IMPO; the line
+  // compiler refuses it), and spring_stiffness is the support's own spring.
+  const imposed = prescribedDisplacementText(config, system);
+  if (imposed) push("Imposed displacement", imposed);
 
   // Elements name their end nodes in metadata.nodes; older bundles spell them
   // n1/n2. This is the member the support sits on, not what it acts against -
@@ -389,12 +380,14 @@ export function getSelectionSummary(state, objectId) {
   const node = isSupport ? config.node : undefined;
   const dofStates = isSupport ? supportDofStates(config) : null;
   const contact = isSupport ? contactSection(state, obj, system) : { section: null, badge: null };
+  const imported = obj.kind === "imported_component" ? importedSummary(obj) : null;
   const point = pointOf(asset);
 
   // Everything getPropertySections already knows how to build, minus the three
   // sections that moved into Reference.
-  const generic = getPropertySections(state, objectId)
-    .filter((section) => !FOLDED_SECTIONS.has(section.id))
+  const properties = getPropertySections(state, objectId);
+  const generic = properties
+    .filter((section) => !FOLDED_SECTIONS.has(section.id) && !(imported && section.id === "imported_geometry"))
     .map((section) => ({
       title: section.title,
       id: section.id,
@@ -411,17 +404,22 @@ export function getSelectionSummary(state, objectId) {
         ...(section.sourceLines?.[label] ? { sourceLine: section.sourceLines[label] } : {})
       }))
     }));
+  const order = imported ? { meshing: 0, structural_integration: 1 } : {};
+  const priority = section => section.id.startsWith("interface_mapping:") ? -1 : order[section.id] ?? 2;
+  generic.sort((left, right) => priority(left) - priority(right));
 
   return {
     objectId: obj.id,
     title: isSupport
       ? SUPPORT_TITLES[String(config.support_type ?? "").toLowerCase()] ?? titleCase(config.support_type ?? "Support")
       : KIND_TITLES[obj.kind] ?? titleCase(obj.kind ?? "Object"),
-    badge: contact.badge,
+    badge: imported?.badge ?? contact.badge,
     lede: isSupport
       ? supportLede(config, dofStates, node)
       : obj.kind === "support_link"
         ? supportLinkLede(obj)
+        : imported
+          ? imported.lede
         : obj.kind === "clash_marker"
           ? clashLede(obj, system)
           : elementLede(obj, system),
@@ -449,9 +447,29 @@ export function getSelectionSummary(state, objectId) {
           ...generic
         ],
     reference: compact({
+      ...(imported ? properties.find(section => section.id === "imported_geometry")?.rows : {}),
       entity_ref: obj.entity_ref,
       geometry: asset?.format,
       source: obj.metadata?.source ?? asset?.generation_config?.source
     })
+  };
+}
+
+function importedSummary(obj) {
+  const data = obj.metadata ?? {};
+  const regions = data.analysis_regions ?? [];
+  const format = data.cad_asset?.source_format?.toUpperCase();
+  if (!regions.length && (data.role === "reference" || format === "STL")) return {
+    badge: "Reference",
+    lede: "Reference surface for inspection and clearance; no structural stiffness or solver FE mesh."
+  };
+  if (!regions.length) return {
+    badge: "Review geometry",
+    lede: "Imported geometry with no analysis region or structural stiffness assigned."
+  };
+  const count = (data.couplings ?? []).length;
+  return {
+    badge: "Analysis geometry",
+    lede: `${regions.map(region => [region.code_aster_modelisation ?? region.role, region.material].filter(Boolean).join(" · ")).join(", ")}; ${count} structural coupling${count === 1 ? "" : "s"} defined. Source triangles show the surface; the solver FE mesh is separate.`
   };
 }

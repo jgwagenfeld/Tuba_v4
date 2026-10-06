@@ -45,7 +45,7 @@ test("engineering selection follows solved bodies without selecting mesh nodes o
   assert.equal(graph.objectsByObjectId.get("deformed").userData.selected, true);
 });
 
-test("support highlight preserves its status colour and clears its outline", () => {
+test("support highlight preserves its status colour and outlines it", () => {
   const state = {
     objects: [{ id: "shoe", kind: "support", entity_ref: "support:S1" }], visibleObjectIds: ["shoe"],
     geometryAssets: [{ id: "asset:shoe", object_ids: ["shoe"], format: "point", bounds: [1, 0, 0, 1, 0, 0],
@@ -55,11 +55,16 @@ test("support highlight preserves its status colour and clears its outline", () 
   const shoe = graph.objectsByObjectId.get("shoe");
   const colours = [];
   shoe.traverse(part => { if (part.material?.color) colours.push([part.material, part.material.color.getHex()]); });
+  // Outlined by the outline pass, like every surface; never boxed or repainted.
+  assert.equal(shoe.userData.outlineSurface, true);
+  assert.equal(shoe.userData.highlightOutline, undefined);
   applySelectionHighlight(graph, ["shoe"]);
   applyHoverHighlight(graph, "shoe");
-  assert.equal(shoe.userData.highlightOutline.visible, true);
+  assert.equal(shoe.userData.selected, true);
+  assert.equal(shoe.userData.hovered, true);
   for (const [material, colour] of colours) assert.equal(material.color.getHex(), colour);
   applyHoverHighlight(graph, null);
   applySelectionHighlight(graph, []);
-  assert.equal(shoe.userData.highlightOutline.visible, false);
+  assert.equal(shoe.userData.selected, false);
+  assert.equal(shoe.userData.hovered, false);
 });

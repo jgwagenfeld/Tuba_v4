@@ -107,24 +107,45 @@ def straight_section_surface_mesh(
     n_sides: int = 16,
 ) -> SurfaceMesh:
     """Extrude a section between two points as a closed triangular surface."""
-    start_point = np.asarray(start, dtype=float)
-    end_point = np.asarray(end, dtype=float)
-    axis = end_point - start_point
-    length = float(np.linalg.norm(axis))
-    if start_point.shape != (3,) or end_point.shape != (3,) or not np.isfinite([*start_point, *end_point]).all() or length <= 1.0e-12:
-        raise ValueError("Section extrusion requires two distinct finite endpoints.")
+    return section_sweep_surface_mesh(section, (start, end), twist_angle_deg=twist_angle_deg, n_sides=n_sides)
 
-    local_x, local_y, local_z = beam_local_frame(start_point, end_point, twist_angle_deg=twist_angle_deg)
+
+def section_sweep_surface_mesh(
+    section,
+    stations,
+    *,
+    twist_angle_deg: float = 0.0,
+    n_sides: int = 16,
+) -> SurfaceMesh:
+    """Extrude a section through collinear stations of one straight member.
+
+    One ring per station, capped at the first and last only: interior stations
+    are where a solver displacement and rotation can be applied, not faces.
+    """
+    points = np.asarray(stations, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 3 or len(points) < 2 or not np.isfinite(points).all():
+        raise ValueError("Section extrusion requires at least two finite 3D stations.")
+    axis = points[-1] - points[0]
+    length = float(np.linalg.norm(axis))
+    if length <= 1.0e-12:
+        raise ValueError("Section extrusion requires two distinct finite endpoints.")
+    along = (points - points[0]) @ (axis / length)
+    off_axis = np.linalg.norm(points - points[0] - np.outer(along, axis / length), axis=1)
+    if np.any(np.diff(along) <= 1.0e-12) or float(off_axis.max()) > 1.0e-6 * max(length, 1.0):
+        raise ValueError("Section extrusion stations must run in order along one straight axis.")
+
+    local_x, local_y, local_z = beam_local_frame(points[0], points[-1], twist_angle_deg=twist_angle_deg)
 
     loops = section_loops(section, n_sides=n_sides)
     if len(loops) > 2:
         raise ValueError("Section meshes support at most one inner loop.")
     loop_sizes = [len(loop) for loop in loops]
     loop_offsets = np.cumsum([0, *loop_sizes[:-1]]).tolist()
-    points_per_end = sum(loop_sizes)
+    points_per_ring = sum(loop_sizes)
+    last = (len(points) - 1) * points_per_ring
 
     vertices = []
-    for point in (start_point, end_point):
+    for point in points:
         for loop in loops:
             vertices.extend(
                 tuple(float(value) for value in point + y * local_y + z * local_z)
@@ -132,25 +153,24 @@ def straight_section_surface_mesh(
             )
 
     faces: list[tuple[int, int, int]] = []
-    for loop_index, (offset, size) in enumerate(zip(loop_offsets, loop_sizes)):
-        for index in range(size):
-            following = (index + 1) % size
-            a = offset + index
-            b = offset + following
-            c = points_per_end + offset + following
-            d = points_per_end + offset + index
-            if loop_index == 0:
-                faces.extend(((a, b, c), (a, c, d)))
-            else:
-                faces.extend(((a, d, c), (a, c, b)))
+    for ring in range(len(points) - 1):
+        base = ring * points_per_ring
+        for loop_index, (offset, size) in enumerate(zip(loop_offsets, loop_sizes)):
+            for index in range(size):
+                following = (index + 1) % size
+                a = base + offset + index
+                b = base + offset + following
+                c = base + points_per_ring + offset + following
+                d = base + points_per_ring + offset + index
+                if loop_index == 0:
+                    faces.extend(((a, b, c), (a, c, d)))
+                else:
+                    faces.extend(((a, d, c), (a, c, b)))
 
     if len(loops) == 1:
         cap_faces = _triangulate_polygon(loops[0])
         faces.extend((c, b, a) for a, b, c in cap_faces)
-        faces.extend(
-            (points_per_end + a, points_per_end + b, points_per_end + c)
-            for a, b, c in cap_faces
-        )
+        faces.extend((last + a, last + b, last + c) for a, b, c in cap_faces)
     else:
         outer_size, inner_size = loop_sizes
         if outer_size != inner_size:
@@ -164,43 +184,39 @@ def straight_section_surface_mesh(
             inner_next = inner_offset + following
             faces.extend(((outer_next, outer, inner), (outer_next, inner, inner_next)))
             faces.extend((
-                (points_per_end + outer, points_per_end + outer_next, points_per_end + inner_next),
-                (points_per_end + outer, points_per_end + inner_next, points_per_end + inner),
+                (last + outer, last + outer_next, last + inner_next),
+                (last + outer, last + inner_next, last + inner),
             ))
 
     return SurfaceMesh(vertices=tuple(vertices), faces=tuple(faces))
 
 
-def deformed_straight_section_surface_mesh(
+def deformed_section_sweep_surface_mesh(
     section,
-    start,
-    end,
-    start_deformation,
-    end_deformation,
+    stations,
+    deformations,
     *,
     scale: float = 1.0,
     twist_angle_deg: float = 0.0,
 ) -> tuple[SurfaceMesh, SurfaceMesh]:
-    """Return base and solver-deformed meshes for a straight 1D member."""
-    base = straight_section_surface_mesh(
-        section,
-        start,
-        end,
-        twist_angle_deg=twist_angle_deg,
-    )
-    endpoints = (np.asarray(start, dtype=float), np.asarray(end, dtype=float))
-    deformations = (
-        _deformation_vector(start_deformation),
-        _deformation_vector(end_deformation),
-    )
-    vertices_per_end = len(base.vertices) // 2
+    """Return base and solver-deformed sweeps of one straight member.
+
+    Each station's ring moves with that solver node's translation and turns
+    with its rotation, so the member bends through every station given.
+    """
+    base = section_sweep_surface_mesh(section, stations, twist_angle_deg=twist_angle_deg)
+    origins = np.asarray(stations, dtype=float)
+    if len(deformations) != len(origins):
+        raise ValueError("Section sweep needs one six-component deformation per station.")
+    points_per_ring = len(base.vertices) // len(origins)
     vertices = []
-    for endpoint_index, (endpoint, deformation) in enumerate(zip(endpoints, deformations)):
+    for station, (origin, values) in enumerate(zip(origins, deformations)):
+        deformation = _deformation_vector(values)
         rotation = _rotation_matrix(deformation[3:] * float(scale))
-        offset = endpoint_index * vertices_per_end
-        for vertex in base.vertices[offset : offset + vertices_per_end]:
-            local = np.asarray(vertex, dtype=float) - endpoint
-            transformed = endpoint + deformation[:3] * float(scale) + rotation @ local
+        offset = station * points_per_ring
+        for vertex in base.vertices[offset : offset + points_per_ring]:
+            local = np.asarray(vertex, dtype=float) - origin
+            transformed = origin + deformation[:3] * float(scale) + rotation @ local
             vertices.append(tuple(float(value) for value in transformed))
     return base, SurfaceMesh(vertices=tuple(vertices), faces=base.faces)
 

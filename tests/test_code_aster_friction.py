@@ -138,7 +138,7 @@ class FrictionCompilation(unittest.TestCase):
         model=friction_model()
         model.supports[0].imposed_displacement=[.01,0.,0.]
         with TemporaryDirectory() as root:
-            with self.assertRaisesRegex(ValueError,'prescribed support movement'):
+            with self.assertRaisesRegex(ValueError,'Prescribed support displacement'):
                 CodeAsterSolver(pipe_modelization='POU_D_T').export_analysis_study(model,'Cold',root)
             self.assertFalse(Path(root,'study.comm').exists())
 

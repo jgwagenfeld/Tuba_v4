@@ -12890,7 +12890,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "20b50e8a7eb01859d0ffab4c6c1814ab1ed4ec9f455f261a60dded48a2b896e9",
+      "fingerprint": "0af97bbb7c32e589af75b053a3b2c8f3aef13aef0da7e20f1bd10e5079c36d33",
       "load_case": "Gravity",
       "schema_id": "tuba.model.v4"
     },
@@ -12909,6 +12909,7 @@
     "mesh_id": "analysis_mesh:Gravity",
     "metadata": {
       "compiler_inputs": {
+        "beam_stress": "SIPO_ELNO",
         "buckling": {
           "method": "TRI_DIAG",
           "modal_subspace": 12,
@@ -12924,7 +12925,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "20b50e8a7eb01859d0ffab4c6c1814ab1ed4ec9f455f261a60dded48a2b896e9",
+      "fingerprint": "0af97bbb7c32e589af75b053a3b2c8f3aef13aef0da7e20f1bd10e5079c36d33",
       "load_case": "Gravity",
       "schema_id": "tuba.model.v4"
     },

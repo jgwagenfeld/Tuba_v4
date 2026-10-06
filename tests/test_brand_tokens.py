@@ -71,7 +71,7 @@ def test_report_warning_rule_matches_the_viewer() -> None:
 
 
 def test_viewer_uses_no_undefined_custom_properties() -> None:
-    """Every var() the stylesheet reads is one the stylesheet declares.
+    """Every var() without a fallback is one the stylesheet declares.
 
     --graphite-highlight was referenced by .model-legend-chip:hover and never
     declared, so that hover resolved to nothing and the chip faded instead of
@@ -80,5 +80,5 @@ def test_viewer_uses_no_undefined_custom_properties() -> None:
     """
     css = VIEWER_CSS.read_text(encoding="utf-8")
     declared = set(re.findall(r"^\s*(--[\w-]+):", css, re.MULTILINE))
-    used = set(re.findall(r"var\(\s*(--[\w-]+)", css))
+    used = set(re.findall(r"var\(\s*(--[\w-]+)\s*\)", css))
     assert used - declared == set()

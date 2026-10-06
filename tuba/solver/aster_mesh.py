@@ -73,6 +73,13 @@ class _MeshWriterMixin:
         directly.
         """
         lines: List[str] = []
+        from tuba.meshing.policy import has_mesh_policy, resolve_mesh_policy, line_stations
+        self._mesh_policy = resolve_mesh_policy(model) if has_mesh_policy(model) else None
+        self._mesh_stations = line_stations(model, self._mesh_policy, minimum_segments={
+            e.id: (self._BEND_SEGMENTS if e.type == "pipe_bend" else
+                   self.line_segments if subdivides_straight_segments(e,pipe_modelization=self.pipe_modelization,line_segments=self.line_segments) else 1)
+            for e in model.elements
+        }) if self._mesh_policy is not None else {}
         if not hasattr(self, "_bend_node_cache"):
             self._bend_node_cache = {}
         N = self._BEND_SEGMENTS  # shorthand
@@ -147,7 +154,7 @@ class _MeshWriterMixin:
             pairs = straight_pairs[elem.id]
             start, end = (model.nodes[nid].coords for nid in (elem.n1, elem.n2))
             for index, (_, _, node_id) in enumerate(pairs[:-1], start=1):
-                coord = start + (end - start) * index / len(pairs)
+                coord = start + (end - start) * self._stations(elem,len(pairs))[index]
                 lines.append(f"  {map_name(node_id)} " + " ".join(f"{v:+.10E}" for v in coord))
 
         for elem in bend_elems:
@@ -189,10 +196,9 @@ class _MeshWriterMixin:
         if pipe_straights and not beam_pipes:
             lines.append("SEG3")
             for elem in pipe_straights:
-                midpoint = pipe_midpoints[elem.id]
-                lines.append(
-                    f"  {map_name(elem.id)}  {map_name(elem.n1)}  {map_name(elem.n2)}  {map_name(midpoint.node_id)}"
-                )
+                for segment_id, start, end in straight_pairs[elem.id]:
+                    midpoint = pipe_midpoints[segment_id]
+                    lines.append(f"  {map_name(segment_id)}  {map_name(start)}  {map_name(end)}  {map_name(midpoint.node_id)}")
             lines.append("FINSF")
             lines.append("")
 
@@ -234,7 +240,7 @@ class _MeshWriterMixin:
         if bend_elems:
             lines.append(f"GROUP_MA NOM={map_name('PipeElbows')}")
             for elem in bend_elems:
-                for i in range(N):
+                for i in range(self._segment_count(elem,N)):
                     lines.append(f"  {map_name(f'{elem.id}_s{i}')}")
             lines.append("FINSF")
             lines.append("")
@@ -244,7 +250,7 @@ class _MeshWriterMixin:
         for e in pipe_straights:
             all_pipe_ids.extend(sid for sid, _, _ in straight_pairs[e.id])
         for e in bend_elems:
-            all_pipe_ids.extend([f"{e.id}_s{i}" for i in range(N)])
+            all_pipe_ids.extend([f"{e.id}_s{i}" for i in range(self._segment_count(e,N))])
 
         if all_pipe_ids:
             lines.append(f"GROUP_MA NOM={map_name('AllPipes')}")
@@ -287,7 +293,7 @@ class _MeshWriterMixin:
             material_group_members.setdefault(elem.material, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in bend_elems:
             material_group_members.setdefault(elem.material, []).extend(
-                f"{elem.id}_s{i}" for i in range(N)
+                f"{elem.id}_s{i}" for i in range(self._segment_count(elem,N))
             )
         for material_name, element_ids in material_group_members.items():
             lines.append(f"GROUP_MA NOM={map_name(self._material_group_name(material_name))}")
@@ -323,7 +329,7 @@ class _MeshWriterMixin:
         # --- Per-element groups (for COUDE assignment) --------------------
         for elem in bend_elems:
             lines.append(f"GROUP_MA NOM={map_name(elem.id)}")
-            for i in range(N):
+            for i in range(self._segment_count(elem,N)):
                 lines.append(f"  {map_name(f'{elem.id}_s{i}')}")
             lines.append("FINSF")
             lines.append("")
@@ -396,28 +402,32 @@ class _MeshWriterMixin:
                     node_id=node_id,
                     source_ref=EntityRef("element", elem.id),
                     role="generated_bend_node",
-                    parametric_t=index / n_segments,
+                    parametric_t=self._stations(elem,self._segment_count(elem,n_segments))[index],
                     segment_index=index,
                     metadata=bend_metadata,
                 )
 
         for midpoint in pipe_midpoints.values():
+            elem = model.get_element(midpoint.source_element_id)
+            stations = self._stations(elem,len(self._straight_segment_node_pairs(elem)))
             nodes[midpoint.node_id] = tuple(float(value) for value in midpoint.coords)
             node_sources[midpoint.node_id] = MeshNodeSource(
                 node_id=midpoint.node_id,
                 source_ref=EntityRef("element", midpoint.source_element_id),
                 role="generated_pipe_mid_node",
-                parametric_t=0.5,
-                segment_index=0,
+                parametric_t=(stations[midpoint.segment_index]+stations[midpoint.segment_index+1])/2,
+                segment_index=midpoint.segment_index,
             )
 
         for midpoint in bend_segment_midpoints.values():
+            elem = model.get_element(midpoint.source_element_id)
+            stations = self._stations(elem,self._segment_count(elem,n_segments))
             nodes[midpoint.node_id] = tuple(float(value) for value in midpoint.coords)
             node_sources[midpoint.node_id] = MeshNodeSource(
                 node_id=midpoint.node_id,
                 source_ref=EntityRef("element", midpoint.source_element_id),
                 role="generated_bend_mid_node",
-                parametric_t=(midpoint.segment_index + 0.5) / n_segments,
+                parametric_t=(stations[midpoint.segment_index]+stations[midpoint.segment_index+1])/2,
                 segment_index=midpoint.segment_index,
             )
 
@@ -436,7 +446,7 @@ class _MeshWriterMixin:
                     segment_index=index if len(pairs) > 1 else None,
                 )
                 if n2 != elem.n2:
-                    t = (index + 1) / len(pairs)
+                    t = self._stations(elem,len(pairs))[index+1]
                     nodes[n2] = tuple(float(v) for v in start + (end - start) * t)
                     node_sources[n2] = MeshNodeSource(
                         node_id=n2, source_ref=EntityRef("element", elem.id),
@@ -445,16 +455,9 @@ class _MeshWriterMixin:
 
         for elem in pipe_bends:
             segment_ids = []
-            first_segment = f"{elem.id}_s0"
-            elements[first_segment] = (elem.n1, f"{elem.id}_n1")
-            segment_ids.append(first_segment)
-            for index in range(1, n_segments - 1):
-                segment_id = f"{elem.id}_s{index}"
-                elements[segment_id] = (f"{elem.id}_n{index}", f"{elem.id}_n{index + 1}")
+            for segment_id,n1,n2 in self._bend_segment_node_pairs(elem,n_segments):
+                elements[segment_id] = (n1,n2)
                 segment_ids.append(segment_id)
-            last_segment = f"{elem.id}_s{n_segments - 1}"
-            elements[last_segment] = (f"{elem.id}_n{n_segments - 1}", elem.n2)
-            segment_ids.append(last_segment)
             for segment_index, segment_id in enumerate(segment_ids):
                 element_sources[segment_id] = MeshElementSource(
                     element_id=segment_id,
@@ -468,9 +471,9 @@ class _MeshWriterMixin:
         if pipe_straights:
             groups["PipeStraights"] = tuple(sid for elem in pipe_straights for sid, _, _ in self._straight_segment_node_pairs(elem))
         if pipe_bends:
-            groups["PipeElbows"] = tuple(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(n_segments))
+            groups["PipeElbows"] = tuple(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(self._segment_count(elem,n_segments)))
         all_pipe_ids = [sid for elem in pipe_straights for sid, _, _ in self._straight_segment_node_pairs(elem)]
-        all_pipe_ids.extend(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(n_segments))
+        all_pipe_ids.extend(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(self._segment_count(elem,n_segments)))
         if all_pipe_ids:
             groups["AllPipes"] = tuple(all_pipe_ids)
         for elem in straight_elems:
@@ -489,7 +492,7 @@ class _MeshWriterMixin:
             material_group_members.setdefault(elem.material, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in pipe_bends:
             material_group_members.setdefault(elem.material, []).extend(
-                f"{elem.id}_s{index}" for index in range(n_segments)
+                f"{elem.id}_s{index}" for index in range(self._segment_count(elem,n_segments))
             )
         for material_name, element_ids in material_group_members.items():
             groups[self._material_group_name(material_name)] = tuple(element_ids)
@@ -500,7 +503,7 @@ class _MeshWriterMixin:
         if cable_elems:
             groups["G_CABLE"] = tuple(sid for elem in cable_elems for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in pipe_bends:
-            groups[elem.id] = tuple(f"{elem.id}_s{index}" for index in range(n_segments))
+            groups[elem.id] = tuple(f"{elem.id}_s{index}" for index in range(self._segment_count(elem,n_segments)))
         for node_id in sorted(
             {support.node for support in model.supports}
             | _nodal_force_node_ids(model)
@@ -525,7 +528,10 @@ class _MeshWriterMixin:
             element_sources[link.group] = MeshElementSource(element_id=link.group, source_ref=EntityRef('support', link.support.id), role='spring_connector')
             groups[link.helper] = (link.helper,)
             groups[link.group] = (link.group,)
-        return AnalysisMesh(
+        if getattr(self,"_mesh_policy",None) is not None:
+            for segment_id,midpoint in {**pipe_midpoints,**bend_segment_midpoints}.items():
+                elements[segment_id] = (*elements[segment_id],midpoint.node_id)
+        mesh = AnalysisMesh(
             id=mesh_id,
             model_revision=model_revision,
             solver_name=self.SOLVER_NAME,
@@ -537,6 +543,11 @@ class _MeshWriterMixin:
             files={"mail": str(mail_path)} if mail_path is not None else {},
             modelisations=modelisation_assignments(model, self.pipe_modelization),
         )
+        if getattr(self,"_mesh_policy",None) is not None:
+            from dataclasses import replace
+            from tuba.meshing.quality import mesh_review
+            mesh = replace(mesh,mesh_review=mesh_review(mesh,self._mesh_policy,output_path=mail_path))
+        return mesh
 
     def _pipe_straight_midpoint_nodes(
         self,
@@ -547,14 +558,14 @@ class _MeshWriterMixin:
         for elem in pipe_straights:
             start = self._analysis_node_coords(model, {}, elem.n1)
             end = self._analysis_node_coords(model, {}, elem.n2)
-            midpoints[elem.id] = _SegmentMidpoint(
-                node_id=self._generated_midpoint_node_id(elem.id),
-                start_node_id=elem.n1,
-                end_node_id=elem.n2,
-                source_element_id=elem.id,
-                segment_index=0,
-                coords=(start + end) / 2.0,
-            )
+            pairs = self._straight_segment_node_pairs(elem)
+            stations = self._stations(elem,len(pairs))
+            for index,(segment_id,n1,n2) in enumerate(pairs):
+                midpoints[segment_id] = _SegmentMidpoint(
+                    node_id=self._generated_midpoint_node_id(segment_id), start_node_id=n1, end_node_id=n2,
+                    source_element_id=elem.id, segment_index=index,
+                    coords=start+(end-start)*(stations[index]+stations[index+1])/2,
+                )
         return midpoints
 
     def _pipe_bend_segment_midpoint_nodes(
@@ -571,25 +582,42 @@ class _MeshWriterMixin:
             ):
                 start = self._analysis_node_coords(model, bend_intermediate, start_id)
                 end = self._analysis_node_coords(model, bend_intermediate, end_id)
+                if getattr(self,"_mesh_policy",None) is not None:
+                    from tuba.meshing.policy import element_point
+                    stations = self._stations(elem,self._segment_count(elem,n_segments))
+                    midpoint_coords = element_point(model,elem,(stations[segment_index]+stations[segment_index+1])/2)
+                else:
+                    midpoint_coords = (start+end)/2
                 midpoints[segment_id] = _SegmentMidpoint(
                     node_id=self._generated_midpoint_node_id(segment_id),
                     start_node_id=start_id,
                     end_node_id=end_id,
                     source_element_id=elem.id,
                     segment_index=segment_index,
-                    coords=(start + end) / 2.0,
+                    coords=midpoint_coords,
                 )
         return midpoints
 
     def _straight_segment_node_pairs(self, elem: Element) -> list[tuple[str, str, str]]:
+        if elem.id in getattr(self,"_mesh_stations",{}):
+            count = len(self._mesh_stations[elem.id])-1
+            return [(elem.id,elem.n1,elem.n2)] if count == 1 else self._bend_segment_node_pairs(elem,count)
         if not subdivides_straight_segments(
             elem, pipe_modelization=self.pipe_modelization, line_segments=self.line_segments
         ):
             return [(elem.id, elem.n1, elem.n2)]
         return self._bend_segment_node_pairs(elem, self.line_segments)
 
-    @staticmethod
-    def _bend_segment_node_pairs(elem: Element, n_segments: int) -> list[tuple[str, str, str]]:
+    def _segment_count(self, elem: Element, default: int) -> int:
+        return len(getattr(self,"_mesh_stations",{}).get(elem.id,()))-1 if elem.id in getattr(self,"_mesh_stations",{}) else default
+
+    def _stations(self, elem: Element, count: int):
+        return getattr(self,"_mesh_stations",{}).get(elem.id,np.linspace(0,1,count+1))
+
+    def _bend_segment_node_pairs(self, elem: Element, n_segments: int) -> list[tuple[str, str, str]]:
+        n_segments = self._segment_count(elem,n_segments)
+        if n_segments == 1:
+            return [(f"{elem.id}_s0",elem.n1,elem.n2)]
         pairs = [(f"{elem.id}_s0", elem.n1, f"{elem.id}_n1")]
         for index in range(1, n_segments - 1):
             pairs.append((f"{elem.id}_s{index}", f"{elem.id}_n{index}", f"{elem.id}_n{index + 1}"))
@@ -617,10 +645,11 @@ class _MeshWriterMixin:
             pairs = self._straight_segment_node_pairs(elem)
         midsides = elem.type in ("pipe_straight", "pipe_bend") and self.pipe_modelization is not PipeModelization.POU_D_T
         nodes = [(elem.n1, 0.0)]
+        stations = self._stations(elem,len(pairs))
         for index, (segment_id, _, end) in enumerate(pairs):
             if midsides:
-                nodes.append((self._generated_midpoint_node_id(segment_id), (index + 0.5) / len(pairs)))
-            nodes.append((end, (index + 1) / len(pairs)))
+                nodes.append((self._generated_midpoint_node_id(segment_id), (stations[index]+stations[index+1])/2))
+            nodes.append((end, stations[index+1]))
         return nodes
 
     def _node_temperature_node_ids(self, model: TubaModel) -> set[str]:
@@ -694,6 +723,7 @@ class _MeshWriterMixin:
             int(getattr(model, "revision", 0)),
             tuple(sorted(e.id for e in bend_elems)),
             int(n_segments),
+            getattr(self,"_mesh_policy",None).fingerprint if getattr(self,"_mesh_policy",None) is not None else None,
         )
         cached = self._bend_node_cache.get(cache_key)
         if cached is not None:
@@ -721,9 +751,9 @@ class _MeshWriterMixin:
             result[elem.id] = [
                 (
                     f"{elem.id}_n{index}",
-                    center + _rotate_about_axis(r1, unit_axis, theta * index / n_segments),
+                    center + _rotate_about_axis(r1, unit_axis, theta * self._stations(elem,self._segment_count(elem,n_segments))[index]),
                 )
-                for index in range(1, n_segments)
+                for index in range(1, self._segment_count(elem,n_segments))
             ]
 
         self._bend_node_cache[cache_key] = result

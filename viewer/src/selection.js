@@ -1,5 +1,6 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
-import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
+import { getInterfaceMappings } from "./interfaceMappings.js";
+import { relatedSelectionIds, resolveEntityObjectId, selectionRepresentative } from "./reviewSelection.js";
 
 export function distance(first, second) {
   if (![first, second].every((point) => Array.isArray(point) && point.length === 3 &&
@@ -18,7 +19,7 @@ export function selectObject(state, objectId, options = {}) {
   const selectedObjectIds = options.additive
     ? [...current.filter((id) => id !== objectId), objectId]
     : [objectId];
-  return { ...state, selectedObjectIds };
+  return withVisibility({ ...state, selectedObjectIds });
 }
 
 export function hideSelected(state) {
@@ -31,7 +32,7 @@ export function isolateSelection(state) {
 }
 
 export function restoreVisibility(state) {
-  return withVisibility({ ...state, hiddenObjectIds: [], isolatedObjectIds: [], sectionBox: undefined });
+  return withVisibility({ ...state, hiddenObjectIds: [], isolatedObjectIds: [], sectionBox: undefined, focusSelection: false });
 }
 
 export function getPropertySections(state, objectId) {
@@ -83,6 +84,26 @@ export function getPropertySections(state, objectId) {
     { id: "profile", title: "Profile", rows: compactRows(profileRows), sourceLine: propertyLines.section },
     { id: "physical", title: "Physical", rows: compactRows(obj.physical ?? {}) },
     { id: "quantities", title: "Quantities", rows: compactRows(obj.quantities ?? {}) },
+    { id: "imported_geometry", title: "Imported geometry", rows: compactRows(importedGeometryRows(obj, asset)) },
+    { id: "meshing", title: "Meshing", rows: compactRows(importedMeshingRows(obj, asset)) },
+    { id: "structural_integration", title: "Structural integration", rows: compactRows(importedIntegrationRows(obj)) },
+    ...getInterfaceMappings(state, objectId).map(mapping => ({
+      id: `interface_mapping:${mapping.id}`, title: mapping.name ?? "Interface mapping",
+      rows: compactRows({
+        "Model coupling": mapping.metadata?.model_mapping,
+        Interface: mapping.metadata?.interface_mapping,
+        Source: mapping.metadata?.source_ref, Target: mapping.metadata?.target_ref,
+        Method: mapping.metadata?.method,
+        Status: mapping.metadata?.status === "meshed" ? "Resolved mesh group" : "Authored footprint; mesh membership unresolved",
+        "Target geometry": mapping.metadata?.target_geometry_available === false ? "Unavailable; selected surface cannot be highlighted" : undefined,
+        "Face group": mapping.metadata?.face_group, "Node group": mapping.metadata?.node_group,
+        "Mapped cells": mapping.metadata?.status === "meshed" && Array.isArray(mapping.metadata.element_ids) ? mapping.metadata.element_ids.length : undefined,
+        "Mapped nodes": mapping.metadata?.status === "meshed" && Array.isArray(mapping.metadata.node_ids) ? mapping.metadata.node_ids.length : undefined,
+        "Attached restraints": mapping.metadata?.attachments?.map(link => `${link.id}: held ${(link.held_dof ?? []).join(", ") || "none"}; released ${(link.released_dof ?? []).join(", ") || "none"}; ${link.attachment_mode}`).join("; ")
+      })
+    })),
+    { id: "connections", title: "Connection", rows: compactRows(connectionRows(obj)) },
+    { id: "node_attachment", title: "Node attachment", rows: compactRows(attachmentRows(obj)) },
     { id: "result_values", title: "Result Values", rows: compactRows(resultRows) },
     { id: "clash", title: "Clash", rows: compactRows(clashRows) },
     { id: "issues", title: "Issues", rows: compactRows(issueRows) },
@@ -96,6 +117,161 @@ export function getPropertySections(state, objectId) {
     }) },
     { id: "provenance", title: "Provenance", rows: compactRows(provenanceRows) }
   ].filter((section) => Object.keys(section.rows).length > 0);
+}
+
+function importedMeshingRows(obj, asset) {
+  if (obj.kind !== "imported_component") return {};
+  const data = obj.metadata ?? {};
+  const cad = data.cad_asset ?? {};
+  const surface = cad.metadata ?? {};
+  const regions = data.analysis_regions ?? [];
+  const format = cad.source_format?.toUpperCase();
+  const hasSourceSurface = data.geometry_representation !== "bounds_envelope";
+  return {
+    "Display mesh": data.geometry_representation === "bounds_envelope" ? "Bounds envelope; source surface unavailable"
+      : format === "STL" ? "STL source triangles" : ["STEP", "STP"].includes(format) ? "STEP display tessellation" : "Source surface triangulation",
+    "Source vertices": hasSourceSurface ? surface.mesh_vertices_local?.length ?? asset?.generation_config?.vertices?.length : undefined,
+    "Source triangles": hasSourceSurface ? surface.mesh_faces?.length ?? asset?.generation_config?.faces?.length : undefined,
+    "Solver mesh": regions.length ? "Separate analysis artifact; source triangles are not the solver FE mesh" : "No structural FE mesh defined",
+    ...Object.fromEntries(regions.flatMap((region, index) => {
+      const name = region.id ?? `Region ${index + 1}`;
+      return [[`${name} material`, region.material], [`${name} modelisation`, region.code_aster_modelisation],
+        [`${name} element order`, region.element_order], [`${name} mesh group`, region.mesh_group],
+        [`${name} requested size (m)`, region.metadata?.mesh_size]];
+    })),
+    "Requested size (m)": regions.length ? surface.mesh_size : undefined,
+    "Interface sizes (m)": regions.length && Object.keys(surface.interface_mesh_sizes ?? {}).length ? surface.interface_mesh_sizes : undefined
+  };
+}
+
+function importedIntegrationRows(obj) {
+  if (obj.kind !== "imported_component") return {};
+  const data = obj.metadata ?? {};
+  const regions = data.analysis_regions ?? [];
+  const ports = data.ports ?? [];
+  const couplings = data.couplings ?? [];
+  return {
+    Stiffness: regions.length ? `Defined by ${regions.map(region => region.id ?? region.code_aster_modelisation ?? region.role).join(", ")}` : "No structural stiffness; no analysis region assigned",
+    Ports: ports.length ? `${ports.length} ports: ${ports.filter(port => port.status === "confirmed").length} confirmed; ${ports.filter(port => port.status !== "confirmed").length} candidates` : "0 ports defined",
+    Connections: couplings.length ? couplings.map(coupling => `${coupling.id}: ${coupling.source ?? coupling.source_node ?? ""} → ${coupling.target ?? ""} (${coupling.code_aster_option ?? coupling.kind ?? ""})`).join("; ") : "0 structural couplings defined",
+    "Connection rule": "Only authored couplings connect structural members; touching geometry does not create a connection"
+  };
+}
+
+export function getGeometryRelations(state, objectId) {
+  const objects = state.objects ?? [];
+  const object = objects.find(candidate => candidate.id === objectId);
+  if (!object) return [];
+  const mappings = getInterfaceMappings(state, objectId);
+  if (object.kind === "interface_mapping") {
+    const refs = [object.metadata?.source_ref, object.metadata?.target_ref,
+      ...(Array.isArray(object.metadata?.owner_refs) ? object.metadata.owner_refs : [])];
+    const links = new Map();
+    for (const ref of refs) {
+      const id = resolveEntityObjectId(state, ref);
+      if (id && id !== objectId && !links.has(id)) links.set(id, { id, label: `Inspect ${ref}` });
+    }
+    return [...links.values()];
+  }
+  const mappingLinks = mappings.map(mapping => ({ id: mapping.id, label: `Mapping ${mapping.name ?? mapping.id} · ${mapping.metadata?.interface_mapping ?? ""}` }));
+  if (!["imported_component", "imported_port", "mixed_coupling"].includes(object.kind)) return mappingLinks;
+  const data = object.metadata ?? {};
+  const ports = new Map([...(data.ports ?? []), ...objects.filter(candidate => candidate.kind === "imported_port").map(candidate => candidate.metadata ?? {})].map(port => [port.id, port]));
+  const couplings = new Map([...(data.couplings ?? []), ...objects.filter(candidate => candidate.kind === "mixed_coupling").map(candidate => candidate.metadata ?? {})].map(coupling => [coupling.id, coupling]));
+  const links = new Map(mappingLinks.map(link => [link.id, link]));
+  function add(ref, label) {
+    const id = resolveEntityObjectId(state, ref);
+    if (id && id !== objectId && !links.has(id)) links.set(id, { id, label });
+  }
+  function refLabel(ref) {
+    return typeof ref === "string" ? ref.slice(ref.indexOf(":") + 1) : "";
+  }
+  function addCoupling(coupling) {
+    const target = typeof coupling.target === "string" ? coupling.target : "";
+    add(`coupling:${coupling.id}`, `Connection ${coupling.id}`);
+    add(coupling.source_node, `Reference node ${refLabel(coupling.source_node)}`);
+    add(coupling.source, `Source member ${refLabel(coupling.source)}`);
+    add(target, `Target ${target}`);
+    const port = target.startsWith("port:") ? ports.get(target.slice(5)) : null;
+    if (port) add(port.owner, `Component ${refLabel(port.owner)}`);
+    for (const support of coupling.attachments ?? []) {
+      add(`support:${support.id}`, `Support ${support.id}`);
+      add(`node:${support.attached_to}`, `Attached node ${support.attached_to}`);
+    }
+  }
+  if (object.kind === "mixed_coupling") addCoupling(data);
+  else if (object.kind === "imported_port") {
+    add(data.owner, `Component ${refLabel(data.owner)}`);
+    const ref = object.entity_ref ?? `port:${data.id}`;
+    for (const coupling of couplings.values()) if (coupling.target === ref) addCoupling(coupling);
+  } else {
+    const ref = object.entity_ref ?? `component:${data.id}`;
+    const ownedPortIds = new Set((data.ports ?? []).map(port => port.id));
+    for (const port of ports.values()) if (port.owner === ref || ownedPortIds.has(port.id)) {
+      ownedPortIds.add(port.id);
+      add(`port:${port.id}`, `Port ${port.id} · ${port.status ?? "unreviewed"}`);
+    }
+    const ownedCouplingIds = new Set((data.couplings ?? []).map(coupling => coupling.id));
+    for (const coupling of couplings.values()) if (ownedCouplingIds.has(coupling.id) || coupling.target === ref ||
+      typeof coupling.target === "string" && coupling.target.startsWith("port:") && ownedPortIds.has(coupling.target.slice(5))) addCoupling(coupling);
+  }
+  return [...links.values()];
+}
+
+function importedGeometryRows(obj, asset) {
+  if (obj.kind !== "imported_component") return {};
+  const data = obj.metadata ?? {};
+  const cad = data.cad_asset ?? {};
+  const regions = data.analysis_regions ?? [];
+  const surface = cad.metadata ?? {};
+  return {
+    role: regions.length ? `Analysis geometry: ${regions.map(region => region.code_aster_modelisation || region.role).join(", ")}` : data.role === "reference" ? "Reference geometry" : "Review geometry; no analysis region",
+    status: data.status,
+    source_file: cad.source_path,
+    source_format: cad.source_format,
+    clearance_coverage: cad.source_format?.toUpperCase() === "STL" ? "Native straight pipe/frame envelopes and solver operating polylines; shell/STEP bodies and reference pairs excluded" : undefined,
+    source_digest: cad.content_digest,
+    scale_to_metres: cad.unit_scale_to_m,
+    placement: cad.placement,
+    surface: data.geometry_representation,
+    placed_bounds_m: data.placed_bounds_m ?? asset?.bounds,
+    source_local_bounds: surface.local_bounds,
+    vertices: surface.mesh_vertices_local?.length,
+    triangles: surface.mesh_faces?.length,
+    ...surface.inspection,
+    ports: data.ports?.map(port => `${port.id}: ${port.status} (${port.kind})`).join("; "),
+    couplings: data.couplings?.map(coupling => `${coupling.id}: ${coupling.code_aster_option || coupling.kind}`).join("; ")
+  };
+}
+
+function connectionRows(obj) {
+  const data = obj.metadata ?? {};
+  if (obj.kind === "imported_port") return {
+    interface: data.id, status: data.status, owner: data.owner, kind: data.kind,
+    position_m: data.position, axis: data.axis, radius_m: data.radius,
+    source_local_selector: data.metadata?.face_selector,
+    intent: data.status === "confirmed" ? "Confirmed interface" : "Candidate interface; confirm in Python before connecting"
+  };
+  if (obj.kind !== "mixed_coupling") return {};
+  return {
+    kind: data.kind === "rigid_patch" ? "Rigid patch to reference" : data.continuation_family === "frame" ? "Beam to solid port" : "Pipe to solid port",
+    method: data.code_aster_keyword, option: data.code_aster_option,
+    source: data.source, reference_node: data.source_node, target: data.target,
+    selected_geometry: data.metadata,
+    node_links: data.attachments?.map(link => `${link.id}: held ${link.held_dof.join(", ") || "none"}; released ${link.released_dof.join(", ") || "none"}; ${link.attachment_mode}; offset (m) ${link.offset_m.join(", ")}`).join("; ")
+  };
+}
+
+function attachmentRows(obj) {
+  const data = obj.metadata ?? {};
+  if (!["support", "support_link"].includes(obj.kind) || !data.attached_to) return {};
+  const mode = data.attachment_mode ?? "rigid_offset";
+  return {
+    source_node: data.node, attached_to: data.attached_to,
+    blocked_dof: data.blocked_dof,
+    attachment_mode: mode,
+    kinematics: mode === "dof_equality" ? "Equal global held DOFs; released DOFs remain free; no offset lever terms" : "Rigid offset includes rotational lever terms"
+  };
 }
 
 // `maxSpan` clamps how far the camera pulls back. Fitting a selection to its
@@ -137,7 +313,10 @@ export function fitSelection(state, options = {}) {
       ...state.camera,
       target,
       distance,
-      fitRequest: { id: fitRequestId, bounds: merged }
+      fitRequest: {
+        id: fitRequestId, bounds: merged, objectIds: [...selected],
+        ...(Number.isFinite(Number(options.maxSpan)) && Number(options.maxSpan) > 0 ? { maxSpan: Number(options.maxSpan) } : {})
+      }
     }
   };
 }
@@ -145,7 +324,7 @@ export function fitSelection(state, options = {}) {
 // Shrinks an axis-aligned box about its own centre until no side exceeds
 // `maxSpan`. A box already inside the limit is returned untouched rather than
 // rebuilt, so a normal "fit selection" is bit-identical to what it was.
-function clampBoundsToSpan(bounds, maxSpan) {
+export function clampBoundsToSpan(bounds, maxSpan) {
   if (!Number.isFinite(maxSpan) || maxSpan <= 0) {
     return null;
   }

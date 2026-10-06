@@ -1319,7 +1319,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f98f623878940fe59f83159167186d5a1a50da3b400d67f6ca2fd52b572d7298",
+      "fingerprint": "d2a5a7ad5ff82c4382564a5267f55c31d97b741bc0aa8a6b12ed6c26f52ec2ff",
       "load_case": "Wind",
       "schema_id": "tuba.model.v4"
     },
@@ -1338,6 +1338,7 @@
     "mesh_id": "analysis_mesh:Wind",
     "metadata": {
       "compiler_inputs": {
+        "beam_stress": "SIPO_ELNO",
         "line_segments": 8
       },
       "pipe_stress_exported": false,
@@ -1346,7 +1347,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f98f623878940fe59f83159167186d5a1a50da3b400d67f6ca2fd52b572d7298",
+      "fingerprint": "d2a5a7ad5ff82c4382564a5267f55c31d97b741bc0aa8a6b12ed6c26f52ec2ff",
       "load_case": "Wind",
       "schema_id": "tuba.model.v4"
     },

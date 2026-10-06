@@ -25,10 +25,11 @@ from tuba.visualization.builders._contract import SceneBuildOptions, SceneReques
 from tuba.visualization.builders._helpers import _default_scene_id, _normalize_ifc_guid_map
 from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_link_object, _build_support_object
 from tuba.visualization.builders._imported import _build_imported_component_scene
+from tuba.visualization.builders._mappings import build_interface_mapping_scene
 from tuba.visualization.builders._layers import build_layer_registry, build_result_fields
 from tuba.visualization.builders._loads import build_load_scene
-from tuba.visualization.builders._states import _build_analysis_mesh_scene, _build_deformed_state_scene, _build_geometry_state_record
-from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene
+from tuba.visualization.builders._states import _build_analysis_mesh_scene, _build_deformed_state_scene, _build_geometry_state_record, _build_shell_scene
+from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene, merge_quantity_overlays
 from tuba.visualization.builders._review import _build_clash_issue_scene, _build_cost_quantity_overlays, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene
 
 
@@ -95,7 +96,11 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
             if source.role == "volume_cell":
                 mesh_element_refs.update(source.metadata.get("source_element_refs", ()))
         volume_element_refs.update(mesh_element_refs)
-        unscoped_volume_skin = unscoped_volume_skin or not mesh_element_refs
+        component_scoped = any(
+            source.role == "volume_cell" and source.source_ref.kind == "component"
+            for source in analysis_mesh.element_sources.values()
+        )
+        unscoped_volume_skin = unscoped_volume_skin or not (mesh_element_refs or component_scoped)
     for analysis_run in analysis_run_records:
         if analysis_run.analysis_mesh is None or analysis_run.analysis_mesh.surface_mesh is None:
             continue
@@ -210,6 +215,15 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
     if opts.include_imported_components:
         merge(_build_imported_component_scene(model))
 
+    volume_export = request.volume_export
+    if volume_export is None:
+        for state in result_state_records:
+            inputs = state.metadata.get("compiler_inputs", {})
+            if inputs.get("element_ids") and state.metadata.get("volume_analysis"):
+                volume_export = inputs
+                break
+    merge(build_interface_mapping_scene(model, analysis_meshes=analysis_mesh_records, volume_export=volume_export))
+
     for route_result in route_results or []:
         merge(_build_route_result_scene(route_result))
 
@@ -230,6 +244,8 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
                 analysis_meshes_by_id.get(result_state.mesh_id or ""),
             )
         )
+        if (analysis_mesh := analysis_meshes_by_id.get(result_state.mesh_id or "")) is not None:
+            merge(_build_shell_scene(analysis_mesh, result_state))
 
     for geometry_state in geometry_state_records:
         state_object, state_overlay = _build_geometry_state_record(geometry_state)
@@ -237,7 +253,20 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
         overlays.append(state_overlay)
 
     for analysis_mesh in analysis_mesh_records:
-        merge(_build_analysis_mesh_scene(analysis_mesh, model))
+        # A volume skin replaces individual solid-node markers. Result vectors
+        # can still reference those physical nodes (for example a STEP fixed
+        # face), so retain their referenced markers in the original mesh scene.
+        required_node_ids = {
+            vector["node_id"]
+            for overlay in overlays
+            if overlay.data.get("result_type") in {"reaction_force", "reaction_moment"}
+            for vector in overlay.data.get("vectors", ())
+            if vector.get("analysis_mesh_id") == analysis_mesh.id
+            and vector.get("node_id") in analysis_mesh.nodes
+            and vector.get("analysis_mesh_node_object_id")
+            == f"object:analysis_mesh:{analysis_mesh.id}:node:{vector['node_id']}"
+        }
+        merge(_build_analysis_mesh_scene(analysis_mesh, model, required_node_ids=required_node_ids))
 
     merge(
         _build_deformed_state_scene(
@@ -260,7 +289,14 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
     if field_notes:
         merge(_build_field_context_scene(field_notes))
 
+    from tuba.visualization.builders._mesh_review import build_mesh_review_scene
+
+    mesh_review_scene, preview_layer = build_mesh_review_scene(model, analysis_mesh_records, volume_export)
+    merge(mesh_review_scene)
+    overlays, assets = merge_quantity_overlays(overlays, assets)
     layers, layer_diagnostics = build_layer_registry(objects, overlays, analysis_mesh_records)
+    if preview_layer is not None:
+        layers.append(preview_layer)
     diagnostics.extend(layer_diagnostics)
 
     # The story a contact run tells, derived once here so the Studio, the review

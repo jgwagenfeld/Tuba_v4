@@ -16,6 +16,73 @@ from tuba.visualization import SceneRequest, build_visualization_scene
 from tuba.visualization.builders._layers import mesh_identity
 
 
+def test_authored_size_preview_is_pure_and_not_a_solver_field(monkeypatch):
+    from tuba.meshing.policy import resolve_mesh_policy
+    model = Model("Sizing preview")
+    model.add_material("steel", E=2.1e11, nu=.3)
+    model.add_pipe_section("pipe", OD=.1, WT=.01)
+    with model.pipe(section="pipe", material="steel") as b:
+        b.start([0,0,0])
+        b.run(.2)
+    model.set_mesh_size(.04)
+    model.add_mesh_refinement("outlet", target={"kind":"sphere", "center_m":[.2,0,0], "radius_m":.025},
+                              size_m=.01, transition_distance_m=.05)
+    monkeypatch.setattr(Model, "mesh", lambda *a, **k: (_ for _ in ()).throw(AssertionError("preview must not mesh")))
+    scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=False))
+    identity = next(layer.extra["mesh_identity"] for layer in scene.layers if "mesh_identity" in layer.extra)
+    assert identity["mesh_review"]["policy"] == resolve_mesh_policy(model).to_dict()
+    assert "statistics" not in identity["mesh_review"]
+    samples = [obj for obj in scene.objects if obj.kind == "mesh_size_sample"]
+    assert 0 < len(samples) <= 256
+    assert not scene.result_fields and not any(obj.kind == "result_state" for obj in scene.objects)
+    assert any(obj.kind == "mesh_refinement_target" for obj in scene.objects)
+    assert all(layer.category == "analysis_mesh" and not layer.default_visible for layer in scene.layers if layer.id.startswith("analysis_mesh:review:"))
+
+
+def test_problem_cells_use_actual_records_and_exact_bounds():
+    from tuba.visualization.builders._mesh_review import build_mesh_review_scene
+    mesh = AnalysisMesh(id="mesh", model_revision=0, solver_name="Code_Aster",
+        nodes={"N1":(0,0,0), "N2":(.1,0,0)}, elements={"E1":("N1","N2")},
+        groups={}, node_sources={}, element_sources={}, mesh_review={"schema":"tuba.mesh-review.v1", "policy":{},
+        "quality":{"problem_locations":[{"cell_id":"E1", "source_ref":"element:pipe", "bounds_m":[0,0,0,.1,0,0]}]}})
+    contribution, layer = build_mesh_review_scene(Model("Problem"), [mesh])
+    assert layer is None
+    assert len(contribution.objects) == 1
+    obj, asset = contribution.objects[0], contribution.assets[0]
+    assert obj.id == "object:mesh_problem:mesh:E1"
+    assert obj.metadata["source_ref"] == "element:pipe"
+    assert obj.entity_ref is None
+    assert asset.bounds == [0,0,0,.1,0,0]
+    assert mesh_identity(mesh)["mesh_review"] == mesh.mesh_review
+
+
+def test_cad_refinement_highlight_uses_selected_display_face_and_pending_exact_sizing():
+    from tests.test_interface_mapping_scene import part_model
+    model, _ = part_model()
+    model.cad_assets["asset"].metadata["local_bounds"] = [0,0,0,1000,1000,1000]
+    selector = model.cad_assets["asset"].metadata["display_face_partitions"][0]["selector"]
+    model.set_mesh_size(.1)
+    model.add_mesh_refinement("mount_face", target={"kind":"face", "component":"component:part", "selector":selector},
+                              size_m=.025, transition_distance_m=.2)
+    scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=False))
+    marker = next(obj for obj in scene.objects if obj.kind == "mesh_refinement_target")
+    asset = next(asset for asset in scene.geometry_assets if asset.id == marker.geometry_asset_id)
+    assert marker.metadata["representation"] == "imported_display_face"
+    assert asset.generation_config["vertices"] == [[10,20,30], [11,20,30], [10,21,30]]
+    assert asset.generation_config["faces"] == [[0,1,2]]
+    identity = next(layer.extra["mesh_identity"] for layer in scene.layers if "mesh_identity" in layer.extra)
+    assert any(sample["status"] == "pending_cad_binding" for sample in identity["mesh_review"]["size_preview"]["samples"])
+    model.add_port(id="confirmed_face", owner="component:part", kind="flange", position=[10,20,30], axis=[0,0,1],
+                   radius=.1, status="confirmed", metadata={"face_selector":selector})
+    model.add_mesh_refinement("confirmed_port", target="port:confirmed_face", size_m=.03, transition_distance_m=.2)
+    scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=False))
+    assert len([obj for obj in scene.objects if obj.kind == "mesh_refinement_target"]) == 2
+    # No display partition means component selection only; never substitute an AABB face.
+    del model.cad_assets["asset"].metadata["display_face_partitions"]
+    scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=False))
+    assert not any(obj.kind == "mesh_refinement_target" for obj in scene.objects)
+
+
 class TestVisualizationAnalysisMesh(unittest.TestCase):
     def test_mixed_mesh_replaces_only_the_solid_span_and_keeps_line_mesh_visible(self):
         model = Model("MixedVolumeSkin")

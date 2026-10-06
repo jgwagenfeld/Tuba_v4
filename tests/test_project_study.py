@@ -82,7 +82,7 @@ def test_the_settings_are_the_study_names():
         ({"SOLVER_OPTIONS": {"work_dir": "scratch", "docker_image": "tuba/aster"}}, "runs on this machine: docker_image, work_dir"),
         ({"SOLVER_OPTIONS": {"line_segment": 4}}, "line_segment'"),
         ({"SOLVER_OPTIONS": {"line_segments": 0}}, "line_segments must be a positive integer"),
-        ({"VOLUME_EXPORT": {"element_ids": ("pipe_0",)}}, "needs max_element_size"),
+        ({"VOLUME_EXPORT": {"max_element_size": .01}}, "needs element_ids"),
         ({"VOLUME_EXPORT": {**VOLUME, "export_tensor_stress": True}}, "cannot set export_tensor_stress"),
         ({"VOLUME_EXPORT": {**VOLUME, "mesh_size": 0.01}}, "cannot set mesh_size"),
         ({"SOLVER_OPTIONS": {"pipe_modelization": "POU_D_T", "load_path": ["Hot", "Cold"]}, "VOLUME_EXPORT": VOLUME}, "load_path"),

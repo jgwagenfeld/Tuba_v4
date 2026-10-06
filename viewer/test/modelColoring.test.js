@@ -92,10 +92,11 @@ test("the model channel colours by the model whatever the rail was left on", () 
   };
 
   assert.notEqual(getModelObjectColor(state, ["p1"]), null);
-  // A result field owning the channel yields the model colour, wherever the
-  // rail is - and the model channel wins even when the scene carries results.
+  // In Review a result field owning the channel yields the model colour - and
+  // the model channel wins even when the scene carries results. Build always
+  // colours by the model (workflow-state.test.js).
   assert.equal(
-    getModelObjectColor({ ...state, colorChannel: "results", resultFields: [{ id: "field:stress" }] }, ["p1"]),
+    getModelObjectColor({ ...state, stage: "review", colorChannel: "results", resultFields: [{ id: "field:stress" }] }, ["p1"]),
     null
   );
   assert.notEqual(

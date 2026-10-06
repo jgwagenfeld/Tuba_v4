@@ -59,6 +59,7 @@ viewer/node_modules/
 .vite/
 
 # Agent workflow scratch
+/.tuba/
 .superpowers/
 .worktrees/
 .impeccable/
@@ -120,3 +121,6 @@ notebooks/advanced_piping_rack.ifc
 
 # Vite build scratch output
 /.tmp/
+
+# Generated results from the authored imported-geometry project
+/examples/imported-geometry-studio/evidence/

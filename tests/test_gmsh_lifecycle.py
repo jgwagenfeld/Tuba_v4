@@ -1,11 +1,14 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 
+import pytest
+
 from tuba.meshing._gmsh import gmsh_model
 
 
 class _FakeOption:
     values = {"General.Terminal": 1.0}
+    strings = {"Geometry.OCCTargetUnit": "M"}
 
     @classmethod
     def getNumber(cls, name):
@@ -14,6 +17,14 @@ class _FakeOption:
     @classmethod
     def setNumber(cls, name, value):
         cls.values[name] = value
+
+    @classmethod
+    def getString(cls, name):
+        return cls.strings[name]
+
+    @classmethod
+    def setString(cls, name, value):
+        cls.strings[name] = value
 
 
 class _FakeModel:
@@ -82,3 +93,17 @@ def test_gmsh_model_serializes_process_global_state():
     assert second_entered.is_set()
     assert _FakeGmsh.model.current == "caller"
     assert _FakeGmsh.option.values["General.Terminal"] == 1.0
+
+
+def test_gmsh_model_restores_caller_string_options_after_failure():
+    with pytest.raises(RuntimeError, match="import failed"):
+        with gmsh_model(_FakeGmsh, "step", options={
+            "Geometry.OCCTargetUnit": "MM",
+        }):
+            assert _FakeGmsh.option.strings["Geometry.OCCTargetUnit"] == "MM"
+            assert _FakeGmsh.option.values["General.Terminal"] == 0
+            raise RuntimeError("import failed")
+
+    assert _FakeGmsh.option.strings["Geometry.OCCTargetUnit"] == "M"
+    assert _FakeGmsh.option.values["General.Terminal"] == 1.0
+    assert _FakeGmsh.model.current == "caller"

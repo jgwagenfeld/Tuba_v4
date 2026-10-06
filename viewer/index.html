@@ -77,7 +77,9 @@
              things you can do from it. -->
         <div class="header-actions">
           <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Profiles</button>
+          <button type="button" data-geometry-open aria-haspopup="dialog" aria-controls="geometry-import" hidden>Import geometry</button>
           <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
+          <a data-projects-link target="_blank" rel="noopener" hidden>Projects</a>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
         </div>
@@ -99,7 +101,7 @@
           <div class="code-pane-head">
             <!-- Python stays primary; the selected case owns one generated-file view. -->
             <div class="code-tabs" role="group" aria-label="Files" data-code-tabs></div>
-            <button type="button" class="code-mesh-toggle" data-code-mesh-toggle aria-pressed="false" title="Toggle 1D analysis mesh (Alt+M)">
+            <button type="button" class="code-mesh-toggle" data-code-mesh-toggle aria-pressed="false" title="Toggle FE mesh (Alt+M)">
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="1" y1="8" x2="15" y2="8" />
                 <line x1="8" y1="1" x2="8" y2="15" />
@@ -107,7 +109,7 @@
                 <circle cx="2" cy="8" r="1.5" fill="currentColor" />
                 <circle cx="14" cy="8" r="1.5" fill="currentColor" />
               </svg>
-              Mesh
+              <span data-code-mesh-label>Mesh</span>
             </button>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
@@ -151,9 +153,9 @@
                like their review-rail twins. -->
           <div class="build-issues" data-build-issues hidden></div>
           <div class="code-pane-foot" data-code-foot></div>
-          <div class="code-resize" data-code-resize role="separator" aria-orientation="vertical" aria-label="Resize script pane" title="Drag to resize the script pane (double-click resets)"></div>
           <p id="code-keys" class="visually-hidden">Tab indents. Press Escape, then Tab, to leave the editor. Control Enter runs the script.</p>
         </section>
+        <div class="pane-resize" data-code-resize role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize script pane" aria-controls="model-script" title="Drag or use arrow keys to resize; double-click or Enter resets" hidden></div>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="display-strip" data-display-strip>
             <div class="rail-pane" data-bodies-pane>
@@ -200,12 +202,12 @@
           </div>
           <div class="rail-foot">
             <div class="rail-popover" data-rail-popover hidden>
-              <div data-section-box-controls></div>
               <div class="saved-views-block" data-saved-views></div>
             </div>
             <div class="rail-utility" data-rail-utility></div>
           </div>
         </aside>
+        <div class="pane-resize" data-controls-resize role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize review controls" aria-controls="review-controls" title="Drag or use arrow keys to resize; double-click or Enter resets" hidden></div>
         <section class="viewport">
           <details class="review-section display-palette" data-display-palette hidden>
             <summary>Display</summary>
@@ -213,16 +215,38 @@
               <h2>Geometry &amp; mesh</h2>
               <div class="body-list" data-body-list></div>
               <div data-overlays-block hidden>
-                <h2>Supports, loads &amp; vectors</h2>
+                <div class="display-group-head">
+                  <h2>Supports, loads &amp; vectors</h2>
+                  <label class="value-labels-toggle" title="The F =, M =, q =, &#956; = and &#916; = labels on loads and supports (&#916; = an imposed displacement). A shoe keeps its solved contact-state icon. Shortcut: V">
+                    <input type="checkbox" data-value-labels checked /> Show values
+                  </label>
+                </div>
                 <div class="body-list" data-overlay-list></div>
               </div>
               <div data-contact-display></div>
+              <div data-build-display hidden></div>
+              <div data-cut-view></div>
               <details class="strip-drawer layer-tree">
                 <summary>All layers <span class="layer-tally" data-layer-tally></span></summary>
                 <div data-layer-list></div>
               </details>
             </div>
           </details>
+          <div id="select-other" class="select-other" popover="auto" role="menu" tabindex="-1" aria-labelledby="select-other-title" aria-describedby="select-other-help" data-select-other>
+            <div id="select-other-title" class="select-other-head">Component actions</div>
+            <p id="select-other-help" class="visually-hidden">Arrows navigate · Right arrow opens Select Other · Enter selects · Escape closes</p>
+            <button type="button" role="menuitem" aria-label="Select Other" aria-haspopup="menu" aria-expanded="false" data-pick-open>Select Other</button>
+            <div class="select-other select-other-list" popover="auto" role="menu" tabindex="-1" aria-label="Select Other" data-pick-list></div>
+            <div class="context-menu-actions" role="none" data-selection-tools hidden>
+              <button type="button" role="menuitem" data-selection-action="fitSelection">Fit selection</button>
+              <button type="button" role="menuitemcheckbox" data-selection-action="focus" aria-checked="false">Focus selection</button>
+              <button type="button" role="menuitem" data-selection-action="isolateSelection">Isolate selection</button>
+              <button type="button" role="menuitem" data-selection-action="hideSelected">Hide selection</button>
+              <button type="button" role="menuitem" data-selection-action="cut">Cut view around selection</button>
+              <button type="button" role="menuitem" data-selection-action="restoreVisibility">Restore view</button>
+              <button type="button" role="menuitem" data-selection-action="find">Find component</button>
+            </div>
+          </div>
           <canvas
             data-canvas
             tabindex="0"
@@ -252,16 +276,16 @@
           >i</button>
           <div id="viewport-key" class="body-legend" aria-label="What each mark in the viewport means" data-body-legend hidden></div>
           <p id="viewport-guidance" class="viewport-guidance" data-viewport-guidance>
-            Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click. Axes: X, Y, Z keys or the labelled controls. Reset: Home fits the full scene.
+            Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click; Shift-click adds. Overlapping parts: right-click or Alt-click for Select Other. Axes: X, Y, Z keys. Reset: Home fits the full scene.
           </p>
         </section>
-        <aside class="inspector" data-inspector hidden>
-          <h2>Selection</h2>
+        <aside id="selection-inspector" class="inspector" aria-label="Selection details" data-inspector hidden>
           <!-- Actions sit after the evidence, not in front of it: the first
                thing the panel owes a reviewer is what they selected. -->
           <div class="property-sections" data-properties></div>
           <div class="property-actions" data-property-actions></div>
         </aside>
+        <div class="pane-resize" data-inspector-resize role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize selection pane" aria-controls="selection-inspector" title="Drag or use arrow keys to resize; double-click or Enter resets" hidden></div>
         <details class="review-drawer" data-review-drawer>
           <summary>Tables &amp; issues <span data-review-tally></span></summary>
           <div class="review-drawer-content">
@@ -301,6 +325,24 @@
            popover - three places to learn before "is what I am looking at
            current, and from what" could be answered - and two of them vanished
            in Build mode while the readouts they governed stayed on screen. -->
+      <!-- Mesh check, balance and mesh diagnostics: how the numbers on screen
+           were produced, in either stage. A popover hung from the strip used to
+           hold them; it covered model.py, ran into the viewport and closed only
+           from a small label at the far end of the screen. Docked here, it
+           takes a row of its own and pushes the workspace up, and the strip
+           toggle, Close and Escape all put it away. The sidebars stay out of it:
+           mounted in the script pane it squeezed model.py to three lines. -->
+      <section class="analysis-dock" id="analysis-dock" data-analysis-details aria-labelledby="analysis-dock-title" hidden>
+        <header class="analysis-dock-head">
+          <h2 id="analysis-dock-title">Mesh detail</h2>
+          <button type="button" data-analysis-close>Close</button>
+        </header>
+        <div class="analysis-details-content">
+          <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+          <section class="balance-check" aria-label="Reaction and load consistency" data-balance-check></section>
+          <section class="mesh-review" aria-label="Analysis mesh diagnostics" data-mesh-review hidden></section>
+        </div>
+      </section>
       <footer class="status-strip" data-status-strip>
         <!-- The status band used to be a full row of its own restating what the
              review tables already hold. One chip carries the two facts that are
@@ -320,13 +362,7 @@
              from what"; the mesh check below stays behind its disclosure because
              it is a diagnostic rather than a verdict. -->
         <span class="strip-fact strip-solver" data-solver-fact hidden></span>
-        <details class="analysis-details" data-analysis-details hidden>
-          <summary data-analysis-summary>Mesh detail</summary>
-          <div class="analysis-details-content">
-            <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
-            <section class="balance-check" aria-label="Reaction and load consistency" data-balance-check></section>
-          </div>
-        </details>
+        <button type="button" class="analysis-toggle" data-analysis-summary aria-expanded="false" aria-controls="analysis-dock" hidden>Mesh detail</button>
         <span class="strip-fact strip-selection" data-selection-fact hidden></span>
         <div class="strip-tail">
           <span class="strip-units" data-strip-units></span>
@@ -334,32 +370,40 @@
         </div>
       </footer>
     </main>
-    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title" aria-describedby="exchange-purpose">
+    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
       <form method="dialog" class="exchange-head">
-        <h2 id="exchange-title">Downloads &amp; IFC</h2>
+        <h2 id="exchange-title">Share &amp; exchange</h2>
         <button type="submit" aria-label="Close exchange">Close</button>
       </form>
-      <p id="exchange-purpose">Continue working in Tuba Studio or share model geometry with CAD/BIM tools.</p>
+      <section data-project-package hidden>
+        <h3>Export project</h3>
+        <p>Share editable Python, CAD and project data as one ZIP or TGZ package. Uses saved files; caches and build output are excluded.</p>
+        <label>Archive format <select data-package-format><option value="zip">ZIP (.tubaproject)</option><option value="tgz">Tar + gzip (.tgz)</option></select></label>
+        <label><input type="checkbox" data-package-results> Include current verified Code_Aster results</label>
+        <p data-package-status role="status" aria-live="polite"></p>
+        <button type="button" data-package-export>Download .tubaproject</button>
+      </section>
       <section data-exchange-published>
         <h3>Current script</h3>
         <button type="button" data-code-download title="Download edited model.py (Ctrl+S)" hidden>Download model.py</button>
         <p class="exchange-note">Includes your current edits. Published project downloads below contain the original example.</p>
         <details>
-          <summary>Example actions</summary>
-          <p>Discard your edits and restore the published example.</p>
-          <button type="button" data-code-reset hidden>Reset example</button>
+          <summary>Reset example</summary>
+          <button type="button" data-code-reset title="Discard edits and restore the published model.py" hidden>Discard edits</button>
         </details>
         <h3>Published files</h3>
         <nav data-exchange-downloads aria-label="Published downloads"></nav>
-        <p class="exchange-note">Edit model.py and update geometry in Build. Download model.py above to save your changes. Open Tuba for IFC imports and new Code_Aster evaluations.</p>
       </section>
       <section data-ifc-studio-controls hidden>
+      <section data-ifc-export-section>
       <h3>Export geometry</h3>
-      <p>IFC is a format for sharing 3D geometry with CAD/BIM tools. This export excludes solver results and attached IFC references.</p>
-      <button type="button" data-ifc-export hidden>Download model IFC (geometry only)</button>
+      <p>Native model geometry only; excludes solver results and attached references.</p>
+      <button type="button" data-ifc-export hidden>Download IFC</button>
       <p data-ifc-export-scope></p>
+      </section>
+      <section data-ifc-import-section>
       <h3>Import an IFC reference</h3>
-      <p>Preview an IFC file, then attach it to view alongside your piping. A reference does not become part of the engineering model.</p>
+      <p>View alongside the piping; references are excluded from analysis.</p>
       <div data-ifc-references></div>
       <label>IFC file <input data-ifc-file type="file" accept=".ifc,.ifczip" hidden></label>
       <div class="exchange-actions">
@@ -379,16 +423,54 @@
         <label>Wall thickness (m) <input name="wall_thickness_m" type="number" required min="0.000001" step="any" value="0.006"></label>
         <button type="button" data-ifc-convert>Download new project ZIP</button>
       </form>
+      </section>
       <p data-ifc-status role="status" aria-live="polite"></p>
       </section>
-      <p class="exchange-note">Engineering results require a Code_Aster solve and review in Tuba. Downloading or importing geometry does not perform an analysis.</p>
+    </dialog>
+    <dialog id="geometry-import" class="exchange-dialog geometry-import" data-geometry-dialog aria-labelledby="geometry-import-title" aria-describedby="geometry-import-purpose">
+      <form method="dialog" class="exchange-head">
+        <h2 id="geometry-import-title">Import geometry</h2>
+        <button type="submit" aria-label="Close geometry import">Close</button>
+      </form>
+      <p id="geometry-import-purpose">Preview the surface, store the file, then add the import call to model.py.</p>
+      <form data-geometry-options>
+        <label>Geometry file <input type="file" data-geometry-file accept=".stl,.step,.stp" required></label>
+        <label>Component name <input name="component_id" maxlength="64" required placeholder="equipment_body" autocomplete="off"></label>
+        <label>Coordinate units <select name="units" required aria-describedby="geometry-units-help">
+          <option value="">Choose units</option><option value="m">Metres</option><option value="mm">Millimetres</option>
+          <option value="cm">Centimetres</option><option value="inch">Inches</option><option value="custom">Custom scale</option>
+        </select></label>
+        <p id="geometry-units-help" class="exchange-note" data-geometry-units-help>STL uses raw source coordinates. STEP declared file units are normalized to millimetres by the importer.</p>
+        <label data-geometry-custom-scale hidden>Scale to metres <input name="scale" type="number" min="0" step="any" placeholder="0.001"></label>
+        <fieldset><legend>Position (m)</legend><div class="geometry-triplet">
+          <label>X <input name="origin_x" type="number" step="any" value="0" required></label>
+          <label>Y <input name="origin_y" type="number" step="any" value="0" required></label>
+          <label>Z <input name="origin_z" type="number" step="any" value="0" required></label>
+        </div></fieldset>
+        <fieldset><legend>Rotation (degrees, X then Y then Z)</legend><div class="geometry-triplet">
+          <label>X <input name="rotation_x" type="number" step="any" value="0" required></label>
+          <label>Y <input name="rotation_y" type="number" step="any" value="0" required></label>
+          <label>Z <input name="rotation_z" type="number" step="any" value="0" required></label>
+        </div></fieldset>
+      </form>
+      <div class="exchange-actions"><button type="button" data-geometry-preview>Preview surface</button><button type="button" data-geometry-store disabled>Store source</button></div>
+      <p data-geometry-status role="status" aria-live="polite"></p>
+      <div class="geometry-viewport" data-geometry-viewport hidden><canvas data-geometry-canvas aria-label="Actual imported surface preview"></canvas><p class="exchange-note">Drag to orbit; scroll to zoom.</p></div>
+      <div data-geometry-details></div>
+      <section data-geometry-saved hidden>
+        <h3>Add to model.py</h3><p>Stored source: <code data-geometry-path></code></p>
+        <label>Import call <textarea data-geometry-python readonly rows="7" spellcheck="false"></textarea></label>
+        <div class="exchange-actions"><button type="button" data-geometry-copy>Copy import call</button><button type="button" data-geometry-editor>Open model.py</button></div>
+        <p class="exchange-note">Paste into model.py, then Update geometry.</p>
+      </section>
+      <p class="exchange-note">STL is reference geometry. STEP starts as review geometry; define materials, analysis regions and confirmed connections in Python before a Code_Aster solve.</p>
     </dialog>
     <dialog id="profile-library" class="exchange-dialog profile-library" data-profile-library aria-labelledby="profile-library-title">
       <div class="exchange-head">
         <h2 id="profile-library-title">Profiles</h2>
         <button type="button" data-profiles-close aria-label="Close profiles">Close</button>
       </div>
-      <p class="exchange-note" data-profiles-intro>Browse section dimensions and derived properties.</p>
+      <p class="exchange-note" data-profiles-intro hidden></p>
       <div class="profile-library-tabs" role="group" aria-label="Profile collections">
         <button type="button" data-profiles-tab="catalog" aria-pressed="true">Profile catalog</button>
         <button type="button" data-profiles-tab="used" aria-pressed="false">Used in this model</button>
@@ -402,16 +484,16 @@
       <p data-profiles-status role="status" aria-live="polite"></p>
       <div class="profile-library-content">
         <div class="profile-library-list" data-profiles-list role="group" aria-label="Available profiles"></div>
-        <section class="profile-library-preview" data-profiles-preview aria-label="Selected profile" hidden>
+        <section class="profile-library-preview" data-profiles-preview aria-label="Selected profile" tabindex="0" hidden>
           <h3 data-profiles-name></h3>
           <figure class="profile-figure" data-profiles-figure></figure>
           <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
           <p class="exchange-note" data-profiles-source></p>
-          <p class="exchange-note">Properties are derived from section dimensions. Torsion estimates are labeled; these are not model analysis results.</p>
+          <p class="exchange-note">Derived section properties; torsion estimates are labeled.</p>
           <form data-profiles-insert-form>
             <label>Section name <input data-profiles-section-name required></label>
             <pre class="profile-library-code" data-profiles-code></pre>
-            <button type="submit">Insert into Python</button>
+            <button type="submit">Insert into model.py</button>
           </form>
           <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
           <p data-profiles-definition-note class="exchange-note"></p>

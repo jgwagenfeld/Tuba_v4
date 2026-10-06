@@ -3,6 +3,7 @@
 from __future__ import annotations
 from dataclasses import asdict, replace
 from typing import Any
+import numpy as np
 from tuba.model import Element
 from tuba.model import TubaModel
 from tuba.geometry.profiles import profile_for_section
@@ -18,6 +19,10 @@ from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneBuildOptions, SceneContribution
 from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields, sweep_radial_segments
 
+
+#: Supports that prescribe a movement. The viewer gives this layer its own
+#: Display row (viewer/src/bodies.js OVERLAY_SPECS).
+IMPOSED_DISPLACEMENT_LAYER = "support:imposed_displacement"
 
 _PROFILE_DIMENSION_KEYS = {
     "OD": "outer_diameter_m",
@@ -88,6 +93,8 @@ def _build_element_object(
         "groups": _groups_for_element(model, elem.id),
     }
     metadata["profile"] = _profile_metadata(model, elem)
+    if elem.route_id:
+        metadata["route_id"] = elem.route_id
     if elem.bend_geometry is not None:
         metadata["bend_geometry"] = elem.bend_geometry.to_dict()
     metadata.update(_script_line_fields(elem))
@@ -295,6 +302,23 @@ def _groups_for_node(model: TubaModel, node_id: str) -> list[str]:
     )
 
 
+def _driven_patch_extent(model: TubaModel, node_id: str, coords: list[float]) -> float | None:
+    """Largest extent of the rigid patches a node drives, or None if it drives none."""
+    from tuba.visualization.builders._imported import _rigid_patch_points
+
+    points = [
+        point
+        for coupling in getattr(model, "couplings", {}).values()
+        if coupling.kind == "rigid_patch" and coupling.source_node.id == node_id
+        for point in _rigid_patch_points(model, coupling)
+    ]
+    if not points:
+        return None
+    cloud = np.asarray([*points, coords], dtype=float)
+    extent = float(np.max(cloud.max(axis=0) - cloud.min(axis=0)))
+    return extent if extent > 0 else None
+
+
 def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, GeometryAsset]:
     entity_ref = EntityRef("support", support.id)
     coords = _node_coords(model, support.node)
@@ -333,6 +357,14 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         # Which authored group owns the far end, so the panel can name the
         # structure (e.g. "N3 (rack_A)") without guessing from the scene.
         support_data["attached_to_groups"] = _groups_for_node(model, support.attached_to)
+    if not attached_radii:
+        # No element on the node: the support acts through the rigid patch the
+        # node drives - a lug on a CAD tee. The patch, not the model span, says
+        # how big the support may draw; the span floor drew a 0.37 m star around
+        # a 0.2 m tee.
+        extent = _driven_patch_extent(model, support.node, coords)
+        if extent is not None:
+            support_data["body_extent_m"] = extent
     asset = GeometryAsset(
         id=_asset_id(entity_ref),
         format="point",
@@ -352,6 +384,11 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         kind="support",
         name=support.id,
         geometry_asset_id=asset.id,
+        # A support that drives its node is still a support: it is filed under
+        # "support" and its own layer, so it counts under both Display rows and
+        # either row hides it. Every other support keeps the kind fallback
+        # ("support") and its exact scene output.
+        layer_ids=["support", IMPOSED_DISPLACEMENT_LAYER] if any(support.imposed_displacement or ()) else [],
         metadata={
             "node": support.node,
             **support_data,

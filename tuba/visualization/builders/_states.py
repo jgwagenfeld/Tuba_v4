@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any
 from typing import Iterable
+from dataclasses import dataclass
 import numpy as np
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.projection import project_deformed_centerline
@@ -11,7 +12,7 @@ from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
 from tuba.geometry.deformed import build_deformed_envelopes
 from tuba.geometry.profiles import profile_for_section
-from tuba.geometry.section_mesh import deformed_straight_section_surface_mesh
+from tuba.geometry.section_mesh import deformed_section_sweep_surface_mesh
 from tuba.refs import EntityRef
 from tuba.solver.aster_mesh import _nodal_force_node_ids
 from tuba.visualization.scene import GeometryAsset
@@ -20,6 +21,111 @@ from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import _bounds_for_points, _dedupe, _node_coords, _safe_bounds_for_points
+from tuba.visualization.builders._results import SCALAR_COLOR_MAP
+
+
+def _analysis_line_element_ids(mesh: AnalysisMesh) -> set[str]:
+    """A TRI3 shell is a surface even though SEG3 also has three nodes."""
+    other_families = {
+        element_id for group, family in mesh.modelisations.items()
+        if family in {"3D", "DKT", "COQUE_3D", "DIS_TR"}
+        for element_id in mesh.groups.get(group, ())
+    }
+    return {
+        element_id for element_id, nodes in mesh.elements.items()
+        if len(nodes) in {2, 3} and (
+            (element_id not in mesh.element_sources and element_id not in other_families
+             and not element_id.startswith(("VM", "VS", "SM", "RC")))
+            or (element_id in mesh.element_sources and mesh.element_sources[element_id].role
+                in {"native_element", "spring_connector", "contact_connector"})
+        )
+    }
+
+
+def _shell_surface_mesh(mesh: AnalysisMesh) -> dict[str, Any] | None:
+    cells = [
+        mesh.elements[element_id] for element_id, source in mesh.element_sources.items()
+        if source.role == "shell_cell"
+    ]
+    if not cells:
+        return None
+    node_ids = tuple(dict.fromkeys(node_id for cell in cells for node_id in cell))
+    indices = {node_id: index for index, node_id in enumerate(node_ids)}
+    return {
+        "node_ids": node_ids, "vertices": [mesh.nodes[node_id] for node_id in node_ids],
+        "faces": [[indices[node_id] for node_id in cell] for cell in cells],
+    }
+
+
+def _build_shell_scene(
+    mesh: AnalysisMesh,
+    result_state: ResultState | None = None,
+    geometry_state: GeometryState | None = None,
+) -> SceneContribution:
+    """Shell geometry and real scalar results in the existing web scene path."""
+    surface = _shell_surface_mesh(mesh)
+    if surface is None:
+        return SceneContribution()
+    base = np.asarray(surface["vertices"], dtype=float)
+    fields = [("surface", base.tolist(), None, None)]
+    suffix = mesh.id
+    metadata: dict[str, Any] = {"mesh_id": mesh.id, "role": "shell_surface", "modelisation": "DKT"}
+    if result_state is not None:
+        try:
+            displacement = np.asarray([
+                result_state.node_displacements[node_id][:3] for node_id in surface["node_ids"]
+            ], dtype=float)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Shell review requires native displacement at every shell node.") from exc
+        if not np.isfinite(displacement).all():
+            raise ValueError("Shell review contains non-finite native displacement.")
+        metadata.update(result_state_id=result_state.id, load_case=result_state.load_case)
+        suffix += ":" + result_state.id
+        if geometry_state is not None:
+            factor = geometry_state.displacement_scale * geometry_state.safety_factor
+            fields = [("deformed_surface", (base + displacement * factor).tolist(), None, None)]
+            suffix += ":" + geometry_state.id
+            metadata.update(_deformed_metadata(geometry_state, result_state))
+        else:
+            values_by_node = result_state.metadata.get("shell_von_mises", {})
+            try:
+                values = [float(values_by_node[node_id]) for node_id in surface["node_ids"]]
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("Shell review requires native through-thickness VMIS at every shell node.") from exc
+            if not np.isfinite(values).all():
+                raise ValueError("Shell review contains non-finite native VMIS.")
+            fields = [
+                ("stress", base.tolist(), values, "Pa"),
+                ("displacement", (base + displacement).tolist(), np.linalg.norm(displacement, axis=1).tolist(), "m"),
+            ]
+    objects, assets, overlays = [], [], []
+    for field, vertices, values, unit in fields:
+        object_id = f"object:shell:{field}:{suffix}"
+        asset_id = f"geometry:shell:{field}:{suffix}"
+        name = {"surface": "DKT shell mesh", "deformed_surface": "Deformed DKT shell",
+                "stress": "Shell FE VMIS (not code stress)", "displacement": "Shell displacement"}[field]
+        config = {"source": f"tuba.analysis_shell.{field}", "mesh_id": mesh.id,
+                  "vertices": vertices, "faces": surface["faces"], "base_vertices": base.tolist()}
+        layer = "analysis_mesh:shell_surface" if result_state is None else f"solver_result:shell_{field}"
+        if values is not None:
+            field_name = "Shell FE VMIS (not code stress)" if field == "stress" else "Shell displacement magnitude"
+            legend = {"field": field_name, "unit": unit, "range": {"min": min(values), "max": max(values)},
+                      "color_map": SCALAR_COLOR_MAP, "thresholds": {}}
+            config.update(vertex_values=values, legend=legend, result_state_id=result_state.id)
+            overlays.append(Overlay(
+                id=f"overlay:shell:{field}:{suffix}", kind="solver_result", object_ids=[object_id], name=name,
+                data={"result_type": "stress" if field == "stress" else "displacement",
+                      "field": field_name, "unit": unit, "result_state_id": result_state.id,
+                      "study_id": result_state.study_id, "mesh_id": mesh.id, "load_case": result_state.load_case,
+                      "values": {object_id: max(values)}, "range": legend["range"], "legend": legend,
+                      "components": ["magnitude"], "support": "node",
+                      "stress_basis": result_state.metadata.get("shell_stress_basis")},
+            ))
+        assets.append(GeometryAsset(id=asset_id, format="mesh", bounds=_bounds_for_points(vertices, 0.0),
+                                    object_ids=[object_id], generation_config=config))
+        objects.append(SceneObject(id=object_id, kind=f"shell_{field}_field" if values is not None else "analysis_mesh_surface",
+                                   name=name, geometry_asset_id=asset_id, layer_ids=[layer], metadata=dict(metadata)))
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), overlays=tuple(overlays))
 
 
 def _build_geometry_state_record(geometry_state: GeometryState) -> tuple[SceneObject, Overlay]:
@@ -262,6 +368,10 @@ def _build_deformed_mesh_scene(
     assets: list[GeometryAsset] = []
     groups_by_member = _analysis_mesh_groups_by_member(analysis_mesh)
     factor = geometry_state.displacement_scale * geometry_state.safety_factor
+    shell = _build_shell_scene(analysis_mesh, result_state, geometry_state)
+    objects.extend(shell.objects)
+    assets.extend(shell.assets)
+    line_element_ids = _analysis_line_element_ids(analysis_mesh)
     if analysis_mesh.surface_mesh is not None:
         surface = analysis_mesh.surface_mesh
         base_vertices = [[float(value) for value in vertex] for vertex in surface["vertices"]]
@@ -307,20 +417,24 @@ def _build_deformed_mesh_scene(
                 },
             )
         )
+    line_elements = {}
     for element_id, node_ids in analysis_mesh.elements.items():
-        if analysis_mesh.surface_mesh is not None and len(node_ids) not in {2, 3}:
+        if analysis_mesh.surface_mesh is not None and element_id not in line_element_ids:
             continue
         source = analysis_mesh.element_sources.get(element_id)
-        if source is not None and source.role in {"contact_connector", "spring_connector"}:
+        if source is not None and source.role in {"contact_connector", "spring_connector", "shell_cell", "reference_carrier"}:
             continue
+        line_elements[element_id] = node_ids
+    for display in _deformed_line_displays(model, analysis_mesh, line_elements):
+        element_id, node_ids, stations, source = display.element_id, display.node_ids, display.stations, display.source
         points = [
             _deformed_mesh_point(analysis_mesh, result_state, node_id, factor)
-            for node_id in node_ids
+            for node_id in stations
         ]
-        base_points = _base_points_for_node_ids(None, analysis_mesh, node_ids)
-        object_id = f"object:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{element_id}"
-        asset_id = f"geometry:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{element_id}"
-        groups = groups_by_member.get(element_id, [])
+        base_points = _base_points_for_node_ids(None, analysis_mesh, stations)
+        object_id = f"object:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{display.id}"
+        asset_id = f"geometry:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{display.id}"
+        groups = sorted({group for segment in display.segment_ids for group in groups_by_member.get(segment, [])})
         metadata = _deformed_metadata(geometry_state, result_state)
         metadata.update(
             {
@@ -332,7 +446,9 @@ def _build_deformed_mesh_scene(
                 "role": source.role if source is not None else "unmapped_element",
             }
         )
-        if source is not None and source.segment_index is not None:
+        if display.span_index is not None:
+            metadata.update(span_index=display.span_index, element_ids=list(display.segment_ids))
+        elif source is not None and source.segment_index is not None:
             metadata["segment_index"] = source.segment_index
         asset_format = "polyline"
         asset_bounds = _safe_bounds_for_points(points, 0.0)
@@ -353,23 +469,24 @@ def _build_deformed_mesh_scene(
             if source is not None and source.source_ref.kind == "element"
             else None
         )
-        if model_element is not None and len(node_ids) == 2:
+        if model_element is not None and (len(stations) == 2 or display.span_index is not None):
             profile = profile_for_section(model.sections[model_element.section])
             generation_config["profile_kind"] = profile.kind
             generation_config["source"] = "tuba.deformed_analysis_mesh.profile"
             if profile.kind in {"ibeam", "rectangular"}:
-                base_surface, deformed_surface = deformed_straight_section_surface_mesh(
+                deformations = [
+                    list(result_state.node_displacements[node_id]) for node_id in stations
+                ]
+                base_surface, deformed_surface = deformed_section_sweep_surface_mesh(
                     model.sections[model_element.section],
-                    base_points[0],
-                    base_points[1],
-                    result_state.node_displacements.get(node_ids[0], (0.0,) * 6),
-                    result_state.node_displacements.get(node_ids[1], (0.0,) * 6),
+                    base_points,
+                    deformations,
                     scale=factor,
                     twist_angle_deg=float(getattr(model_element, "twist_angle", 0.0)),
                 )
                 generation_config.update(
                     section_origins=base_points,
-                    section_deformations=[list(result_state.node_displacements[node_id]) for node_id in node_ids],
+                    section_deformations=deformations,
                     base_vertices=[list(vertex) for vertex in base_surface.vertices],
                     vertices=[list(vertex) for vertex in deformed_surface.vertices],
                     faces=[list(face) for face in deformed_surface.faces],
@@ -397,7 +514,7 @@ def _build_deformed_mesh_scene(
                 id=object_id,
                 entity_ref=source.source_ref if source is not None else None,
                 kind="deformed_analysis_mesh_element",
-                name=f"{element_id} {geometry_state.id} warped mesh",
+                name=f"{display.id} {geometry_state.id} warped mesh",
                 geometry_asset_id=asset_id,
                 group_ids=groups,
                 layer_ids=["deformed:mesh", *(f"deformed:group:{group}" for group in groups)],
@@ -405,6 +522,136 @@ def _build_deformed_mesh_scene(
             )
         )
     return objects, assets
+
+
+# A member split into at most _PER_SEGMENT_LIMIT straight FE segments draws one
+# warped body per segment, as line models always have: eight per straight, 16
+# or 32 per bend. A finer chain - a gmsh mesh sized for a solid puts hundreds of
+# nodes on one frame member - is drawn as _MAX_MEMBER_SPANS spans instead:
+# still eight colour bands along the member, not hundreds of capped skins that
+# no browser should have to load. A member of quadratic (SEG3) segments is
+# always drawn as spans: one segment's nodes are not stored in order along it.
+_PER_SEGMENT_LIMIT = 64
+_MAX_MEMBER_SPANS = 8
+# Rings per span. The solved shape between FE nodes is smooth, so three
+# sub-segments per span (25 stations per member) bend as the solver did.
+_SPAN_STATIONS = 4
+
+
+@dataclass(frozen=True)
+class _LineDisplay:
+    id: str
+    element_id: str
+    node_ids: tuple[str, ...]
+    stations: tuple[str, ...]
+    segment_ids: tuple[str, ...]
+    source: Any
+    span_index: int | None = None
+
+
+def _deformed_line_displays(
+    model: TubaModel,
+    analysis_mesh: AnalysisMesh,
+    line_elements: dict[str, Any],
+) -> list[_LineDisplay]:
+    """The warped line bodies to draw: FE segments, or spans of long members."""
+    by_member: dict[str, list[str]] = {}
+    for element_id, node_ids in line_elements.items():
+        source = analysis_mesh.element_sources.get(element_id)
+        if source is not None and source.source_ref.kind == "element" and len(node_ids) in {2, 3}:
+            by_member.setdefault(source.source_ref.id, []).append(element_id)
+    spans: dict[str, list[_LineDisplay]] = {}
+    for member_id, segment_ids in by_member.items():
+        member = model.get_element(member_id)
+        quadratic = any(len(analysis_mesh.elements[segment]) == 3 for segment in segment_ids)
+        if member is None or (len(segment_ids) <= _PER_SEGMENT_LIMIT and not quadratic):
+            continue
+        chain = _member_node_chain(analysis_mesh, segment_ids, model.nodes[member.n1].coords)
+        if chain is not None:
+            source = analysis_mesh.element_sources[segment_ids[0]]
+            spans[member_id] = _member_spans(member_id, chain, analysis_mesh, segment_ids, source)
+    displays: list[_LineDisplay] = []
+    drawn: set[str] = set()
+    for element_id, node_ids in line_elements.items():
+        source = analysis_mesh.element_sources.get(element_id)
+        member_id = source.source_ref.id if source is not None and source.source_ref.kind == "element" else None
+        if member_id in spans and element_id in by_member[member_id]:
+            if member_id not in drawn:
+                displays.extend(spans[member_id])
+                drawn.add(member_id)
+            continue
+        nodes = tuple(node_ids)
+        displays.append(_LineDisplay(element_id, element_id, nodes, nodes, (element_id,), source))
+    return displays
+
+
+def _member_spans(
+    member_id: str,
+    chain: list[str],
+    analysis_mesh: AnalysisMesh,
+    segment_ids: list[str],
+    source: Any,
+) -> list[_LineDisplay]:
+    position = {node: index for index, node in enumerate(chain)}
+    # Spans end on segment ends, never on a quadratic segment's middle node.
+    ends = sorted(min(position[node] for node in analysis_mesh.elements[segment]) for segment in segment_ids)
+    ends.append(len(chain) - 1)
+    count = min(_MAX_MEMBER_SPANS, len(segment_ids))
+    bounds = [ends[pick] for pick in np.linspace(0, len(segment_ids), count + 1).round().astype(int).tolist()]
+    spans = []
+    for index, (first, last) in enumerate(zip(bounds[:-1], bounds[1:])):
+        nodes = tuple(chain[first : last + 1])
+        picks = np.linspace(0, len(nodes) - 1, min(len(nodes), _SPAN_STATIONS)).round().astype(int)
+        spans.append(_LineDisplay(
+            id=f"{member_id}:span{index}",
+            element_id=member_id,
+            node_ids=nodes,
+            stations=tuple(nodes[pick] for pick in dict.fromkeys(picks.tolist())),
+            segment_ids=tuple(
+                segment for segment in segment_ids
+                if first <= min(position[node] for node in analysis_mesh.elements[segment]) < last
+            ),
+            source=source,
+            span_index=index,
+        ))
+    return spans
+
+
+def _member_node_chain(analysis_mesh: AnalysisMesh, segment_ids: list[str], start) -> list[str] | None:
+    """A member's FE nodes in order from its n1 end, or None if they do not form one chain."""
+    neighbours: dict[str, list[str]] = {}
+    middles: dict[frozenset[str], str] = {}
+    for segment in segment_ids:
+        a, b, middle = _segment_ends(analysis_mesh, analysis_mesh.elements[segment])
+        neighbours.setdefault(a, []).append(b)
+        neighbours.setdefault(b, []).append(a)
+        if middle is not None:
+            middles[frozenset((a, b))] = middle
+    ends = [node for node, adjacent in neighbours.items() if len(adjacent) == 1]
+    if len(ends) != 2 or any(len(adjacent) > 2 for adjacent in neighbours.values()):
+        return None
+    chain = [min(ends, key=lambda node: float(np.linalg.norm(np.asarray(analysis_mesh.nodes[node]) - start)))]
+    previous = None
+    while len(chain) <= 2 * len(segment_ids):
+        following = [node for node in neighbours[chain[-1]] if node != previous]
+        if not following:
+            break
+        previous = chain[-1]
+        middle = middles.get(frozenset((previous, following[0])))
+        chain.extend((following[0],) if middle is None else (middle, following[0]))
+    return chain if len(chain) == len(segment_ids) + 1 + len(middles) else None
+
+
+def _segment_ends(analysis_mesh: AnalysisMesh, node_ids) -> tuple[str, str, str | None]:
+    """A segment's two end nodes and its middle node, whatever order they are stored in."""
+    if len(node_ids) == 2:
+        return node_ids[0], node_ids[1], None
+    coords = [np.asarray(analysis_mesh.nodes[node], dtype=float) for node in node_ids]
+    pairs = ((0, 1, 2), (0, 2, 1), (1, 2, 0))
+    a, b, middle = max(pairs, key=lambda pair: float(np.linalg.norm(coords[pair[0]] - coords[pair[1]])))
+    return node_ids[a], node_ids[b], node_ids[middle]
+
+
 def _deformed_mesh_point(
     analysis_mesh: AnalysisMesh,
     result_state: ResultState,
@@ -457,7 +704,10 @@ def _mesh_node_radius(model: TubaModel | None) -> float:
 def _build_analysis_mesh_scene(
     analysis_mesh: AnalysisMesh,
     model: TubaModel | None = None,
+    *,
+    required_node_ids: Iterable[str] = (),
 ) -> tuple[list[SceneObject], list[GeometryAsset], list[SceneDiagnostic]]:
+    required_node_ids = set(required_node_ids)
     node_radius = _mesh_node_radius(model)
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
@@ -467,11 +717,10 @@ def _build_analysis_mesh_scene(
     layered_node_groups = None if model is None else {
         f"GN_{node_id}" for node_id in {support.node for support in model.supports} | _nodal_force_node_ids(model)
     }
-    line_element_ids = {
-        element_id
-        for element_id, node_ids in analysis_mesh.elements.items()
-        if len(node_ids) in {2, 3}
-    }
+    line_element_ids = _analysis_line_element_ids(analysis_mesh)
+    shell = _build_shell_scene(analysis_mesh)
+    objects.extend(shell.objects)
+    assets.extend(shell.assets)
     line_node_ids = {
         node_id
         for element_id in line_element_ids
@@ -487,7 +736,10 @@ def _build_analysis_mesh_scene(
             for index in range(len(face))
         }
         volume_edges: set[tuple[str, str]] = set()
-        for element_nodes in analysis_mesh.elements.values():
+        for element_id, element_nodes in analysis_mesh.elements.items():
+            source = analysis_mesh.element_sources.get(element_id)
+            if source is not None and source.role != "volume_cell":
+                continue
             if len(element_nodes) in {4, 10}:
                 corners = element_nodes[:4]
                 edge_pairs = ((0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3))
@@ -549,7 +801,7 @@ def _build_analysis_mesh_scene(
             )
         )
     for node_id, coords in analysis_mesh.nodes.items():
-        if analysis_mesh.surface_mesh is not None and node_id not in line_node_ids:
+        if analysis_mesh.surface_mesh is not None and node_id not in line_node_ids and node_id not in required_node_ids:
             continue
         source = analysis_mesh.node_sources.get(node_id)
         groups = groups_by_member.get(node_id, [])
@@ -617,6 +869,8 @@ def _build_analysis_mesh_scene(
         if analysis_mesh.surface_mesh is not None and element_id not in line_element_ids:
             continue
         source = analysis_mesh.element_sources.get(element_id)
+        if source is not None and source.role in {"shell_cell", "reference_carrier"}:
+            continue
         groups = groups_by_member.get(element_id, [])
         if source is None:
             diagnostics.append(

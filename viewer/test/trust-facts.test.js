@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+test("envelope value basis describes derived arithmetic and does not claim solver reporting", () => {
+  assert.equal(getAveragingBasis({}, { envelope: { enveloped: true } }), "maximum across result steps at each field location");
+  assert.equal(getAveragingBasis({}, { envelope: { enveloped: false } }), "one contributing result step, so no maximum across steps");
+});
+
 import { getAveragingBasis, getReactionConsistency, isBalanced } from "../src/trustFacts.js";
 
 // Two nodes, one at the origin and one 2 m out in X, so a 100 N force at the
@@ -197,6 +202,19 @@ test("a builder's own derivation statement wins over any rule", () => {
     overlay: { data: { field: "max_von_mises", derivation: "arithmetic mean of SIEQ_ELNO element-node rows at each surface node" } }
   });
   assert.equal(basis, "arithmetic mean of SIEQ_ELNO element-node rows at each surface node");
+});
+
+test("a field merged over a solid and line elements states each family's basis", () => {
+  const basis = getAveragingBasis({}, {
+    overlay: { data: { field: "FE VMIS (not code stress)", averaging: "arithmetic mean of SIEQ_ELNO element-node rows at each surface node", parts: [
+      { overlay_id: "overlay:solver_result:volume_stress:Hot", field: "FE VMIS (not code stress)",
+        averaging: "arithmetic mean of SIEQ_ELNO element-node rows at each surface node" },
+      { overlay_id: "overlay:solver_result:stress:Hot", field: "max_von_mises" }
+    ] } },
+    field: "FE VMIS (not code stress)"
+  });
+  assert.equal(basis, "solid: arithmetic mean of SIEQ_ELNO element-node rows at each surface node; "
+    + "line elements: element maximum of the two element-end values");
 });
 
 test("a nodal field says it is a nodal value", () => {

@@ -23,7 +23,7 @@ try {
     }, { project, downloads });
   }
   await open();
-  const dialog = page.getByRole("dialog", { name: "Downloads & IFC" });
+  const dialog = page.getByRole("dialog", { name: "Share & exchange" });
   await expect(dialog.getByRole("link", { name: "Download project ZIP" })).toHaveAttribute("href", "downloads/pipe.zip");
   await expect(dialog.getByRole("link", { name: "Download IFC geometry" })).toHaveAttribute("href", "downloads/pipe.ifc");
   await expect(dialog.locator("[data-ifc-studio-controls]")).toBeHidden();
@@ -53,7 +53,7 @@ try {
   await expect(dialog.locator("[data-ifc-export]")).toBeVisible();
 
   await open({ ifc: { available: false, export_available: false, reason: "IFC support unavailable", references: [] } });
-  await expect(dialog.getByRole("button", { name: "Preview IFC" })).toBeDisabled();
+  await expect(dialog.locator("[data-ifc-preview]")).toBeDisabled();
   await expect(dialog.locator("[data-ifc-status]")).toHaveText("IFC support unavailable");
   await expect(dialog.locator("[data-ifc-export]")).toBeHidden();
   console.log("Exchange dialog passed: downloads, empty state, Studio capability, responsive layout, accessibility, close/Escape.");

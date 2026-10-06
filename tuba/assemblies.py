@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import json
 import sys
 from dataclasses import dataclass
@@ -33,6 +32,7 @@ def _normalize_params(params: dict[str, Any]) -> dict[str, Any]:
 _CREATED_KEYED = (
     "groups", "placement_frames", "tees", "load_cases", "operations",
     "cad_assets", "imported_components", "analysis_regions", "ports", "mesh_groups", "couplings",
+    "mesh_refinements",
 )
 _CREATED_LISTS = ("attributes", "placement_assignments", "obstacles")
 
@@ -70,7 +70,9 @@ def _resolve_unit(ref: str, namespace: dict[str, Any] | None):
     if ":" in ref:
         module_name, _, func_name = ref.partition(":")
         try:
-            module = importlib.import_module(module_name)
+            from tuba.project.execution import import_project_module
+
+            module = import_project_module(module_name)
         except ImportError as exc:
             raise ValueError(f"Assembly {ref!r} cannot be imported: {exc}") from exc
         try:
@@ -140,6 +142,12 @@ def assemble(model, ref: str, _namespace: dict[str, Any] | None = None, **params
         for support in model.supports[supports:]:
             if support.source_line is None:
                 support.source_line = line
+        for collection in ("cad_assets", "imported_components", "analysis_regions", "ports", "mesh_groups", "couplings"):
+            for identity in call["created"]["keyed"].get(collection, ()):
+                record = getattr(model, collection)[identity]
+                if record.source_line is None:
+                    # Mixed records are frozen; authoring provenance is transient.
+                    object.__setattr__(record, "source_line", line)
     return result
 
 
@@ -197,6 +205,7 @@ def lint_unit_code(name: str, code: str) -> None:
             input=code,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=60,
         )
     except (OSError, _subprocess.SubprocessError):

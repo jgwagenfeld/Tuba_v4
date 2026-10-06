@@ -345,6 +345,28 @@ test("the scalar ramp rises monotonically in perceived lightness", () => {
   assert.ok(contrast > 10, `ends of the scale must be separable in greyscale, got ${contrast.toFixed(2)}:1`);
 });
 
+test("a range that crosses zero reads on a diverging ramp centred on zero", () => {
+  const axial = { range: { min: -36, max: 30 } };
+  assert.equal(colorForScalarValue(0, axial), 0xdddddd, "zero is the neutral middle, wherever the range puts it");
+  assert.equal(colorForScalarValue(-36, axial), 0x3b4cc0, "the larger magnitude takes the full end colour");
+  const red = (hex) => (hex >> 16) & 0xff;
+  const blue = (hex) => hex & 0xff;
+  const tension = colorForScalarValue(20, axial);
+  const compression = colorForScalarValue(-20, axial);
+  assert.ok(red(tension) > blue(tension) && blue(compression) > red(compression), "the sign is the hue");
+
+  // Banded, a band is still one flat colour.
+  const banded = { ...axial, bands: 6 };
+  assert.equal(colorForScalarValue(-35, banded), colorForScalarValue(-27, banded));
+  // A one-signed range keeps the sequential ramp - unless it is a signed
+  // component, where an all-compression member is still all blue.
+  assert.equal(colorForScalarValue(0, { range: { min: 0, max: 10 } }), 0x00204c);
+  assert.equal(colorForScalarValue(0, { range: { min: 0, max: 10 }, component: "magnitude" }), 0x00204c);
+  const compressed = { range: { min: -600, max: -7 }, component: "N" };
+  assert.equal(colorForScalarValue(-600, compressed), 0x3b4cc0);
+  assert.ok(blue(colorForScalarValue(-7, compressed)) > red(colorForScalarValue(-7, compressed)));
+});
+
 // One rule, three readers. The hotspot list, the scene's own tint and the
 // inspector probe all need the numbers the legend is built from, and the first
 // two used to carry their own copy of the catalogue-or-overlay ternary.

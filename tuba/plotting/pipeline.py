@@ -11,6 +11,7 @@ for rendering. Handles:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Optional
@@ -18,6 +19,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 
 from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
+from tuba.solver.aster_loads import node_temperature_entries, resolve_operation_field_groups
 
 if TYPE_CHECKING:
     from tuba.model import TubaModel
@@ -546,8 +548,62 @@ def _triangulate_profile_polygon(poly: np.ndarray) -> list[tuple[int, int, int]]
     return triangles
 
 
-def _map_element_surface_data(mesh, model, elem, results, station_fractions):
-    """Attach endpoint-interpolated solver data to an already-built surface."""
+@dataclass(frozen=True)
+class _AppliedTemperature:
+    operation: str
+    default: float
+    element_values: dict[str, float]
+    element_end_values: dict[str, tuple[float, float]]
+
+    def at_stations(self, elem, station_fractions):
+        if elem.id in self.element_end_values:
+            return _interpolate_endpoints(self.element_end_values[elem.id], station_fractions)
+        return np.full(len(station_fractions), self.element_values.get(elem.id, self.default))
+
+
+def _resolve_applied_temperature(model, results):
+    """Resolve one selected operation through the Code_Aster input helpers.
+
+    Element assignments retain their constant input values. Node assignments
+    use the compiler's interpolation and fallback to the last element field
+    covering an otherwise uncovered endpoint, or the case default.
+    """
+    if results is not None:
+        if results.load_case is None:
+            return None
+        try:
+            operation, case = model.resolve_load_case(results.load_case)
+        except ValueError as exc:
+            raise ValueError(f"Cannot map temperature for result load case {results.load_case!r}.") from exc
+    else:
+        try:
+            operation, case = model.resolve_load_case()
+        except ValueError:
+            return None
+
+    fields = resolve_operation_field_groups(model, case, "temperature")
+    element_values = {
+        element_id: value
+        for element_ids, value in fields
+        for element_id in element_ids
+    }
+    # These identifiers belong to display endpoints, not to a solver mesh.
+    # The helper resolves both ends of each element touched by a node field;
+    # surface stations then interpolate the same engineering input fractions.
+    endpoints = dict(node_temperature_entries(
+        model, case, fields,
+        lambda elem: [(f"{elem.id}:start", 0.0), (f"{elem.id}:end", 1.0)],
+    ))
+    element_end_values = {
+        elem.id: (endpoints[f"{elem.id}:start"], endpoints[f"{elem.id}:end"])
+        for elem in model.elements
+        if f"{elem.id}:start" in endpoints
+    }
+    return _AppliedTemperature(operation, float(case.temperature), element_values, element_end_values)
+
+
+def _map_element_surface_data(mesh, elem, results, station_fractions, temperature):
+    """Attach solver fields and the separately resolved applied input."""
     if results is not None:
         displacement = [_node_result_vector(results, node_id, "displacement") for node_id in (elem.n1, elem.n2)]
         reaction = [_node_result_vector(results, node_id, "reaction_force") for node_id in (elem.n1, elem.n2)]
@@ -557,19 +613,8 @@ def _map_element_surface_data(mesh, model, elem, results, station_fractions):
         mesh.point_data["FORC_NODA"] = _interpolate_endpoints(reaction, station_fractions, interpolate=False)
         mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
 
-    if results is not None and results.load_case is not None:
-        try:
-            _, resolved_case = model.resolve_load_case(results.load_case)
-        except ValueError as exc:
-            raise ValueError(f"Cannot map temperature for result load case {results.load_case!r}.") from exc
-        mesh.point_data["TEMP"] = np.full(mesh.n_points, resolved_case.temperature)
-    elif results is None:
-        try:
-            _, resolved_case = model.resolve_load_case()
-        except ValueError:
-            resolved_case = None
-        if resolved_case is not None:
-            mesh.point_data["TEMP"] = np.full(mesh.n_points, resolved_case.temperature)
+    if temperature is not None:
+        mesh.point_data["TEMP"] = temperature.at_stations(elem, station_fractions)
     return mesh
 
 
@@ -623,6 +668,8 @@ def _get_element_3d_mesh(
     model: "TubaModel",
     elem: "Element",
     results: Optional["FEAResults"] = None,
+    *,
+    temperature: Optional[_AppliedTemperature] = None,
 ) -> "pv.PolyData":
     """Construct a 3-D extruded solid mesh for a single element with result mapping."""
     _require_pyvista()
@@ -639,10 +686,10 @@ def _get_element_3d_mesh(
         points_per_end = len(surface.vertices) // 2
         return _map_element_surface_data(
             mesh,
-            model,
             elem,
             results,
             [0.0] * points_per_end + [1.0] * points_per_end,
+            temperature,
         )
     
     # 1. Determine centerline path points
@@ -725,18 +772,28 @@ def _get_element_3d_mesh(
     mesh = pv.PolyData(points_3d, faces=cells_arr)
     
     station_fractions = np.repeat(np.linspace(0.0, 1.0, N), M)
-    return _map_element_surface_data(mesh, model, elem, results, station_fractions)
+    return _map_element_surface_data(mesh, elem, results, station_fractions, temperature)
 
 
 def build_3d_mesh_from_model(
     model: "TubaModel",
     results: Optional["FEAResults"] = None,
 ) -> "pv.PolyData":
-    """Construct a full 3-D cross-sectional geometry mesh from a TubaModel."""
+    """Construct a full 3-D cross-sectional geometry mesh from a TubaModel.
+
+    ``TEMP`` is the selected operation's resolved applied input, not a nodal
+    temperature read from an RMED result. Uniform element/route assignments,
+    including the compiler's midpoint values for linear route fields, remain
+    constant per element and can be discontinuous across a shared interface.
+    Node-scoped inputs interpolate along each touched element's display
+    stations, using the compiler's endpoint fallback and field write order.
+    ``TEMP_source`` and ``TEMP_operation`` field data preserve that provenance.
+    """
     _require_pyvista()
+    temperature = _resolve_applied_temperature(model, results)
     meshes = []
     for elem in model.elements:
-        m = _get_element_3d_mesh(model, elem, results)
+        m = _get_element_3d_mesh(model, elem, results, temperature=temperature)
         if m.n_points > 0:
             meshes.append(m)
             
@@ -745,7 +802,13 @@ def build_3d_mesh_from_model(
         
     merged = meshes[0]
     if len(meshes) > 1:
-        # Keep element-local stresses distinct, including unavailable neighbors.
-        merged = merged.merge(meshes[1:], merge_points=results is None)
+        # Preserve both element-local solver fields and discontinuous applied
+        # inputs; merging shared vertices would silently choose one value.
+        local_temperature = temperature is not None and bool(temperature.element_values)
+        merged = merged.merge(meshes[1:], merge_points=results is None and not local_temperature)
+
+    if temperature is not None:
+        merged.field_data["TEMP_source"] = ["applied_input"]
+        merged.field_data["TEMP_operation"] = [temperature.operation]
         
     return merged

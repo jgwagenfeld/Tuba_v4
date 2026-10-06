@@ -403,7 +403,6 @@ def write_isometry(model: TubaModel, path, **options):
 
 def main(argv=None):
     from tuba.project import load_project
-    from tuba.project.script import project_on_path
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project", type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -416,8 +415,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         project = load_project(args.project)
-        with project_on_path(project.root):
-            model = project.run_model()["model"]
+        model = project.run_model()["model"]
         opts = vars(args).copy()
         opts.pop("project"); output = opts.pop("output")
         manifest = write_isometry(model, output, **opts)

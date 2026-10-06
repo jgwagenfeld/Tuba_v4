@@ -2,13 +2,13 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "dac4a5e0fc1152daaa7c63033065fe7354d0acc8eac323ff18fc9d8e0853337d",
-      "size_bytes": 71624
+      "sha256": "4eed27f562079c45e0959a8ba7e60eb003e052f09edf29e0d76bef78c852908c",
+      "size_bytes": 72065
     },
     {
       "name": "study.export",
-      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
-      "size_bytes": 377
+      "sha256": "85dc46238025a16f78479122b6a833c2b8bf49ec20bf72cbcd8cd0338cbcb7fc",
+      "size_bytes": 404
     },
     {
       "name": "study.mail",
@@ -17,37 +17,42 @@
     },
     {
       "name": "study.mess",
-      "sha256": "e2a3dc6c96f621a611f6fb0c259c47e91c37c522f657280ba560ad6ff0fef35f",
-      "size_bytes": 130081
+      "sha256": "9e57a00529f66bb8875d3f0a854b45583a3bbea18bb6c48ef9ff5d525d10a16d",
+      "size_bytes": 135864
     },
     {
       "name": "study.rmed",
-      "sha256": "546b47670c069cec4dba08d32d6ae24c72f7f305a62916976b57d6dd9afc8942",
+      "sha256": "debc4449d8d929100fd9ef24d4ba11bf24a0de0665c05da5d94dadbfd8197b1e",
       "size_bytes": 695718
     },
     {
       "name": "study_depl.csv",
-      "sha256": "0dcde3f09b51ab2d1a7c5a16585da6b868bc30d9c2af6518175f665c3da91dd5",
+      "sha256": "228d6faaecc68d23401cdcb83e0f24cacda8c8f36403df2fefe32915d9b4c629",
       "size_bytes": 69340
     },
     {
       "name": "study_effo.csv",
-      "sha256": "22190620a8c5ae0a2a185cbd9bf0f7148a21d5ec286bab3a475b7d85f457c3c0",
+      "sha256": "40f2c30461b2925113ba4992d8948e1a1e5d2270d7ddf84ae19db8c00e71331d",
       "size_bytes": 407218
     },
     {
       "name": "study_manifest.json",
-      "sha256": "36e78707e34b29366036c0f2db94b52a986b6d6e6bbb4510b7e22c29a89b3ec3",
-      "size_bytes": 281008
+      "sha256": "e5bae48f4d20a98e4327e2bcd2603c3b89e1020f9a505eb85b2800cc4ce2155b",
+      "size_bytes": 281079
     },
     {
       "name": "study_reac.csv",
-      "sha256": "4e1cc6aa2e301827cfe9275bce4800bb2b5231265c04aff25b38b91ef663d225",
+      "sha256": "3fd06c46322d07b4c5446e44e7313f2387f336988270276da551a728647c0f7d",
       "size_bytes": 69340
     },
     {
+      "name": "study_sipo.csv",
+      "sha256": "681979f48595e8c947245b19aa1eb681297560d9e0319799dd2fe3d2bda516c6",
+      "size_bytes": 320008
+    },
+    {
       "name": "study_tuba_fem.json",
-      "sha256": "52e0c0972b02719b3563290884faea492cdf4df6b305bc318b6afc02271abc91",
+      "sha256": "97e946fdea1fc784bec8daf78626101108d4aaf34923196a7dc754c39284d4ce",
       "size_bytes": 48091
     }
   ],
@@ -69,11 +74,11 @@
       "name": "AFFE_MODELE"
     },
     {
-      "count": 1,
+      "count": 2,
       "name": "CALC_CHAMP"
     },
     {
-      "count": 3,
+      "count": 4,
       "name": "CREA_TABLE"
     },
     {
@@ -93,7 +98,7 @@
       "name": "IMPR_RESU"
     },
     {
-      "count": 3,
+      "count": 4,
       "name": "IMPR_TABLE"
     },
     {
@@ -177,6 +182,13 @@
       "logical": "libr",
       "meaning": "contact history",
       "unit": "42"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sipo.csv",
+      "logical": "sipo",
+      "meaning": "frame member normal stress (SIPO_ELNO)",
+      "unit": "43"
     }
   ],
   "keyword_inventory_is_lower_bound": false,
@@ -191,7 +203,7 @@
     "model_revision": 0,
     "node_count": 210,
     "project_name": "Steel_Portal_Frame_Hall",
-    "solved_at": "2026-09-29T09:25:46.178153Z",
+    "solved_at": "2026-10-04T17:24:04.068369Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

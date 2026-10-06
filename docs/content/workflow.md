@@ -10,6 +10,56 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 
 [![The same model after the Code_Aster solve, with imported stress and support reactions in the Tuba viewer.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
+## Projects in Studio, the CLI and agents
+
+A project is an ordinary folder containing authored `model.py`, `study.py`,
+optional `units/` and `geometry/`, and Code_Aster evidence in `evidence/`.
+Python remains the engineering definition, including functions and imports.
+
+For collaborators, [Share and open a project](project-sharing.md) covers the
+complete source/CAD folder, Studio's folder chooser, generated meshes, optional
+saved evidence and portable result-review bundles.
+
+Run `python -m tuba.cli_studio` for **Open Folder**, **New Project** and
+**Recent Projects**, or pass a project folder directly. The Studio **Projects**
+link returns to the chooser. Open preserves authored files; New requires a new
+or empty folder. Recent folders are disposable local state, never the active
+target for an agent. Each full folder path gets its own bundle and server;
+opening a running project reuses its discovered URL, including a random port.
+
+Use the CLI for scripts and batch evaluation:
+
+```bash
+python -m tuba.project "/path/to/project" --output "/path/to/review"
+```
+
+For a local agent, launch `python -m tuba.mcp.server` as an MCP **stdio**
+subprocess from the same Tuba environment. Bind it explicitly with
+`init_session(file_path="/path/to/project/model.py", load_existing=True)`.
+Author procedural Python normally; use MCP for `inspect_model`, `verify_model`,
+`check_clashes`, construction units and `solve_model`. Inspection reloads changed
+Python, helpers and CAD. Rebind before applying mutations to externally changed
+source; merely inspecting never grants permission to overwrite it.
+
+Studio, MCP and CLI solves all use the shared project verification gate before
+changing staging or evidence: structural validation, cold-model clashes, rules
+and the project script style check. Blocking findings prevent evaluation even
+with `--force` or `solve_model(force=True)`; force only reruns otherwise reusable
+evidence. Advisories remain visible in the verification report.
+
+MCP and CLI solves both use `study.py`, its solver options and checks, the
+project solve claim, and the same attested evidence. `solve_model(load_case=...)`
+validates the selected study operation and evaluates all study operations
+together. An open Studio imports externally promoted evidence into Review.
+The `.tuba/studio.json` pointer advertises the actual local endpoint, which is
+accepted only after checking the live server's folder and session identity.
+Studio saves compare the loaded source revision; a conflict preserves both
+the newer disk source and the unsaved editor draft.
+
+The MCP adapter uses the official stable SDK 2 API (locked to 2.2.0).
+It serves current and earlier MCP protocol clients. Use the qualified project environment's Python
+in the agent configuration, rather than relying on whichever `python` is on PATH.
+
 ## Execution sequence
 
 1. Author through `model.pipe(...)` and other model APIs.
@@ -150,6 +200,38 @@ python -m tuba.cli_studio examples/line-load-studio
 - **Code_Aster `.comm` Inspector:** The tab strip generates and previews the exact Code_Aster commands that will be executed for each load case.
 - **Solve Integration:** Clicking **Solve** executes Code_Aster and automatically transitions the viewer to the solved engineering review bundle.
 
+### Mesh refinement and convergence
+
+[Import STEP and review its mesh](step-meshing.md) covers authoring interfaces,
+units and refinements. CLI and MCP use the same native worker as Studio:
+
+```bash
+python -m tuba.project.mesh mesh "/path/to/project" --output "/path/to/new-mesh-output"
+python -m tuba.project.mesh convergence "/path/to/project" --output "/path/to/new-comparison-output"
+```
+
+MCP exposes `generate_mesh(output_dir=...)` and `run_mesh_convergence(output_dir=...)`.
+Both require a new output folder. Diagnostic meshes are unsolved; convergence
+requires the study configuration and real Code_Aster, and independently verifies
+its level artifacts. Ordinary project evidence and review stay separate.
+
+The [authored spool project](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/mesh-refinement-review/README.md)
+demonstrates global/local sizing and `MESH_CONVERGENCE` in `study.py`. In Build,
+Mesh review distinguishes requested-size preview from **Generate mesh** (actual
+unsolved diagnostic cells) and **Run convergence** (verified Code_Aster levels).
+Save sizing changes in Python, then explicitly regenerate. Source changes make
+old artifacts stale; geometric quality and measured solver changes do not imply
+accuracy or compliance. The example includes independent cantilever checks and
+an external viewer-build command for source checkouts.
+
+For solids and shells, Tuba translates requested sizes and refinements into
+native Gmsh fields. Selected regions and 1D members keep independent sizing;
+Gmsh's default curvature setting and volume-meshing algorithm are retained. CAD-face refinement uses Gmsh's
+sampled distance to the finite face (100 samples per parametric direction),
+with the requested face size applied directly on the selected face. The
+requested-size preview uses exact CAD distances. Inspect the generated
+mesh and run Code_Aster convergence levels to assess the resulting discretization.
+
 ### Browser geometry editing
 
 The public gallery also accepts `model.py` edits in **Build**. **Update geometry**
@@ -166,6 +248,38 @@ To review a pre-compiled `.json` scene bundle without running a studio server:
 python -m tuba.visualization.viewer .build/line-load-demo-scene
 ```
 
+### Publish a static review
+
+From a source checkout with Tuba installed, solve the project first, install the
+packaged viewer into a dedicated web folder, then publish the completed review:
+
+```bash
+python -m tuba.project /path/to/project --output /path/to/project-review
+python scripts/deploy_viewer.py viewer /path/to/web/tuba
+python scripts/deploy_viewer.py bundle /path/to/project-review /path/to/web/tuba
+```
+
+The viewer shell is installed once; run `viewer` again after a Tuba update.
+Repeat `bundle` after each solve. It also accepts a bundle folder containing
+`scene.json` directly, such as Studio's solved review output. The complete
+bundle is copied, including the printable `index.html` report and solver
+evidence. A replacement removes stale files from that registered bundle;
+other bundles and existing gallery metadata are preserved. Publish one bundle
+at a time to each web folder.
+
+Serve that folder with your static web server. For a local trial:
+
+```bash
+python -m http.server 8000 --bind 127.0.0.1 --directory /path/to/web/tuba
+```
+
+Open `http://127.0.0.1:8000/`. One registered bundle opens directly; multiple
+bundles show a gallery. `?bundle=<bundle-id>` opens a named review. The id comes
+from `review.json`'s `package_id` after removing `review:` and must be a safe
+folder name. The publisher does not solve, validate new engineering results,
+or provide Studio's local authoring and execution services. Results come from
+the completed Code_Aster workflow above.
+
 ### AI & Headless Integration (MCP)
 
 For external agents (Claude Desktop, Cursor) operating without terminal access:
@@ -175,6 +289,11 @@ python -m tuba.mcp.server
 ```
 
 Provides standardized MCP tools for join-aware clash detection, model queries, construction unit verification, and solver dispatch.
+
+Bind to an existing project's `model.py` with `init_session(..., load_existing=True)`;
+MCP uses the same folder and evidence as Studio and the project CLI. Follow the
+[project handoff instructions](project-sharing.md#use-the-same-folder-through-the-cli-or-mcp)
+when the project arrived as a ZIP or was moved to another machine.
 
 ### Teach your agent the authoring contract
 

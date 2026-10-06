@@ -51,6 +51,7 @@ Every review opens in your browser, no install needed. All except *Imported comp
 - **[Tutorial](tutorial.md)** — build a model, run Code_Aster, and display the results.
 - **[Examples](examples.md)** — what each published review demonstrates.
 - **[Modeling](modeling.md)** — sections, supports, placements, fragments and interop.
+- **[Share a project](project-sharing.md)** — package source and CAD, open a folder in Studio, regenerate meshes, and exchange saved results.
 
 ## Where results come from
 

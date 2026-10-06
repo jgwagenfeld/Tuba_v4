@@ -127,19 +127,6 @@ export function findingAddress(finding, { fieldId = null, component = null, resu
   };
 }
 
-// Everything a disposition is recorded against, in one lookup: what it is, and
-// how to name it.
-export function resolveSubject(state, subjectId) {
-  if (typeof subjectId !== "string" || subjectId.length === 0) {
-    return null;
-  }
-  if (subjectId.startsWith("finding:")) {
-    return { kind: "finding", subjectId, address: parseFindingSubjectId(subjectId) };
-  }
-  const issue = (state.issues ?? []).find((candidate) => candidate.id === subjectId);
-  return issue ? { kind: "issue", subjectId, issue } : null;
-}
-
 // The inverse of findingSubjectId, for a subject that arrived as an id and needs
 // its address back for a record.
 //

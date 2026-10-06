@@ -1,6 +1,7 @@
 """Solver-result and result-state scene/overlay builders."""
 
 from __future__ import annotations
+from dataclasses import replace
 from typing import Any
 import math
 import numpy as np
@@ -22,6 +23,7 @@ from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneContribution
+from tuba.visualization.builders._layers import SCALAR_COMPONENTS, VECTOR_COMPONENTS, VECTOR_RESULT_TYPES, _field_magnitude, _range_for
 from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, glyph_radial_segments, model_span
 
 #: The sequential ramp every scalar legend in this contract names.
@@ -78,6 +80,11 @@ def _compact_result_state_payload(result_state: ResultState) -> dict[str, Any]:
         source_file = result_state.files.get("sieq")
         if source_file:
             metadata["volume_von_mises_file"] = source_file
+    shell_samples = metadata.pop("shell_stress_samples", None)
+    if isinstance(shell_samples, list):
+        metadata["shell_stress_sample_count"] = len(shell_samples)
+        if source_file := result_state.files.get("sieq"):
+            metadata["shell_stress_samples_file"] = source_file
     if metadata.get("volume_analysis"):
         metadata["volume_displacement_count"] = len(payload.get("node_displacements", {}))
         metadata["volume_reaction_node_count"] = len(payload.get("node_reactions", {}))
@@ -99,17 +106,26 @@ def _build_result_state_result_scene(
         result_state,
         analysis_mesh,
     )
+    line_state = result_state
+    if volume_overlay is not None and analysis_mesh is not None:
+        line_ids = {source.source_ref.id for source in _native_line_elements(analysis_mesh).values()}
+        line_state = replace(result_state, element_results={
+            key: value for key, value in result_state.element_results.items() if key in line_ids
+        })
+    stress_overlay = _result_state_stress_overlay(model, line_state, diagnostics)
     if volume_overlay is not None:
         objects.extend(volume_objects)
         assets.extend(volume_assets)
         overlays.append(volume_overlay)
-    else:
-        stress_overlay = _result_state_stress_overlay(model, result_state, diagnostics)
-        if stress_overlay is not None:
-            overlays.append(stress_overlay)
-        forces_overlay = _result_state_internal_forces_overlay(model, result_state, diagnostics)
-        if forces_overlay is not None:
-            overlays.append(forces_overlay)
+    if stress_overlay is not None:
+        overlays.append(stress_overlay)
+    beam_stress_overlay = _result_state_beam_stress_overlay(model, line_state)
+    if beam_stress_overlay is not None:
+        overlays.append(beam_stress_overlay)
+    forces_overlay = _result_state_internal_forces_overlay(model, line_state, diagnostics)
+    if forces_overlay is not None:
+        overlays.append(forces_overlay)
+    if volume_overlay is None:
         # ADR 0007. The user's own allowable schedule divided into the FE result.
         # Only on the element path: a volume run's stress is a surface field on a
         # different mesh, and a ratio that quietly changed denominator between
@@ -191,16 +207,23 @@ def _result_state_volume_stress_scene(
         "color_map": SCALAR_COLOR_MAP,
         "thresholds": {},
     }
+    # Drawn on the solved shape, where the displacement surface and the line
+    # members are, so the stress does not sit on a copy of the solid 80 mm off
+    # the pipes it joins.
+    displacement = _surface_displacements(result_state, surface_mesh)
+    vertices = (surface_mesh["vertices"] if displacement is None
+                else (np.asarray(surface_mesh["vertices"], dtype=float) + displacement).tolist())
     asset = GeometryAsset(
         id=asset_id,
         format="mesh",
-        bounds=_bounds_for_points(surface_mesh["vertices"], 0.0),
+        bounds=_bounds_for_points(vertices, 0.0),
         object_ids=[object_id],
         generation_config={
             "source": "tuba.result_state.volume_stress",
             "result_state_id": result_state.id,
             "mesh_id": analysis_mesh.id,
-            "vertices": surface_mesh["vertices"],
+            "vertices": vertices,
+            "base_vertices": surface_mesh["vertices"],
             "faces": surface_mesh["faces"],
             "vertex_values": values,
             "legend": legend,
@@ -244,6 +267,118 @@ def _result_state_volume_stress_scene(
     return [obj], [asset], overlay
 
 
+MERGED_RESULT_TYPES = ("stress", "displacement")
+
+
+def merge_quantity_overlays(
+    overlays: list[Overlay], assets: list[GeometryAsset]
+) -> tuple[list[Overlay], list[GeometryAsset]]:
+    """One colouring field per quantity per result state, whatever carries it.
+
+    A mixed run publishes von Mises - and displacement - once per element family:
+    the solid's surface, the shells, the line elements. Offered apart they were
+    two or three entries for one quantity, each on its own scale, and the default
+    view coloured only whichever came first. Here they become one overlay: one
+    range, one legend, every family's values. Each family's own notes (averaging,
+    stress basis) are kept under ``parts``. A scene with one overlay per quantity
+    is returned unchanged.
+    """
+    groups: dict[tuple[str, str], list[Overlay]] = {}
+    for overlay in overlays:
+        data = overlay.data or {}
+        if overlay.kind == "solver_result" and data.get("result_type") in MERGED_RESULT_TYPES and data.get("values"):
+            groups.setdefault((str(data.get("result_state_id")), str(data["result_type"])), []).append(overlay)
+    replaced: dict[str, Overlay | None] = {}
+    legends: dict[str, dict[str, Any]] = {}
+    for parts in groups.values():
+        if len(parts) < 2:
+            continue
+        base = next((part for part in parts if ":volume_" in part.id), parts[0])
+        parts = [base, *(part for part in parts if part is not base)]
+        ranges = [_range_for(part.data, part.data["values"]) for part in parts]
+        ranges = [value for value in ranges if value is not None]
+        value_range = {"min": min(low for low, _ in ranges), "max": max(high for _, high in ranges)}
+        values = {key: value for part in parts for key, value in part.data["values"].items()}
+        components = [
+            component for component in _declared_components(base)
+            if all(component in _declared_components(part) for part in parts)
+        ] or ["magnitude"]
+        data = {
+            **base.data,
+            "values": values,
+            "range": value_range,
+            "legend": {**base.data.get("legend", {}), "range": value_range},
+            "components": components,
+            "parts": [
+                {"overlay_id": part.id, **{key: part.data[key] for key in ("field", "averaging", "stress_basis")
+                                           if part.data.get(key) is not None}}
+                for part in parts
+            ],
+        }
+        # The base family's notes describe only its own values; at the top level
+        # a reader would apply the solid's surface averaging to the pipes.
+        for key in ("averaging", "stress_basis"):
+            data.pop(key, None)
+        if any(part.data.get("compliance_role") for part in parts):
+            data["compliance_role"] = next(part.data["compliance_role"] for part in parts if part.data.get("compliance_role"))
+        if any(part.data.get("element_results") for part in parts):
+            data["element_results"] = {key: value for part in parts for key, value in part.data.get("element_results", {}).items()}
+        if any(part.data.get("hotspots") for part in parts):
+            ranked = sorted(((key, _field_magnitude(value)) for key, value in values.items()), key=lambda item: -(item[1] or 0))
+            unit = data.get("unit") or data["legend"].get("unit", "")
+            data["hotspots"] = [{"object_id": key, "value": value, "unit": unit} for key, value in ranked[:10] if value is not None]
+        merged = replace(
+            base,
+            object_ids=[object_id for part in parts for object_id in part.object_ids],
+            entity_refs=[ref for part in parts for ref in part.entity_refs],
+            data=data,
+        )
+        replaced[base.id] = merged
+        for part in parts[1:]:
+            replaced[part.id] = None
+        for object_id in merged.object_ids:
+            legends[object_id] = data["legend"]
+    if not replaced:
+        return overlays, assets
+    merged_overlays = [replaced.get(overlay.id, overlay) for overlay in overlays]
+    # Every family's surface keeps its own per-node colours, read on the shared scale.
+    merged_assets = [
+        replace(asset, generation_config={**asset.generation_config, "legend": legends[asset.object_ids[0]]})
+        if asset.object_ids and asset.object_ids[0] in legends and "vertex_values" in asset.generation_config
+        else asset
+        for asset in assets
+    ]
+    return [overlay for overlay in merged_overlays if overlay is not None], merged_assets
+
+
+def _declared_components(overlay: Overlay) -> list[str]:
+    declared = overlay.data.get("components")
+    if declared:
+        return list(declared)
+    return list(VECTOR_COMPONENTS if overlay.data.get("result_type") in VECTOR_RESULT_TYPES else SCALAR_COMPONENTS)
+
+
+def _native_line_elements(analysis_mesh: AnalysisMesh) -> dict[str, Any]:
+    """Mesh element id -> source, for the 1D remainder of a mixed volume run."""
+    return {
+        mesh_id: source
+        for mesh_id, source in analysis_mesh.element_sources.items()
+        if source.role == "native_element" and source.source_ref.kind == "element"
+    }
+
+
+def _surface_displacements(result_state: ResultState, surface_mesh: dict[str, Any]) -> np.ndarray | None:
+    """Each surface vertex's solved translation, or None when any is missing."""
+    try:
+        vectors = np.asarray([
+            [float(value) for value in result_state.node_displacements[node_id][:3]]
+            for node_id in surface_mesh["node_ids"]
+        ], dtype=float)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return vectors if np.isfinite(vectors).all() else None
+
+
 def _result_state_volume_displacement_scene(
     result_state: ResultState,
     analysis_mesh: AnalysisMesh | None,
@@ -251,21 +386,28 @@ def _result_state_volume_displacement_scene(
     surface_mesh = None if analysis_mesh is None else analysis_mesh.surface_mesh
     if not surface_mesh or not surface_mesh.get("node_ids"):
         return [], [], None
-    node_ids = surface_mesh["node_ids"]
-    try:
-        vectors = [
-            [float(value) for value in result_state.node_displacements[node_id][:3]]
-            for node_id in node_ids
-        ]
-    except (KeyError, TypeError, ValueError):
-        return [], [], None
-    vector_array = np.asarray(vectors, dtype=float)
-    if not np.isfinite(vector_array).all():
+    vector_array = _surface_displacements(result_state, surface_mesh)
+    if vector_array is None:
         return [], [], None
     base = np.asarray(surface_mesh["vertices"], dtype=float)
     displaced = base + vector_array
     values = np.linalg.norm(vector_array, axis=1).tolist()
-    value_range = {"min": min(values), "max": max(values)}
+    # The 1D remainder of a mixed run - pipes and frame members - moves too, and
+    # its warped bodies name their mesh nodes. Without these values the one
+    # displacement field coloured the solid and left every line element grey.
+    # Only line-element nodes: the solid's own nodes are already the surface
+    # field, and all of them would put every volume node into the bundle.
+    line_values: dict[str, float] = {}
+    for mesh_element_id in _native_line_elements(analysis_mesh):
+        for node_id in analysis_mesh.elements.get(mesh_element_id, ()):
+            vector = result_state.node_displacements.get(node_id)
+            if node_id in line_values or vector is None:
+                continue
+            magnitude = float(np.linalg.norm(np.asarray(vector[:3], dtype=float)))
+            if math.isfinite(magnitude):
+                line_values[node_id] = magnitude
+    scale_values = [*values, *line_values.values()]
+    value_range = {"min": min(scale_values), "max": max(scale_values)}
     legend = {
         "field": "displacement_magnitude",
         "unit": "m",
@@ -311,10 +453,11 @@ def _result_state_volume_displacement_scene(
             "study_id": result_state.study_id,
             "mesh_id": analysis_mesh.id,
             "load_case": result_state.load_case,
-            "values": {object_id: max(values)},
+            "values": {object_id: max(values), **line_values},
             "range": value_range,
             "legend": legend,
             "deformation_scale": 1.0,
+            "components": ["magnitude"],
         },
     )
     return [obj], [asset], overlay
@@ -481,6 +624,58 @@ def _result_state_stress_overlay(
             },
             "hotspots": hotspots,
             "element_results": element_metadata,
+        },
+    )
+
+
+def _result_state_beam_stress_overlay(model: TubaModel, result_state: ResultState) -> Overlay | None:
+    """A frame member's extreme fibre normal stress, one value per beam.
+
+    Not von Mises: Code_Aster gives a POU_D_T beam no stress tensor, only the
+    axial and bending parts of its normal stress (parse_sipo_table). It is its
+    own field, never a family of the von Mises one.
+    """
+    values: dict[str, float] = {}
+    entity_refs: list[EntityRef] = []
+    for elem in model.elements:
+        value = (result_state.element_results.get(elem.id) or {}).get("max_normal_stress")
+        if elem.type != "beam" or value is None or not np.isfinite(float(value)):
+            continue
+        values[_object_id(EntityRef("element", elem.id))] = float(value)
+        entity_refs.append(EntityRef("element", elem.id))
+    if not values:
+        return None
+    value_range = {"min": min(values.values()), "max": max(values.values())}
+    return Overlay(
+        id=f"overlay:solver_result:beam_normal_stress:{result_state.id}",
+        kind="solver_result",
+        object_ids=list(values),
+        entity_refs=entity_refs,
+        name=f"Beam normal stress {result_state.load_case}",
+        data={
+            "result_type": "beam_normal_stress",
+            "result_state_id": result_state.id,
+            "study_id": result_state.study_id,
+            "mesh_id": result_state.mesh_id,
+            "load_case": result_state.load_case,
+            "field": "max_normal_stress",
+            "values": values,
+            "range": value_range,
+            "unit": "Pa",
+            "compliance_role": "visualization_only_not_asme_code_stress",
+            "derivation": (
+                "extreme fibre normal stress, axial plus bending, from Code_Aster SIPO_ELNO "
+                "(SN +/- |SMFY| +/- |SMFZ|; a circle SN +/- sqrt(SMFY^2 + SMFZ^2)), "
+                "the maximum over the member's solver nodes; shear and torsion not included"
+            ),
+            "legend": {
+                "field": "Beam normal stress",
+                "unit": "Pa",
+                "range": value_range,
+                "color_map": SCALAR_COLOR_MAP,
+                "thresholds": {},
+            },
+            "hotspots": _stress_hotspots(values),
         },
     )
 
@@ -799,6 +994,17 @@ def _result_state_internal_forces_overlay(
     )
 
 
+def _duplicated_model_node_aliases(analysis_mesh: AnalysisMesh | None, results: dict) -> set[str]:
+    """Prefer each physical mesh result over its persisted authored-node alias."""
+    if analysis_mesh is None:
+        return set()
+    return {
+        source.source_ref.id for node_id, source in analysis_mesh.node_sources.items()
+        if source.source_ref.kind == "node" and source.source_ref.id != node_id
+        and node_id in results and source.source_ref.id in results
+    }
+
+
 def _result_state_displacement_overlay(
     model: TubaModel,
     result_state: ResultState,
@@ -808,7 +1014,10 @@ def _result_state_displacement_overlay(
     vectors: list[dict[str, Any]] = []
     values: dict[str, list[float]] = {}
     object_ids: list[str] = []
+    aliases = _duplicated_model_node_aliases(analysis_mesh, result_state.node_displacements)
     for node_id, displacement in result_state.node_displacements.items():
+        if node_id in aliases:
+            continue
         if any(value is None or not np.isfinite(float(value)) for value in displacement[:3]):
             continue
         vector = [float(value) for value in displacement[:3]]
@@ -885,7 +1094,10 @@ def _result_state_reaction_overlays(
         vectors: list[dict[str, Any]] = []
         values: dict[str, list[float]] = {}
         object_ids: list[str] = []
+        aliases = _duplicated_model_node_aliases(analysis_mesh, result_state.node_reactions)
         for node_id, reaction in result_state.node_reactions.items():
+            if node_id in aliases:
+                continue
             components = reaction[component_slice]
             if any(value is None or not np.isfinite(float(value)) for value in components):
                 continue

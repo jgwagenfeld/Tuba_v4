@@ -31,8 +31,8 @@ from __future__ import annotations
 from tuba.model import BucklingOptions
 from tuba.solver.aster_loads import LineWriter
 
-#: Fortran unit the mode-shape table is written to.
-BUCKLING_MODES_UNIT = 43
+#: Fortran unit the mode-shape table is written to. Not 43: frame members' SIPO_ELNO table writes there.
+BUCKLING_MODES_UNIT = 45
 #: Fortran unit the critical-factor JSON is written to.
 BUCKLING_FACTORS_UNIT = 44
 

@@ -32,7 +32,11 @@ def _inside_tuba(filename: str) -> bool:
 def script_lines() -> Tuple[Optional[int], Optional[int]]:
     """Where the running script created a model record: ``(line, call_line)``."""
     frame = sys._getframe()
-    while frame is not None and _inside_tuba(frame.f_code.co_filename):
+    while frame is not None and (
+        _inside_tuba(frame.f_code.co_filename)
+        or (frame.f_code.co_filename == "<string>"
+            and frame.f_globals.get("__name__", "").startswith("tuba."))
+    ):
         frame = frame.f_back
     if frame is None or frame.f_globals.get("__name__") != "__main__":
         return None, None

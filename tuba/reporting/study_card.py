@@ -46,6 +46,9 @@ _UNIT_MEANING = {
     "40": "node reactions (REAC_NODA)",
     "41": "stress invariants (SIEQ_ELNO)",
     "42": "contact history",
+    "43": "frame member normal stress (SIPO_ELNO)",
+    "44": "buckling critical factors",
+    "45": "buckling mode shapes",
     "60": "result MED",
     "80": "result MED",
 }

@@ -11,21 +11,23 @@ from tuba.model import TubaModel
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
+from tuba.geometry.profiles import profile_for_section
 from tuba.physical import physical_properties_for_element
 from tuba.refs import EntityRef
 
 
 class ClashEngine:
-    """Analytic clash engine for model elements against cuboid/cylinder obstacles.
+    """Clash engine for member envelopes, analytic obstacles and STL references.
 
     This is the default clash engine used across rules, routing, and
     visualization. It computes segment-vs-AABB distances analytically and
     returns structured :class:`ClashResult` objects, so it has no trimesh / IFC
     / viewer dependency.
 
-    Model clash checks cover analytic cuboid/cylinder obstacles; operating
-    checks use the current result and geometry states. Other obstacle types are
-    intentionally outside this review path.
+    Model clash checks cover analytic cuboid/cylinder obstacles and actual
+    placed STL surfaces, including enclosure by closed shells. Other CAD formats
+    are outside reference clearance coverage. Operating checks use the current
+    result and geometry states.
 
     Element-versus-element checks distinguish intended joins from unintended
     clashes by topology, not by geometry alone. An intended connection is an
@@ -43,6 +45,9 @@ class ClashEngine:
     DUPLICATE_NODE_TOL_M = 0.001
 
     def check_model(self, model: TubaModel, *, clearance_m: float = 0.0) -> list[ClashResult]:
+        from tuba.clash.reference import check_reference_polyline, stl_reference_surfaces
+
+        surfaces = stl_reference_surfaces(model)
         clashes: list[ClashResult] = []
         for elem in model.elements:
             try:
@@ -51,6 +56,12 @@ class ClashEngine:
                 continue
             p1 = model.nodes[elem.n1].coords
             p2 = model.nodes[elem.n2].coords
+            if surfaces and elem.type == "pipe_bend":
+                raise ValueError("Cold STL reference clearance coverage unavailable for pipe_bend: "
+                                 "use the solved centerline operating-state check.")
+            clashes.extend(check_reference_polyline(model, elem, [p1, p2],
+                hard_radius=props.effective_radius_m,
+                clearance_radius=props.effective_radius_m + clearance_m, surfaces=surfaces))
             for obs in model.obstacles:
                 clashes.extend(
                     self._check_element_obstacle(
@@ -74,7 +85,8 @@ class ClashEngine:
         """Element-versus-element clashes without a topological connection.
 
         Two elements clash when their centreline distance is below the sum of
-        their effective radii plus *clearance_m*, unless topology authorizes
+        their effective radii plus *clearance_m* and, for straight members, no
+        plane separates their flat-ended cylinders, unless topology authorizes
         the contact: a shared node id, a support linking an endpoint pair, or
         couplings sharing one port target. A duplicated element (same node
         set) is always reported. Pairs whose only proximity is an
@@ -85,6 +97,7 @@ class ClashEngine:
 
         duplicate_tol = self.DUPLICATE_NODE_TOL_M if duplicate_tol_m is None else float(duplicate_tol_m)
         entries: list[tuple[Any, np.ndarray, np.ndarray, float]] = []
+        flat_ended: set[str] = set()
         for elem in model.elements:
             try:
                 props = physical_properties_for_element(model, elem)
@@ -97,6 +110,8 @@ class ClashEngine:
                 continue
             radius = float(props.effective_radius_m)
             entries.append((elem, p1, p2, radius))
+            if elem.type != "pipe_bend" and profile_for_section(model.sections[elem.section]).kind in _ROUND_PROFILES:
+                flat_ended.add(elem.id)
         if len(entries) < 2:
             return []
 
@@ -124,9 +139,21 @@ class ClashEngine:
                 )
                 if verdict is not None and verdict[0] != "duplicate_element":
                     continue
-                distance, c1, _c2, s, t = _segment_segment_distance(a1, a2, b1, b2)
+                distance, c1, c2, s, t = _segment_segment_distance(a1, a2, b1, b2)
                 limit = ra + rb + float(clearance_m)
                 if distance >= limit:
+                    continue
+                # The segment distance rounds every end by the radius. A straight
+                # round member is exactly a flat-ended cylinder, so a separating
+                # plane between the true cylinders overrules it. Rectangular and
+                # I-beam radii do not enclose their corners, and a bend is a
+                # chord, so neither gets this proof.
+                gap = (
+                    _flat_cylinder_gap(a1, a2, ra, b1, b2, rb, c2 - c1)
+                    if verdict is None and elem_a.id in flat_ended and elem_b.id in flat_ended
+                    else -np.inf
+                )
+                if gap >= float(clearance_m):
                     continue
                 if verdict is not None and verdict[0] == "duplicate_element":
                     overlap = "duplicate_element"
@@ -135,13 +162,19 @@ class ClashEngine:
                         # One joint modelled as two nodes; duplicate check owns it.
                         continue
                     overlap = _classify_pair_overlap(a1, a2, b1, b2, s, t)
-                severity = "hard" if distance < ra + rb else "clearance"
-                penetration = max(limit - distance, 0.0)
+                severity = "hard" if distance < ra + rb and gap < 0.0 else "clearance"
+                # A proven surface gap inside the clearance is the real shortfall,
+                # not the rounded-end overlap.
+                penetration = float(clearance_m) - gap if gap >= 0.0 else max(limit - distance, 0.0)
                 location = tuple(float(v) for v in (c1))
                 diagnostics = _self_clash_diagnostics(
                     elem_a, elem_b, a1, a2, b1, b2, ra, rb,
                     distance=distance, location=location, overlap_type=overlap,
                 )
+                if gap >= 0.0:
+                    diagnostics.append(
+                        f"The flat-ended pipes are {gap:.4f} m apart, inside the {float(clearance_m):.4f} m clearance."
+                    )
                 clashes.append(
                     ClashResult(
                         left=EntityRef("element", elem_a.id),
@@ -159,6 +192,7 @@ class ClashEngine:
                             "clearance_m": float(clearance_m),
                             "closest_s": float(s),
                             "closest_t": float(t),
+                            **({"surface_gap_m": float(gap)} if gap >= 0.0 else {}),
                         },
                     )
                 )
@@ -176,7 +210,10 @@ class ClashEngine:
         from tuba.geometry.spatial import SpatialIndex
 
         tolerance = self.DUPLICATE_NODE_TOL_M if tolerance_m is None else float(tolerance_m)
-        ids = list(model.nodes)
+        # DIS_TR references are zero-size kinematic carriers. Their deliberate
+        # coincidence with a physical attachment node is not a duplicate joint.
+        references = {region.owner.id for region in model.analysis_regions.values() if region.role == "reference"}
+        ids = [node for node in model.nodes if node not in references]
         if len(ids) < 2:
             return []
         items = []
@@ -493,6 +530,45 @@ def _segment_segment_distance(
     if float(np.linalg.norm(c1 - c2b)) < float(np.linalg.norm(c1 - c2)):
         t, c2 = t2, c2b
     return float(np.linalg.norm(c1 - c2)), c1, c2, float(s), float(t)
+
+
+#: Section profiles whose collision radius is exact, so a straight member of one
+#: is a flat-ended cylinder.
+_ROUND_PROFILES = frozenset({"pipe", "bar", "cable"})
+
+
+def _flat_cylinder_gap(
+    a1: np.ndarray, a2: np.ndarray, ra: float,
+    b1: np.ndarray, b2: np.ndarray, rb: float,
+    closest: np.ndarray,
+) -> float:
+    """Widest gap a separating plane proves between two flat-ended cylinders.
+
+    Candidate plane normals are either axis (an end plane) and the closest-point
+    direction. A flat-ended cylinder's extent along a unit normal n is its axis
+    end points' projections widened by r * sqrt(1 - (n . u)^2), which is exact,
+    so a positive result proves the members are apart. Returns -inf when no
+    candidate separates them; that is not proof of contact.
+    """
+
+    def extent(p: np.ndarray, q: np.ndarray, r: float, n: np.ndarray) -> tuple[float, float]:
+        axis = q - p
+        length = float(np.linalg.norm(axis))
+        cosine = float(np.dot(n, axis / length)) if length > 1e-12 else 0.0
+        radial = r * float(np.sqrt(max(0.0, 1.0 - cosine * cosine)))
+        ends = (float(np.dot(n, p)), float(np.dot(n, q)))
+        return min(ends) - radial, max(ends) + radial
+
+    best = -np.inf
+    for candidate in (a2 - a1, b2 - b1, closest):
+        length = float(np.linalg.norm(candidate))
+        if length <= 1e-12:
+            continue
+        normal = candidate / length
+        lo_a, hi_a = extent(a1, a2, ra, normal)
+        lo_b, hi_b = extent(b1, b2, rb, normal)
+        best = max(best, lo_b - hi_a, lo_a - hi_b)
+    return best
 
 
 def _min_endpoint_distance(a1: np.ndarray, a2: np.ndarray, b1: np.ndarray, b2: np.ndarray) -> float:

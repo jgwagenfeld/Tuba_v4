@@ -126,7 +126,7 @@ test("the drawer tally names both counters, and one source for the warnings", as
   assert.match(tally, /issue/);
   // Whatever is empty stays out of the way rather than reading as a finding.
   assert.match(tally, /parts\.join/);
-  assert.match(tally, /"0 issues"/);
+  assert.doesNotMatch(tally, /"0 issues"/);
 });
 
 test("empty diagnostic groups are not drawn, so the disclosure can hide", async () => {
@@ -227,7 +227,7 @@ test("the viewport key is asked for, and camera controls share the gizmo's corne
 test("the compliance caveat renders in the viewport, where the colour map is", async () => {
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
-  const legend = app.slice(app.indexOf("function renderViewportLegend()"), app.indexOf("const BODY_LEGEND_NOTE"));
+  const legend = app.slice(app.indexOf("function renderViewportLegend()"), app.indexOf("function legendTicks("));
   assert.match(legend, /renderComplianceNotice\(\)/);
   // The panel that used to carry it detaches under Review/Model/Issues while
   // the scene stays colour-mapped, so the badge follows the colours.
@@ -618,4 +618,31 @@ test("the object list declares one tab stop and wires the arrow keys", async () 
   assert.match(app, /applyRovingTabindex\(\);/);
   assert.match(app, /for \(const row of rows\) row\.tabIndex = -1/);
   assert.match(app, /rows\[next\]\.tabIndex = 0/);
+});
+
+test("display rows name their controls, and there is no pick filter", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+  const markup = await readViewerFile("index.html");
+  // "Opacity 60%" and "Scale 1×", not a bare value that reads as a reading.
+  assert.match(app, /chipLabel\(button, "Opacity", `\$\{percent\}%`\)/);
+  assert.match(app, /chipLabel\(button, "Scale", /);
+  assert.match(app, /button\.textContent = subpointThresholdLabel\(currentState\)/);
+  // Picking is never filtered by component type; Select Other is the way
+  // through a stack.
+  assert.doesNotMatch(markup, /data-pick-filter|Pick components/);
+  assert.doesNotMatch(app, /pickFilter|SELECTION_FILTERS/);
+  assert.match(markup, /data-pick-open/);
+  // The palette is dark, so its focus ring is the dark-surface one.
+  assert.match(css, /\.display-palette :focus-visible\s*\{\s*outline-color:\s*var\(--focus-on-dark\)/);
+  // Orbiting the canvas while tuning a cut must not close the palette.
+  assert.match(app, /addEventListener\("pointerdown", \(event\) => \{\s*if \(event\.target === dom\.canvas\) return;\s*if \(!dom\.displayPalette\.contains/);
+  // Show values belongs to the loads group header, not to any one row.
+  assert.match(markup, /data-overlays-block[\s\S]*?class="display-group-head"[\s\S]*?data-value-labels[^>]*checked[\s\S]*?data-overlay-list/);
+  // Cut view: a segmented Off / Around selection / Custom, no tick or reset.
+  assert.match(app, /role", "radiogroup"/);
+  assert.doesNotMatch(app, /Enable section|Reset section|Section box/);
+  // The caret is a drawn chevron in a 24px target, not 9.6px text.
+  assert.doesNotMatch(app, /caret\.textContent = /);
+  assert.match(css, /\.body-caret \{[^}]*width: 1\.5rem;[^}]*height: 1\.5rem;/);
 });

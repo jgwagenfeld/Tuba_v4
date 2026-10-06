@@ -48,3 +48,38 @@ test("hollow pipe end caps follow the surface when deformation is rescaled", () 
   disposeThreeSceneGraph(graph);
   disposeThreeSceneGraph(reference);
 });
+
+test("a bent solved pipe keeps its radius at every display scale", () => {
+  const radius = 0.04;
+  const asset = {
+    id: "geometry:deformed:visual:span",
+    format: "tube",
+    object_ids: ["object:span"],
+    generation_config: {
+      source: "tuba.deformed_analysis_mesh.profile",
+      base_points: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]],
+      points: [[0, 0, 0.002], [1, 0.004, 0.012], [2, 0.004, 0.014], [3, 0, 0.003]],
+      radius_m: radius,
+      radial_segments: 12,
+      visual_scale: 1
+    }
+  };
+  const state = { geometryAssets: [asset], visibleObjectIds: asset.object_ids, visualDeformationScale: 1 };
+  const graph = createThreeSceneGraph(state);
+  const tube = graph.objectsByObjectId.get("object:span");
+  const ring = 13;
+  for (const scale of [1, 10, 100]) {
+    applyVisualDeformationScale(graph.root, { ...state, visualDeformationScale: scale });
+    const vertices = Array.from({ length: tube.geometry.getAttribute("position").count }, (_, i) =>
+      tube.getVertexPosition(i, new Vector3()));
+    for (let first = 0; first < vertices.length; first += ring) {
+      // The seam vertex repeats the first, so the centre is the mean of the other twelve.
+      const members = vertices.slice(first, first + ring - 1);
+      const centre = members.reduce((sum, vertex) => sum.add(vertex), new Vector3()).divideScalar(members.length);
+      for (const vertex of members) {
+        assert.ok(Math.abs(vertex.distanceTo(centre) - radius) < 1e-4, `ring at ${first / ring}, scale ${scale}: ${vertex.distanceTo(centre)}`);
+      }
+    }
+  }
+  disposeThreeSceneGraph(graph);
+});

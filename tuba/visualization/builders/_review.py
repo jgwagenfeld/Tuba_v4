@@ -122,7 +122,12 @@ def _build_clash_issue_scene(
     issue_id = _clash_issue_id(clash)
     marker_id = f"object:{issue_id}"
     marker_asset_id = f"geometry:{issue_id}"
-    involved_object_ids = [_object_id(clash.left), _object_id(clash.right)]
+    from tuba.visualization.builders._helpers import _object_ids_for_node
+
+    # Native nodes have no standalone scene object. Focus their attached
+    # members while retaining the node entity refs and the issue's point marker.
+    involved_object_ids = _dedupe([object_id for ref in (clash.left, clash.right)
+        for object_id in (_object_ids_for_node(model, ref.id) if ref.kind == "node" else [_object_id(ref)])])
     point = _clash_location(clash)
     envelope_source = _clash_envelope_source(model, clash)
     review = _clash_review_payload(clash, involved_object_ids)

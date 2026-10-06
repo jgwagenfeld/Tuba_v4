@@ -157,6 +157,7 @@ def build_fragment_patch(
                 normal_stiffness=support.normal_stiffness,
                 tangential_stiffness=support.tangential_stiffness,
                 attached_to=support.attached_to,
+                attachment_mode=support.attachment_mode,
             )
         )
 

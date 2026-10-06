@@ -14,7 +14,7 @@ Source folder: `evidence/Gravity`
 | Mesh size | 210 nodes, 559 elements |
 | Solver | Code_Aster 18.0.12 |
 | Execution | wsl |
-| Solved at | 2026-09-29T09:25:39.107039Z |
+| Solved at | 2026-10-04T17:23:47.818165Z |
 | Evidence | **verified** — the attestation is intact and the run was verified. |
 
 ## Code_Aster commands in the generated .comm
@@ -26,16 +26,16 @@ Source folder: `evidence/Gravity`
 | `AFFE_MATERIAU` | 1 |
 | `AFFE_MODELE` | 1 |
 | `ASSE_MATRICE` | 2 |
-| `CALC_CHAMP` | 1 |
+| `CALC_CHAMP` | 2 |
 | `CALC_MATR_ELEM` | 2 |
 | `CALC_MODES` | 1 |
 | `CREA_CHAMP` | 1 |
-| `CREA_TABLE` | 4 |
+| `CREA_TABLE` | 5 |
 | `DEBUT` | 1 |
 | `DEFI_MATERIAU` | 1 |
 | `FIN` | 1 |
 | `IMPR_RESU` | 1 |
-| `IMPR_TABLE` | 4 |
+| `IMPR_TABLE` | 5 |
 | `LIRE_MAILLAGE` | 1 |
 | `MECA_STATIQUE` | 1 |
 | `NUME_DDL` | 1 |
@@ -54,8 +54,9 @@ Source folder: `evidence/Gravity`
 | reac | `study_reac.csv` | R | 40 | node reactions (REAC_NODA) |
 | sieq | `study_sieq.csv` | R | 41 | stress invariants (SIEQ_ELNO) |
 | libr | `study_contact.json` | R | 42 | contact history |
-| modes | `study_buckling_modes.csv` | R | 43 | unmapped unit |
-| crit | `study_buckling.json` | R | 44 | unmapped unit |
+| sipo | `study_sipo.csv` | R | 43 | frame member normal stress (SIPO_ELNO) |
+| modes | `study_buckling_modes.csv` | R | 45 | buckling mode shapes |
+| crit | `study_buckling.json` | R | 44 | buckling critical factors |
 
 A unit the command file writes but the export omits is silently lost with the run directory; the two lists above are the check on that.
 
@@ -63,18 +64,19 @@ A unit the command file writes but the export omits is silently lost with the ru
 
 | File | Size | SHA-256 |
 | --- | --- | --- |
-| `study.comm` | 70.7 kB | `1c7058ca84a5d75d…` |
-| `study.export` | 447 B | `7035cda4075cef53…` |
+| `study.comm` | 71.1 kB | `7c73808e45929eba…` |
+| `study.export` | 474 B | `8c7cdde12b04fe44…` |
 | `study.mail` | 65.7 kB | `11d9e74c267305cd…` |
-| `study.mess` | 142.3 kB | `bcd080bdcaca5cc5…` |
-| `study.rmed` | 679.4 kB | `fddecc05a6277e56…` |
+| `study.mess` | 148.9 kB | `33d7e5f918bcec75…` |
+| `study.rmed` | 679.4 kB | `c1bdd7e5d38f5837…` |
 | `study_buckling.json` | 729 B | `2ef194c151f0c614…` |
-| `study_buckling_modes.csv` | 497.3 kB | `765eca5df296c0bc…` |
-| `study_depl.csv` | 67.7 kB | `9e75992b621e5349…` |
-| `study_effo.csv` | 397.7 kB | `bbc7b773149f2093…` |
-| `study_manifest.json` | 274.7 kB | `2b5682775d0c837b…` |
-| `study_reac.csv` | 67.7 kB | `f43f8de8295d061c…` |
-| `study_tuba_fem.json` | 47.0 kB | `a86705d313300998…` |
+| `study_buckling_modes.csv` | 497.3 kB | `3f99f550d4c0401f…` |
+| `study_depl.csv` | 67.7 kB | `6c50a65ad6ffebfe…` |
+| `study_effo.csv` | 397.7 kB | `9622b6a20a4abe79…` |
+| `study_manifest.json` | 274.7 kB | `adfae789b1483c48…` |
+| `study_reac.csv` | 67.7 kB | `afcc459479f3fc7d…` |
+| `study_sipo.csv` | 312.5 kB | `a42e6835143cf313…` |
+| `study_tuba_fem.json` | 47.0 kB | `125fd7ec7102db09…` |
 
 These hashes are what the solve attested. The evidence verdict above is taken by re-checking them against the files on disk.
 

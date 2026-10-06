@@ -75,7 +75,12 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
 
 Tuba separates parametric modeling (`model.py`) from FEA solver configuration (`study.py`):
 
+[Share and open a project](docs/content/project-sharing.md) covers portable
+`.tubaproject` ZIPs or `.tgz` archives, optional verified results, opening in Studio, generated meshes
+and complete review bundles for collaborators.
+
 ```bash
+python -m tuba.cli_studio                                                     # Open Folder, New Project and Recent Projects
 python -m tuba.cli_studio examples/line-load-studio                          # Live Three.js studio, .comm inspector & solve
 python -m tuba.visualization.viewer .build/studio/line-load-studio/review    # Serve the bundle the studio wrote
 python -m tuba.mcp.server                                                    # Model Context Protocol for external AI agents
@@ -83,6 +88,10 @@ python -m tuba.skills --target ~/.config/opencode/skills                     # A
 ```
 
 ## Getting started
+
+The [STEP and mesh guide](docs/content/step-meshing.md) covers units, interfaces and CLI/MCP jobs.
+The [refinement example](examples/mesh-refinement-review/README.md) supplies portable CAD,
+local sizing and a verified Code_Aster convergence comparison.
 
 Install [Miniforge](https://github.com/conda-forge/miniforge) in Linux x86_64 (Ubuntu WSL2 on Windows), then create the shared Tuba and Code_Aster environment:
 

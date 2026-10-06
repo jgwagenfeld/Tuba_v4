@@ -1,29 +1,42 @@
-"""Model Context Protocol (MCP) server for generative piping modeling in Tuba v4.
+"""Local stdio MCP inspection, verification and solving for Tuba project folders.
 
-Exposes tools for AI coding agents to create, inspect, route, and solve piping models.
-Point ``init_session`` at a ``model.py`` in its own folder and open that folder in the
-studio (``python -m tuba.cli_studio <folder>``): every change is saved to the script and
-the studio reruns it, so the model builds up live in the viewer. The session also keeps
-a managed ``study.py`` beside ``model.py`` so the studio's ``.comm`` tabs and Solve are
-available without hand-wiring a study.
+Use the same Tuba and filesystem environment as Studio and the project CLI.
+``open_project_package`` extracts received ZIP/TGZ packages and binds their model;
+``init_session(file_path="/path/to/project/model.py", load_existing=True)`` binds
+an existing folder. Studio opens either with ``python -m tuba.cli_studio <path>``.
+Authored Python is loaded for inspection and solving without being rewritten.
+Generated-script mutations are saved to the shared folder and picked up by Studio.
+The session preserves user-owned studies and scaffolds a managed ``study.py`` if absent.
+
+``solve_model`` generates the required mesh and solves or reuses the study's evidence
+in ``evidence/<operation>/``. Keep each complete evidence folder, including manifests
+and execution attestation, when sharing saved results. A new solve requires Code_Aster;
+existing verified artifacts can be imported without executing it again. Completed
+scene.json bundles are review deliverables, not a replacement for editable source.
+See docs/content/project-sharing.md for the general handoff guide.
 """
 
 from __future__ import annotations
 
 import contextlib
 import copy
+from functools import wraps
+import json
+import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 try:
-    from mcp.server.fastmcp import FastMCP
-    mcp = FastMCP("tuba-piping")
+    from mcp.server import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
+    mcp = MCPServer("tuba-piping")
 except ImportError as _error:
-    FastMCP = Any  # type: ignore[assignment,misc]
     _MCP_IMPORT_ERROR = _error  # the except target is unbound once this block ends
 
-    class _DummyFastMCP:  # type: ignore[no-redef]
+    class _MissingMCP:
         def tool(self, *args: Any, **kwargs: Any) -> Any:
             def decorator(fn: Any) -> Any:
                 return fn
@@ -31,28 +44,30 @@ except ImportError as _error:
 
         def run(self) -> None:
             raise ImportError(
-                "The Tuba MCP server needs the mcp package below version 2. Install the mcp "
-                "extra (uv sync --all-extras, or pip install '.[mcp]'). "
+                "The Tuba MCP server needs MCP SDK 2.2 or newer. Install the mcp extra with "
+                "uv sync --extra mcp, or pip install '.[mcp]'. "
                 f"Importing it failed: {_MCP_IMPORT_ERROR}"
             ) from _MCP_IMPORT_ERROR
 
-    mcp = _DummyFastMCP()
+    mcp = _MissingMCP()
+
 
 from tuba.assemblies import RackRow, check_unit_style
 from tuba.builder import BuildStep, PipeRunRecipe
 from tuba.model import TubaModel
 from tuba.patches import ModelPatch, ModelTransaction
-from tuba.project import run_model_script
+from tuba.project import load_project, run_model_script
+from tuba.project.execution import project_namespace
 from tuba.project.script import (
     AuthoredModelScript,
     ModelScriptChanged,
     is_generated,
-    project_on_path,
     prologue_namespace,
     prologue_nodes,
     write_model_script,
 )
 from tuba.project.study import ensure_study_file
+from tuba.project.source import SourceConflict, read_source, save_source, source_revision
 
 # Global session state
 _ACTIVE_MODEL: Optional[TubaModel] = None
@@ -60,13 +75,32 @@ _ACTIVE_PATH: Optional[Path] = None
 #: The text a session last wrote to, or read from, its model.py. A save refuses to
 #: overwrite anything else: that is an edit made in the studio or an editor.
 _SCRIPT_TEXT: Optional[str] = None
-
-#: Studio defaults, mirroring tuba.cli_studio's --host/--port: where the viewer URL
-#: reported by init_session points. A studio on a custom host/port serves the same paths.
-_STUDIO_HOST = "127.0.0.1"
-_STUDIO_PORT = 8765
+# Reads may refresh the model, but do not acknowledge edits for subsequent writes.
+_EDIT_FINGERPRINTS: dict[Path, str | None] = {}
 
 T = TypeVar("T")
+
+
+def _tool():
+    """Register on the event loop, retaining callable Python helpers."""
+    def register(fn):
+        @wraps(fn)
+        async def call(*args, **kwargs):
+            # ponytail: one project session is serial; isolate server processes for parallel projects.
+            try:
+                with contextlib.redirect_stdout(sys.stderr):
+                    result = fn(*args, **kwargs)
+                if isinstance(result, dict) and result.get("status") == "error":
+                    raise ToolError(json.dumps(result))
+                return result
+            except ToolError:
+                raise
+            except Exception as exc:
+                # Local authored Python can fail in any way; agents need the concrete cause.
+                raise ToolError(f"{type(exc).__name__}: {exc}") from exc
+        mcp.tool()(call)
+        return fn
+    return register
 
 
 def get_active_model() -> TubaModel:
@@ -74,6 +108,43 @@ def get_active_model() -> TubaModel:
     if _ACTIVE_MODEL is None:
         raise RuntimeError("No model session: call init_session with the path of a model.py first.")
     return _ACTIVE_MODEL
+
+
+def _snapshot_fingerprints(namespace: dict[str, Any]) -> dict[Path, str | None]:
+    """The Python/helper/CAD bytes that built this model, for mutation guards."""
+    captured = {Path(path): digest.hex() for path, digest in namespace.get("__tuba_project_fingerprints__", ())}
+    for path in namespace.get("__tuba_project_dependencies__", ()):
+        captured.setdefault(Path(path), source_revision(path))
+    for asset in namespace["model"].cad_assets.values():
+        source = Path(asset.source_path)
+        source = source.resolve() if source.is_absolute() else (_ACTIVE_PATH.parent / source).resolve()
+        digest = str(asset.content_digest or "").removeprefix("sha256:")
+        try:
+            content = bytes.fromhex(digest).hex() if len(digest) == 64 else source_revision(source)
+        except ValueError:
+            content = source_revision(source)
+        captured[source] = content
+    return captured
+
+
+def _require_unchanged_dependencies() -> None:
+    for path, digest in _EDIT_FINGERPRINTS.items():
+        # The writer separately guards model.py, including its existing deletion recovery.
+        if path != _ACTIVE_PATH and source_revision(path) != digest:
+            raise RuntimeError(
+                f"{path} changed elsewhere; call init_session with load_existing=True "
+                "to acknowledge the edited project before changing it."
+            )
+
+
+def _fresh_namespace() -> dict[str, Any]:
+    """Rebuild the bound project for every read or solve, without accepting stale edits."""
+    global _ACTIVE_MODEL
+    get_active_model()  # provide the existing actionable no-session error
+    with contextlib.redirect_stdout(sys.stderr):
+        namespace = run_model_script(_ACTIVE_PATH)
+    _ACTIVE_MODEL = namespace["model"]
+    return namespace
 
 
 def _ensure_default_specs(model: TubaModel) -> None:
@@ -102,15 +173,20 @@ def _edit(change: Callable[[TubaModel], T]) -> T:
     A deleted model.py is not refused: it holds no edit to lose, and the session's model is
     then its only copy, so the save writes it again.
     """
-    global _ACTIVE_MODEL, _SCRIPT_TEXT
+    global _ACTIVE_MODEL, _SCRIPT_TEXT, _EDIT_FINGERPRINTS
+    _require_unchanged_dependencies()
     model = copy.deepcopy(get_active_model())
     last_text = _SCRIPT_TEXT if _ACTIVE_PATH.exists() else None
     result = change(model)
+    _require_unchanged_dependencies()
     try:
         text = write_model_script(_ACTIVE_PATH, model, last_text=last_text)
     except (ModelScriptChanged, AuthoredModelScript) as exc:
         raise RuntimeError(f"{exc} Call init_session with load_existing=True to continue from the edited file.") from exc
     _ACTIVE_MODEL, _SCRIPT_TEXT = model, text
+    with contextlib.redirect_stdout(sys.stderr):
+        namespace = run_model_script(_ACTIVE_PATH)
+    _EDIT_FINGERPRINTS = _snapshot_fingerprints(namespace)
     return result
 
 
@@ -125,21 +201,28 @@ def _ensure_study_file(model: TubaModel) -> Dict[str, Any]:
     )
 
 
-def _studio_hint() -> Dict[str, str]:
+def _studio_hint() -> Dict[str, Any]:
     """How to see this session: the studio command and viewer URL for its project folder."""
-    folder = str(_ACTIVE_PATH.parent) if _ACTIVE_PATH is not None else "."
-    base = f"http://{_STUDIO_HOST}:{_STUDIO_PORT}/"
+    from tuba.project.session import project_id, studio_session
+
+    root = _ACTIVE_PATH.parent if _ACTIVE_PATH is not None else Path.cwd()
+    command = ["python", "-m", "tuba.cli_studio", str(root)]
+    running = studio_session(root)
     return {
-        "cmd": f"python -m tuba.cli_studio {folder}",
-        "viewer_url": f"{base}?bundle=build&preview_ws=ws://{_STUDIO_HOST}:{_STUDIO_PORT}/preview/ws",
+        "cmd": subprocess.list2cmdline(command) if os.name == "nt" else shlex.join(command),
+        "project_root": str(root),
+        "project_id": project_id(root),
+        "running": running is not None,
+        "viewer_url": running["viewer_url"] if running else None,
+        "base_url": running["base_url"] if running else None,
         "note": (
-            "Start the studio on the project folder, then open the viewer URL in Build mode: "
-            "model.py and each .comm tab sit side by side, and Solve runs Code_Aster."
+            "Open the running Studio URL." if running else
+            "Start Studio with this command to inspect the bound project and solve with Code_Aster."
         ),
     }
 
 
-@mcp.tool()
+@_tool()
 def init_session(
     project_name: str = "Generative Piping",
     standard: str = "ASME B31.3",
@@ -151,17 +234,19 @@ def init_session(
     Parameters:
     - project_name: Human-readable name for the engineering project.
     - standard: Piping code standard (e.g. 'ASME B31.3', 'EN 13480').
-    - file_path: The model.py the model is saved to after every change; a file with any
-      other name is refused. Its folder is the project the studio opens
-      (python -m tuba.cli_studio <folder>) to show each change as it happens. An existing
-      model.py is only taken over if this server generated it.
+    - file_path: Path to the project's model.py; any other filename is refused.
+      For a received project, use open_project_package or extract its package and pass this file's local absolute
+      path, retaining imported helpers and referenced CAD/data. Studio opens the
+      containing folder with python -m tuba.cli_studio <folder>. Authored model.py
+      can be inspected and solved but is never overwritten by generated edits.
     - load_existing: If True and the file exists, loads the existing model.
 
     Every session also ensures a study.py beside model.py: scaffolded (and LOAD_CASES-synced)
     while it carries the server's marker, left alone when user-owned. The response reports
-    the study state and how to open the studio on this project.
+    the study state and how to open the studio on this project. Studio and MCP share
+    local project files, not a remote Studio connection; use the same filesystem environment.
     """
-    global _ACTIVE_MODEL, _ACTIVE_PATH, _SCRIPT_TEXT
+    global _ACTIVE_MODEL, _ACTIVE_PATH, _SCRIPT_TEXT, _EDIT_FINGERPRINTS
     target = Path(file_path).resolve()
     if target.name != "model.py":
         raise ValueError(
@@ -177,11 +262,13 @@ def init_session(
 
     if load_existing and existing is not None:
         with contextlib.redirect_stdout(sys.stderr):  # stdout carries the MCP protocol
-            model = run_model_script(target)["model"]
+            namespace = run_model_script(target)
+            model = namespace["model"]
         # Only once the script ran: one that raises leaves the session and its edit guard as they were.
         _ACTIVE_MODEL = model
         _ACTIVE_PATH = target
         _SCRIPT_TEXT = existing
+        _EDIT_FINGERPRINTS = _snapshot_fingerprints(namespace)
         return {
             "status": "loaded",
             "authored": not is_generated(existing),
@@ -198,6 +285,8 @@ def init_session(
     _ensure_default_specs(model)
     text = write_model_script(target, model, last_text=existing)
     _ACTIVE_MODEL, _ACTIVE_PATH, _SCRIPT_TEXT = model, target, text
+    with contextlib.redirect_stdout(sys.stderr):
+        _EDIT_FINGERPRINTS = _snapshot_fingerprints(run_model_script(target))
     return {
         "status": "initialized",
         "project_name": project_name,
@@ -208,7 +297,48 @@ def init_session(
     }
 
 
-@mcp.tool()
+@_tool()
+def export_project(output_path: str, include_results: bool = False) -> Dict[str, Any]:
+    """Export saved project files: .tubaproject/.zip uses ZIP; .tgz/.tar.gz uses gzip/tar.
+
+    Includes project-local Python helpers, CAD and data; excludes caches, runtime
+    state, build output and previous archives. include_results requires complete,
+    current verified Code_Aster evidence for every study operation. Never rewrites
+    authored Python or overwrites an existing package. External dependencies must
+    be installed by the recipient; reference project inputs with relative paths.
+    """
+    from tuba.project.package import export_project_package
+    get_active_model()
+    return export_project_package(_ACTIVE_PATH.parent, output_path, include_results=include_results)
+
+
+@_tool()
+def inspect_project_package(file_path: str) -> Dict[str, Any]:
+    """Validate a ZIP/TGZ package and return its manifest without extracting or executing Python.
+
+    Does not require or change the active project session. Checks every path,
+    inventory entry and SHA-256; checksums do not establish the author's identity.
+    """
+    from tuba.project.package import inspect_project_package as inspect_package
+    return inspect_package(file_path)
+
+
+@_tool()
+def open_project_package(file_path: str, destination: str) -> Dict[str, Any]:
+    """Validate a ZIP/TGZ project package, extract to a NEW folder, and bind its model.py.
+
+    Archive validation/extraction never executes code. Binding runs the project's
+    Python as init_session does; open only projects you trust. destination must
+    not exist. Keep the extracted folder to edit, solve and reopen in Studio.
+    Packages with evidence reuse it only when current and verified. Source-only
+    packages require Code_Aster to solve; meshes are generated by the workflow.
+    """
+    from tuba.project.package import unpack_project_package
+    root = unpack_project_package(file_path, destination)
+    return init_session(file_path=str(root / "model.py"), load_existing=True)
+
+
+@_tool()
 def add_material(
     name: str,
     E: float,
@@ -235,7 +365,7 @@ def add_material(
     return {"status": "success", "material": material.name, "E": material.E, "nu": material.nu}
 
 
-@mcp.tool()
+@_tool()
 def add_pipe_section(
     name: str,
     OD: float,
@@ -256,7 +386,7 @@ def add_pipe_section(
     return {"status": "success", "section": section.name, "OD": section.OD, "WT": section.WT}
 
 
-@mcp.tool()
+@_tool()
 def add_ibeam_section(
     name: str,
     profile_name: str,
@@ -331,7 +461,7 @@ def _json_safe(value: Any) -> Any:
         return repr(value)
 
 
-@mcp.tool()
+@_tool()
 def build_rack(
     material: str,
     section: str,
@@ -419,7 +549,7 @@ def build_rack(
     }
 
 
-@mcp.tool()
+@_tool()
 def build_rack_corner(
     material: str,
     section: str,
@@ -526,7 +656,7 @@ def build_rack_corner(
     }
 
 
-@mcp.tool()
+@_tool()
 def build_pipe_run(
     section: str,
     material: str,
@@ -578,7 +708,7 @@ def build_pipe_run(
     }
 
 
-@mcp.tool()
+@_tool()
 def configure_load_case(
     name: str,
     internal_pressure_mpa: float,
@@ -631,7 +761,7 @@ def configure_load_case(
     }
 
 
-@mcp.tool()
+@_tool()
 def apply_model_patch(
     operations: List[Dict[str, Any]],
     provenance: Optional[Dict[str, Any]] = None,
@@ -658,16 +788,11 @@ def apply_model_patch(
     }
 
 
-def _project_dir() -> Optional[str]:
-    """The session project folder, whose ``units/`` agent code may import."""
-    return str(_ACTIVE_PATH.parent) if _ACTIVE_PATH is not None else None
-
-
 def _unit_ref(name: str, func: str, where: str) -> str:
     return f"units.{name}:{func}" if where == "units" else func
 
 
-@mcp.tool()
+@_tool()
 def save_unit(
     name: str,
     code: str,
@@ -687,6 +812,7 @@ def save_unit(
     "Construction Units Style", for the standard being enforced.
     """
     global _SCRIPT_TEXT
+    _require_unchanged_dependencies()
     if where not in ("units", "model"):
         raise ValueError(f'Unit location must be "units" or "model", got {where!r}.')
     if not name.isidentifier():
@@ -695,75 +821,84 @@ def save_unit(
         compile(code, f"<unit {name}>", "exec")
     except SyntaxError as exc:
         raise ValueError(f"Unit {name!r} does not parse: {exc}") from exc
-    with project_on_path(_project_dir()):
-        namespace: Dict[str, Any] = {}
+    if _ACTIVE_PATH is None:  # pragma: no cover - tools hold a session
+        raise RuntimeError("No model session: call init_session with the path of a model.py first.")
+    with project_namespace(_ACTIVE_PATH, run_name="tuba_unit_check") as namespace:
         try:
             exec(compile(code, f"<unit {name}>", "exec"), namespace)
         except Exception as exc:
             raise ValueError(f"Unit {name!r} failed ({type(exc).__name__}: {exc}); nothing was saved.") from exc
-    if not callable(namespace.get(func)):
-        raise ValueError(f"Unit {name!r} defines no callable {func!r}; nothing was saved.")
-    check_unit_style(name, code, func)
-    ref = _unit_ref(name, func, where)
-    if _ACTIVE_PATH is None:  # pragma: no cover - tools hold a session
-        raise RuntimeError("No model session: call init_session with the path of a model.py first.")
-    written_unit: Path | None = None
-    made_unit_dir = False
-    if where == "units":
-        # Written before the dry-run so the dry-run imports the real file; removed again on failure.
-        target = _ACTIVE_PATH.parent / "units" / f"{name}.py"
-        made_unit_dir = not target.parent.exists()
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(code if code.endswith("\n") else code + "\n", encoding="utf-8", newline="")
-        written_unit = target
-    if params is not None:
-        from tuba.assemblies import assemble
-        from tuba.validation import validate_model
+        if not callable(namespace.get(func)):
+            raise ValueError(f"Unit {name!r} defines no callable {func!r}; nothing was saved.")
+        check_unit_style(name, code, func)
+        ref = _unit_ref(name, func, where)
+        written_unit: Path | None = None
+        made_unit_dir = False
+        if where == "units":
+            # Written before the dry-run so the dry-run imports the real file; removed again on failure.
+            target = _ACTIVE_PATH.parent / "units" / f"{name}.py"
+            made_unit_dir = not target.parent.exists()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(code if code.endswith("\n") else code + "\n", encoding="utf-8", newline="")
+            written_unit = target
+        if params is not None:
+            from tuba.assemblies import assemble
+            from tuba.validation import validate_model
 
-        trial = copy.deepcopy(get_active_model())
-        try:
-            with project_on_path(_project_dir()):
+            trial = copy.deepcopy(get_active_model())
+            try:
                 assemble(trial, ref if where == "units" else func, _namespace=namespace, **params)
-            validate_model(trial)
-        except Exception as exc:
-            if written_unit is not None:
-                written_unit.unlink(missing_ok=True)
-                if made_unit_dir:
-                    import shutil as _shutil
+                validate_model(trial)
+            except Exception as exc:
+                if written_unit is not None:
+                    written_unit.unlink(missing_ok=True)
+                    if made_unit_dir:
+                        import shutil as _shutil
 
-                    _shutil.rmtree(written_unit.parent, ignore_errors=True)
-            raise ValueError(f"Unit {ref!r} dry-run failed ({type(exc).__name__}: {exc}); nothing was saved.") from exc
-    if where == "model":
-        if func in prologue_namespace(_SCRIPT_TEXT):
-            raise ValueError(f"model.py already defines {func!r}; edit or remove it by hand first.")
-        current = _ACTIVE_PATH.read_text(encoding="utf-8") if _ACTIVE_PATH.exists() else None
-        if current != _SCRIPT_TEXT:
-            raise RuntimeError(f"{_ACTIVE_PATH} changed elsewhere; call init_session to continue from the edited file first.")
-        # The def belongs to the prologue (leading imports/defs), where the writer carries
-        # it over; appended after the state it would be rewritten away on the next save.
-        _, insert_at, _, _ = prologue_nodes(current or "")
-        before = (current or "").splitlines(keepends=True)
-        head = "".join(before[:insert_at])
-        rest = "".join(before[insert_at:]).lstrip("\n")
-        if head and not head.endswith("\n"):
-            head += "\n"
-        updated = head + "\n" + code.strip("\n") + "\n\n" + rest
-        _ACTIVE_PATH.write_text(updated, encoding="utf-8", newline="")
-        try:
-            with contextlib.redirect_stdout(sys.stderr):
-                rebuilt = run_model_script(_ACTIVE_PATH)["model"]
-            from tuba.project.script import same_model as _same
+                        _shutil.rmtree(written_unit.parent, ignore_errors=True)
+                raise ValueError(f"Unit {ref!r} dry-run failed ({type(exc).__name__}: {exc}); nothing was saved.") from exc
+        if where == "model":
+            with project_namespace(_ACTIVE_PATH, run_name="tuba_unit_prologue_check") as prologue:
+                if func in prologue_namespace(_SCRIPT_TEXT, prologue):
+                    raise ValueError(f"model.py already defines {func!r}; edit or remove it by hand first.")
+            source = read_source(_ACTIVE_PATH) if _ACTIVE_PATH.exists() else None
+            current = source["code"] if source else None
+            normalized_current = current.replace("\r\n", "\n").replace("\r", "\n") if current is not None else None
+            if normalized_current != _SCRIPT_TEXT:
+                raise RuntimeError(f"{_ACTIVE_PATH} changed elsewhere; call init_session to continue from the edited file first.")
+            # The def belongs to the prologue (leading imports/defs), where the writer carries
+            # it over; appended after the state it would be rewritten away on the next save.
+            _, insert_at, _, _ = prologue_nodes(current or "")
+            before = (current or "").splitlines(keepends=True)
+            head = "".join(before[:insert_at])
+            rest = "".join(before[insert_at:]).lstrip("\n")
+            if head and not head.endswith("\n"):
+                head += "\n"
+            updated = head + "\n" + code.strip("\n") + "\n\n" + rest
+            try:
+                revision = save_source(_ACTIVE_PATH, updated, source["source_revision"] if source else None)
+            except SourceConflict as exc:
+                raise RuntimeError(f"{exc} Call init_session to continue from the edited file first.") from exc
+            try:
+                with contextlib.redirect_stdout(sys.stderr):
+                    rebuilt = run_model_script(_ACTIVE_PATH)["model"]
+                from tuba.project.script import same_model as _same
 
-            if not _same(rebuilt, get_active_model()):
-                raise ValueError("the appended defs changed the model")
-        except Exception as exc:
-            _ACTIVE_PATH.write_text(current or "", encoding="utf-8", newline="")
-            raise ValueError(f"Appending the unit changed or broke the model ({exc}); model.py was left as it was.") from exc
-        _SCRIPT_TEXT = updated
-    return {"status": "saved", "ref": ref, "where": where, "dry_run": params is not None}
+                if not _same(rebuilt, get_active_model()):
+                    raise ValueError("the appended defs changed the model")
+            except Exception as exc:
+                try:
+                    save_source(_ACTIVE_PATH, current or "", revision)
+                except SourceConflict as conflict:
+                    raise RuntimeError(
+                        f"{conflict} The failed unit was not rolled back over the outside edit; call init_session."
+                    ) from conflict
+                raise ValueError(f"Appending the unit changed or broke the model ({exc}); model.py was left as it was.") from exc
+            _SCRIPT_TEXT = updated.replace("\r\n", "\n").replace("\r", "\n")
+        return {"status": "saved", "ref": ref, "where": where, "dry_run": params is not None}
 
 
-@mcp.tool()
+@_tool()
 def apply_unit(ref: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Apply a saved construction unit to the session model, transactionally.
 
@@ -776,8 +911,9 @@ def apply_unit(ref: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, A
     """
     from tuba.assemblies import assemble
 
-    with project_on_path(_project_dir()):
-        namespace = prologue_namespace(_SCRIPT_TEXT)
+    _require_unchanged_dependencies()
+    with project_namespace(_ACTIVE_PATH, run_name="tuba_unit_apply") as namespace:
+        prologue_namespace(_SCRIPT_TEXT, namespace)
         before = get_active_model()
         counts_before = (len(before.nodes), len(before.elements), len(before.supports))
         elements_before = {element.id for element in before.elements}
@@ -802,7 +938,7 @@ def apply_unit(ref: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, A
     }
 
 
-@mcp.tool()
+@_tool()
 def run_model_code(code: str) -> Dict[str, Any]:
     """Run Python code against the session model; the script stays the basis.
 
@@ -824,14 +960,15 @@ def run_model_code(code: str) -> Dict[str, Any]:
     """
     from tuba.assemblies import assemble as _assemble
 
+    _require_unchanged_dependencies()
     before = get_active_model()
     counts_before = (len(before.nodes), len(before.elements), len(before.supports))
     elements_before = {element.id for element in before.elements}
     nodes_before = set(before.nodes)
-    namespace: Dict[str, Any] = {"model": copy.deepcopy(before), "assemble": _assemble}
-    namespace.update(prologue_namespace(_SCRIPT_TEXT))
     try:
-        with project_on_path(_project_dir()):
+        with project_namespace(_ACTIVE_PATH, run_name="tuba_model_code") as namespace:
+            prologue_namespace(_SCRIPT_TEXT, namespace)
+            namespace.update(model=copy.deepcopy(before), assemble=_assemble)
             exec(compile(code, "<mcp run_model_code>", "exec"), namespace)
     except Exception as exc:
         raise RuntimeError(f"run_model_code failed ({type(exc).__name__}: {exc}); the session model and its script are unchanged.") from exc
@@ -893,6 +1030,9 @@ def _support_inspection(support) -> Dict[str, Any]:
         view["direction"] = support.direction
     if support.attached_to is not None:
         view["attached_to"] = support.attached_to
+        if support.attachment_mode != "rigid_offset":
+            view["attachment_mode"] = support.attachment_mode
+            view["blocked_dof"] = support.blocked_dof
     if support.friction_coefficient:
         view["friction_coefficient"] = support.friction_coefficient
     return view
@@ -939,7 +1079,7 @@ def _attachment_points_inspection(group) -> Dict[str, str]:
     }
 
 
-@mcp.tool()
+@_tool()
 def inspect_model() -> Dict[str, Any]:
     """Inspect the model in the vocabulary it was authored in, so you can select by name.
 
@@ -954,8 +1094,17 @@ def inspect_model() -> Dict[str, Any]:
     invocation with its parameters — together they tell which construction
     step to correct when ``check_clashes`` reports an overlap.
     """
-    model = get_active_model()
+    model = _fresh_namespace()["model"]
+    def mixed_records(records):
+        return {
+            key: {**record.to_dict(), **{
+                field: getattr(record, field) for field in ("source_line", "source_call_line")
+                if getattr(record, field, None) is not None
+            }} for key, record in records.items()
+        }
     return {
+        "project_root": str(_ACTIVE_PATH.parent),
+        "studio": _studio_hint(),
         "project_name": model.project_name,
         "standard": model.standard,
         "nodes": {nid: node.coords.tolist() for nid, node in model.nodes.items()},
@@ -989,11 +1138,19 @@ def inspect_model() -> Dict[str, Any]:
             for name, lc in {**model.load_cases, **model.operations}.items()
         },
         "materials": list(model.materials.keys()),
+        "cad_assets": mixed_records(model.cad_assets),
+        "imported_components": mixed_records(model.imported_components),
+        "ports": mixed_records(model.ports),
+        "analysis_regions": mixed_records(model.analysis_regions),
+        "couplings": mixed_records(model.couplings),
+        "mesh_groups": mixed_records(model.mesh_groups),
+        "mesh_settings": _json_safe(model.mesh_settings),
+        "mesh_refinements": _json_safe(model.mesh_refinements),
         "sections": list(model.sections.keys()),
     }
 
 
-@mcp.tool()
+@_tool()
 def check_clashes(
     clearance_m: float = 0.0,
     include_self: bool = True,
@@ -1010,7 +1167,7 @@ def check_clashes(
     """
     from tuba.clash import ClashEngine
 
-    model = get_active_model()
+    model = _fresh_namespace()["model"]
     engine = ClashEngine()
     obstacle: List[Dict[str, Any]] = []
     self_clashes: List[Dict[str, Any]] = []
@@ -1038,7 +1195,7 @@ def check_clashes(
     }
 
 
-@mcp.tool()
+@_tool()
 def verify_model(clearance_m: float = 0.0) -> Dict[str, Any]:
     """Run the one cold-model verification gate before solving.
 
@@ -1048,11 +1205,40 @@ def verify_model(clearance_m: float = 0.0) -> Dict[str, Any]:
     """
     from tuba.verify import verify_model as _verify
 
-    model = get_active_model()
-    return _verify(model, clearance_m=clearance_m, script=_SCRIPT_TEXT).to_dict()
+    namespace = _fresh_namespace()
+    return _verify(namespace["model"], clearance_m=clearance_m,
+                   script=_ACTIVE_PATH.read_text(encoding="utf-8")).to_dict()
 
 
-@mcp.tool()
+@_tool()
+def generate_mesh(output_dir: str) -> Dict[str, Any]:
+    """Generate and validate unsolved native diagnostic cells for the bound project.
+
+    Uses model.py sizing and study.py formulations, like Studio Generate mesh.
+    output_dir must be new; the response identifies its job directory and mesh
+    quality report. No Code_Aster results are produced and source is unchanged.
+    """
+    from tuba.project.mesh import run_project_mesh
+    get_active_model()
+    return run_project_mesh(_ACTIVE_PATH.parent, output_dir)
+
+
+@_tool()
+def run_mesh_convergence(output_dir: str) -> Dict[str, Any]:
+    """Run verified Code_Aster levels using the bound study's MESH_CONVERGENCE.
+
+    Requires exactly one LOAD_CASES operation and a supported runtime. Holds the
+    same project execution claim as Studio/solve_model. output_dir must be new.
+    Returns independently verified levels and their measured-change verdicts;
+    completing solves does not imply tolerance, accuracy or compliance. Normal
+    project evidence is unchanged. Failures retain diagnostics and block results.
+    """
+    from tuba.project.mesh import run_project_mesh
+    get_active_model()
+    return run_project_mesh(_ACTIVE_PATH.parent, output_dir, mode="convergence")
+
+
+@_tool()
 def solve_model(
     load_case: Optional[str] = None,
     force: bool = False,
@@ -1063,50 +1249,69 @@ def solve_model(
     solver metrics and results artifacts. If Code_Aster is not available in the environment,
     fails loudly with actionable diagnostics.
 
-    The cold-model verification gate runs first: a blocking structural, clash or rule
-    error refuses the solve. *force* bypasses the gate for diagnostics only; it never
-    fabricates a result and the solver still runs or fails on its own.
+    Freshly loads the bound project and uses study.py's solver options and check hook.
+    Every study operation is solved or reused together; *load_case*, when supplied,
+    selects an operation to identify in the response, not a partial study solve.
+    *force* reruns matching evidence; it never bypasses the cold-model gate.
+    Unverified artifacts are reported but never advertised as engineering results.
+
+    The required analysis mesh is generated from authored geometry and sizing.
+    Saved runs live in the project's evidence/<operation>/ folders; include every
+    file, manifests and study_execution.json when handing them to another machine.
+    Matching verified evidence is reused without a new solver execution. An open
+    Studio imports completed evidence into Review; share a complete scene.json bundle
+    separately for result inspection without the editable project.
     """
-    model = get_active_model()
-    if not model.elements:
-        return {"status": "error", "message": "Cannot solve empty model: no elements defined."}
-    if not model.supports:
-        return {"status": "error", "message": "Cannot solve model without boundary conditions (supports)."}
-
-    from tuba.verify import verify_model as _verify
-
-    report = _verify(model).to_dict()
-    if not report["passed"] and not force:
-        return {
-            "status": "error",
-            "message": "Model verification failed; no solver run. "
-                       "Fix the errors or pass force=True.",
-            "verification": report,
-        }
+    from tuba.project.solve import ProjectVerificationError, solve_project
 
     try:
-        case_name, _ = model.resolve_load_case(load_case)
-        run = model.solve(load_case=case_name)
+        namespace = _fresh_namespace()
+        project = load_project(_ACTIVE_PATH.parent)
+        with contextlib.redirect_stdout(sys.stderr):
+            settings = project.load_settings()
+        if load_case is not None and load_case not in settings.operations:
+            raise ValueError(f"study.py does not solve {load_case!r}; its LOAD_CASES are {settings.operations!r}.")
+        # stdout is the stdio MCP protocol, including while project hooks execute.
+        with contextlib.redirect_stdout(sys.stderr):
+            outcome = solve_project(project, namespace, force=force)
+        artifacts = {}
+        for name, run in outcome.runs.items():
+            folder = Path(run.study.work_dir).resolve()
+            attestation = run.result_state.metadata.get("solve_attestation", {})
+            artifacts[name] = {
+                "study_id": run.study.id,
+                "work_dir": str(folder),
+                "files": {filename: str(folder / filename) for filename in attestation.get("artifacts", {})},
+                "execution_attestation": str(folder / "study_execution.json"),
+                "result_trust": run.result_state.metadata.get("result_trust"),
+                "solver_input_identity": run.study.solver_input_identity.to_dict(),
+            }
         return {
             "status": "success",
-            "run_id": getattr(run, "run_id", "run_completed"),
-            "load_case": case_name,
-            "results_available": True,
-            "message": "Code_Aster evaluation completed successfully.",
+            "project_root": str(project.root),
+            "load_case": load_case or (settings.operations[0] if len(settings.operations) == 1 else None),
+            "solved": list(outcome.solved),
+            "reused": list(outcome.reused),
+            "unverified": list(outcome.unverified),
+            "verification": outcome.verification.to_dict(),
+            "artifacts": artifacts,
+            "results_available": not outcome.unverified,
+            "studio": _studio_hint(),
+            "message": "Project study completed." if not outcome.unverified else
+                       "Project study completed with unverified artifacts; engineering result publication is blocked.",
         }
+    except ProjectVerificationError as exc:
+        return {"status": "error", "message": str(exc), "verification": exc.report.to_dict()}
     except Exception as exc:
         return {
             "status": "error",
             "error_type": type(exc).__name__,
             "message": str(exc),
-            "diagnostics": [
-                "Code_Aster execution failed or Code_Aster runtime environment is not reachable.",
-                "Ensure Code_Aster is installed and configured in system path/container.",
-            ],
+            "project_root": str(_ACTIVE_PATH.parent) if _ACTIVE_PATH else None,
         }
 
 
-@mcp.tool()
+@_tool()
 def export_python_script(output_path: str = "generated_pipeline.py") -> Dict[str, Any]:
     """Write a Python script reproducing the current model, plus its Code_Aster input files.
 
@@ -1135,11 +1340,6 @@ def export_python_script(output_path: str = "generated_pipeline.py") -> Dict[str
         except Exception as exc:  # the script is already written; report why this deck is missing
             decks[lc_name] = {"error": f"{type(exc).__name__}: {exc}"}
     return {"status": "success", "file": str(target), "code_aster_inputs": decks}
-
-
-def create_mcp_server() -> FastMCP:
-    """Return configured FastMCP server instance."""
-    return mcp
 
 
 if __name__ == "__main__":

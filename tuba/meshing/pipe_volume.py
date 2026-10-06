@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
@@ -15,6 +15,8 @@ import numpy as np
 from tuba.analysis.mesh import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.geometry.volume import VolumeGeometry, build_volume_geometry
 from tuba.meshing._gmsh import gmsh_model
+from tuba.meshing.policy import resolve_mesh_policy, has_mesh_policy, gmsh_policy
+from tuba.meshing.quality import mesh_review
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map
@@ -80,9 +82,10 @@ def build_pipe_volume_mesh(
     output_path: str | Path,
     *,
     element_ids: Iterable[str],
-    max_element_size: float,
+    max_element_size: float | None = None,
     element_order: int = 2,
     geometry: VolumeGeometry | None = None,
+    mesh_policy=None,
 ) -> GeneratedPipeVolumeMesh:
     """Mesh one straight pipe, one bend, or one explicit three-run tee.
 
@@ -92,7 +95,11 @@ def build_pipe_volume_mesh(
     """
     if geometry is None:
         geometry = build_volume_geometry(model, element_ids)
+    policy = mesh_policy or resolve_mesh_policy(model,max_element_size=max_element_size,volume_geometry=geometry)
+    max_element_size = policy._data["global_size_m"]
     _require_mesh_settings(geometry, max_element_size, element_order)
+    if any(r.get("cad_target") for r in policy._data["refinements"]):
+        raise ValueError("Native pipe-volume meshing cannot bind imported CAD face targets; use STEP component meshing.")
     line_elements = _remaining_line_elements(model, geometry)
     output = Path(output_path)
     temporary = output.with_name(f".{output.stem}-{uuid4().hex}.tmp.med")
@@ -103,9 +110,8 @@ def build_pipe_volume_mesh(
             initialize_args=["-noenv"],
             options={
                 "General.Terminal": 0,
-                "Mesh.MeshSizeMin": max_element_size * 2.0,
-                "Mesh.MeshSizeMax": max_element_size * 2.0,
-                "Mesh.MeshSizeFromCurvature": 20,
+                "Mesh.MeshSizeMin": policy.minimum_size_m * 2.0,
+                "Mesh.MeshSizeMax": max(policy._data["base_sizes_m"].values()) * 2.0,
                 "Mesh.ElementOrder": element_order,
                 "Mesh.SecondOrderIncomplete": 1,
                 "Mesh.SubdivisionAlgorithm": 2,
@@ -143,21 +149,22 @@ def build_pipe_volume_mesh(
                 physical = gmsh.model.addPhysicalGroup(dimension, list(tags))
                 gmsh.model.setPhysicalName(dimension, physical, name_map[raw_name])
 
-            gmsh.model.mesh.generate(3)
-            gmsh.model.mesh.setOrder(element_order)
+            entity_sources = {(3,tag):[f"element:{id}" for id in geometry.element_ids] for tag in volume_tags}
+            entity_sources.update({(1,tag):f"element:{id}" for id,tag in line_entities.items()})
+            with gmsh_policy(gmsh,policy,entity_sources,size_scale=2.) as bound:
+                gmsh.model.mesh.generate(3)
+                gmsh.model.mesh.setOrder(element_order)
+                analysis_mesh, groups, vertices, faces = _readback(
+                    model, geometry, output, raw_entities, line_entities=line_entities, node_entities=node_entities,
+                )
+                review = mesh_review(analysis_mesh,bound,gmsh=gmsh,output_path=output)
+                review["statistics"]["mesher_translation"] = {"sizing":"native_gmsh_fields","pre_subdivision_size_factor":2.,"subdivision_algorithm":2,
+                    "interpretation":"Requested sizes control nominal final HEXA20 density; tetrahedral precursor size is twice the requested size."}
+                analysis_mesh = replace(analysis_mesh,mesh_review=review)
             output.parent.mkdir(parents=True, exist_ok=True)
             gmsh.write(str(temporary))
             if not temporary.is_file() or temporary.stat().st_size == 0:
                 raise RuntimeError("Gmsh did not write a non-empty MED mesh.")
-
-            analysis_mesh, groups, vertices, faces = _readback(
-                model,
-                geometry,
-                output,
-                raw_entities,
-                line_entities=line_entities,
-                node_entities=node_entities,
-            )
             temporary.replace(output)
             return GeneratedPipeVolumeMesh(
                 analysis_mesh=analysis_mesh,
@@ -169,6 +176,7 @@ def build_pipe_volume_mesh(
                     "element_family": "HEXA20",
                     "element_order": element_order,
                     "max_element_size": max_element_size,
+                    **({"mesh_policy":policy.to_dict()} if has_mesh_policy(model) else {}),
                     **({"line_element_family": "SEG3"} if line_entities else {}),
                 },
                 med_path=output,
@@ -440,8 +448,8 @@ def _readback(
     if not volume_mesh_tags:
         raise RuntimeError("Gmsh generated no quadratic hexahedral volume cells.")
     qualities = np.asarray(gmsh.model.mesh.getElementQualities(volume_mesh_tags, "minSJ"), dtype=float)
-    if not qualities.size or not np.isfinite(qualities).all() or float(qualities.min()) <= 0.0:
-        raise RuntimeError("Gmsh generated an invalid quadratic hexahedral cell.")
+    # Publication quality is checked after full readback so cell IDs and source
+    # bounds survive in the retained failure diagnostic.
     _require_connected_volume(elements)
 
     line_mesh_ids: list[str] = []
@@ -489,7 +497,7 @@ def _readback(
         )
 
     groups: dict[str, tuple[str, ...]] = {
-        raw_name: tuple(elements)
+        raw_name: tuple(f"VM{tag}" for tag in volume_mesh_tags)
         for raw_name, (dimension, _entity_tags) in raw_entities.items()
         if dimension == 3
     }
@@ -509,15 +517,23 @@ def _readback(
         for entity_tag in entity_tags:
             types, element_tag_blocks, node_tag_blocks = gmsh.model.mesh.getElements(2, entity_tag)
             for element_type, element_tags, element_nodes in zip(types, element_tag_blocks, node_tag_blocks):
-                _name, cell_dimension, _order, node_count, _local, primary_count = (
+                _name, cell_dimension, order, node_count, _local, primary_count = (
                     gmsh.model.mesh.getElementProperties(element_type)
                 )
-                if cell_dimension != 2 or primary_count != 4:
-                    continue
+                if cell_dimension != 2 or order != 2 or node_count != 8 or primary_count != 4:
+                    raise RuntimeError("Gmsh generated an unsupported pipe volume surface element.")
                 for index, element_tag in enumerate(element_tags):
-                    tags = tuple(int(tag) for tag in element_nodes[index * node_count : index * node_count + 4])
-                    mesh_ids.append(f"VS{int(element_tag)}")
-                    surface_quad_nodes.append(tags)
+                    tags = tuple(int(tag) for tag in element_nodes[index * node_count : (index + 1) * node_count])
+                    if len(tags) != node_count or len(set(tags)) != node_count or any(tag not in coordinates_by_tag for tag in tags):
+                        raise RuntimeError("Gmsh generated invalid pipe volume surface connectivity.")
+                    mesh_id = f"VS{int(element_tag)}"
+                    mesh_ids.append(mesh_id)
+                    elements[mesh_id] = tuple(f"VN{tag}" for tag in tags)
+                    element_sources[mesh_id] = MeshElementSource(
+                        element_id=mesh_id, source_ref=source_ref, role="volume_skin",
+                        metadata={**source_metadata, "solver_element_tag": int(element_tag)},
+                    )
+                    surface_quad_nodes.append(tags[:4])
         groups[raw_name] = tuple(mesh_ids)
         if not groups[raw_name]:
             raise RuntimeError(f"Gmsh generated an empty physical group {raw_name!r}.")

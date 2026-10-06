@@ -6,7 +6,11 @@
 // results opens on them; a model with none colours by the model.
 export const COLOR_CHANNELS = Object.freeze(["model", "results"]);
 
+// Build is authored input, so it never tints by a solver field - not even when a
+// published gallery enters Build on its solved bundle. The stored channel is
+// left alone, so Review comes back on whatever the reader last chose.
 export function colorChannelOf(state = {}) {
+  if (sceneStage(state) === "build") return "model";
   if (COLOR_CHANNELS.includes(state.colorChannel)) return state.colorChannel;
   return hasResultColouring(state) ? "results" : "model";
 }

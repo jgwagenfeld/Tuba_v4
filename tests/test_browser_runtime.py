@@ -1,8 +1,30 @@
 from io import BytesIO
 from pathlib import Path
+import subprocess
+from tempfile import TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
 
 from scripts.build_browser_runtime import browser_runtime_archive
+
+
+def test_browser_runtime_excludes_untracked_and_ignored_inputs():
+    with TemporaryDirectory() as directory:
+        root = Path(directory)
+        project = root / "examples/private-project"
+        project.mkdir(parents=True)
+        (project / "model.py").write_text("# local project\n")
+        (root / "examples/untracked.py").write_text("# untracked input\n")
+        (root / "examples/public.py").write_text("# published example\n")
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        (root / ".git/info/exclude").write_text("/examples/private-project/\n")
+        subprocess.run(["git", "add", "--", "examples/public.py"], cwd=root, check=True)
+        (root / "pyproject.toml").write_text('[project]\nversion = "0.0.0"\n')
+        for name in ("LICENSE", "LICENSE.GPL"):
+            (root / name).write_text("test license\n")
+        with ZipFile(BytesIO(browser_runtime_archive(root))) as bundle:
+            assert "examples/public.py" in bundle.namelist()
+            assert "examples/untracked.py" not in bundle.namelist()
+            assert not any("private-project" in name for name in bundle.namelist())
 
 
 def test_browser_runtime_contains_current_python_and_data_but_no_results_or_viewer():
@@ -17,4 +39,24 @@ def test_browser_runtime_contains_current_python_and_data_but_no_results_or_view
         assert bundle.read("tuba/visualization/builders/_objects.py") == (root / "tuba/visualization/builders/_objects.py").read_bytes().replace(b"\r\n", b"\n")
         assert "examples/code-aster-review/model.py" in bundle.namelist()
         assert any("sections/data/" in name for name in bundle.namelist())
-        assert not any("/evidence/" in name or "/reference/" in name or "/_viewer/" in name or name.endswith(".rmed") for name in bundle.namelist())
+        assert not any(set(Path(name).parts) & {"evidence", "reference", "_viewer", ".tuba", "review"}
+                       or name.endswith(".rmed") for name in bundle.namelist())
+
+
+def test_browser_preview_builds_a_scene_without_gmsh():
+    # The browser has no gmsh. Every scene build reads the mesh-sizing policy, and
+    # importing tuba.meshing once dragged the gmsh-backed generator in with it, so
+    # every gallery "Update geometry" failed with "This script needs gmsh".
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    script = (
+        "import sys; sys.modules['gmsh'] = None\n"
+        "from pathlib import Path\n"
+        "from tuba.project import run_model_script\n"
+        "from tuba.visualization import SceneRequest, build_visualization_scene\n"
+        "model = run_model_script(Path('examples/code-aster-review/model.py'))['model']\n"
+        "build_visualization_scene(SceneRequest(model, include_analysis_mesh=False)).validate()\n"
+    )
+    result = subprocess.run([sys.executable, "-c", script], cwd=root, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr[-2000:]

@@ -20,6 +20,14 @@ def load_gate():
     return gate
 
 
+def test_required_references_include_imported_step_and_mixed_connections():
+    gate = load_gate()
+    assert {
+        'tests/test_code_aster_step_component_reference.py',
+        'tests/test_code_aster_mixed_connections_reference.py',
+    } <= set(gate.REFERENCE_TESTS)
+
+
 def test_required_references_do_not_force_a_platform_runtime():
     gate = load_gate()
     forced = []

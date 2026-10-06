@@ -111,6 +111,11 @@ export function getReactionConsistency(state, overlays) {
 // first: a builder that states its own derivation has said something no rule
 // below could recover, and the volume-stress builder already does.
 export function getAveragingBasis(state, legend) {
+  if (legend?.envelope) {
+    return legend.envelope.enveloped
+      ? "maximum across result steps at each field location"
+      : "one contributing result step, so no maximum across steps";
+  }
   const field = legend?.fieldId
     ? (state.resultFields ?? []).find((candidate) => candidate.id === legend.fieldId)
     : null;
@@ -124,6 +129,15 @@ export function getAveragingBasis(state, legend) {
     return `element FE von Mises divided by the allowable stress schedule the user entered on `
       + `${reference.materials?.join(", ") || "the element's material"} at `
       + `${reference.temperature_c} C, interpolated between schedule points`;
+  }
+  // One field over several element families (merge_quantity_overlays) has a
+  // basis per family: a solid's averaged surface value is not an element-end
+  // maximum, and the merged overlay carries only its base family's notes.
+  const parts = (data.parts ?? []).map((part) => [partName(part.overlay_id), firstString(
+    part.averaging, part.stress_basis, isElementMaxVonMises(part.field) ? "element maximum of the two element-end values" : null
+  )]).filter(([, basis]) => basis);
+  if (parts.length > 0) {
+    return parts.map(([name, basis]) => `${name}: ${basis}`).join("; ");
   }
   const stated = firstString(data.derivation, data.averaging);
   if (stated) {
@@ -146,6 +160,12 @@ export function getAveragingBasis(state, legend) {
     return "one value per element, as reported by the solver";
   }
   return null;
+}
+
+function partName(overlayId) {
+  const id = String(overlayId ?? "");
+  if (id.includes(":volume_")) return "solid";
+  return id.startsWith("overlay:shell:") ? "shell" : "line elements";
 }
 
 function isElementMaxVonMises(dataField, legendField) {

@@ -18,7 +18,6 @@ still matches the model and study (``--force`` solves again). The second imports
 from __future__ import annotations
 
 import argparse
-import runpy
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,16 +39,18 @@ def run_model_script(path: str | Path) -> dict[str, Any]:
     ``__main__`` is what links 3D objects to script lines. The script binds
     ``model`` to a TubaModel, or defines ``build_model()`` returning one.
     """
+    from tuba.project.execution import execute_project_script
+
     script = Path(path)
-    namespace = runpy.run_path(str(script), run_name="__main__")
+    namespace = execute_project_script(script)
     model = namespace.get("model")
-    if model is None and callable(namespace.get("build_model")):
-        model = namespace["model"] = namespace["build_model"]()
     if not isinstance(model, TubaModel):
-        raise TypeError(
+        error = TypeError(
             f"{script.name} must bind 'model' to a TubaModel (or define build_model()), "
             f"got {type(model).__name__}."
         )
+        error.__tuba_project_dependencies__ = namespace["__tuba_project_dependencies__"]
+        raise error
     return namespace
 
 
@@ -83,7 +84,9 @@ class Project:
         if not path.is_file():
             return None
         # Not __main__: a study is configuration and review code, not model lines.
-        return SimpleNamespace(**runpy.run_path(str(path), run_name=f"tuba_study.{self.name}.{path.stem}"))
+        from tuba.project.execution import execute_project_script
+
+        return SimpleNamespace(**execute_project_script(path, run_name=f"tuba_study.{self.name}.{path.stem}"))
 
     def load_settings(self, filename: str = STUDY_SCRIPT) -> "StudySettings":
         """The study's validated settings, or the empty record when it has no study.
@@ -105,11 +108,25 @@ def load_project(root: str | Path) -> Project:
 
 def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build a project's review: solve what its evidence no longer matches, or import attested evidence."
+        description="Build a project's review: solve what its evidence no longer matches, or import attested evidence.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Project handoff:\n"
+            "  Unpack .tubaproject with python -m tuba.project.package unpack,\n"
+            "  then pass the folder containing model.py and\n"
+            "  study.py. Keep all referenced helpers, CAD and data beside the source.\n"
+            "  Matching verified evidence/<operation>/ is reused; missing or stale\n"
+            "  operations require Code_Aster. --force requests a new solve.\n\n"
+            "Review handoff:\n"
+            "  Share the complete scene.json bundle written by the study, including\n"
+            "  geometry, reports, metadata and staged solver artifacts. View it with\n"
+            "  python -m tuba.visualization.viewer <bundle-folder> --open.\n\n"
+            "Guide: docs/content/project-sharing.md (Share and open a project)."
+        ),
     )
     parser.add_argument("project", help="Folder holding model.py and study.py")
     parser.add_argument("--output", required=True, type=Path, help="Directory to write the review into")
-    parser.add_argument("--artifact-dir", type=Path, help="Import this attested evidence instead of solving")
+    parser.add_argument("--artifact-dir", type=Path, help="Import complete attested evidence instead of solving (one operation folder, or a parent containing all study operations)")
     parser.add_argument("--force", action="store_true", help="Solve again even if matching evidence exists")
     parser.add_argument("--study", default=STUDY_SCRIPT, help="Study file inside the project (default: study.py)")
     args = parser.parse_args(argv)
@@ -122,34 +139,24 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
         parser.error(f"{args.study}: {exc}")
     operations = settings.operations
     namespace = project.run_model()
-    from tuba.project.script import require_model_script_style
-    from tuba.verify import verify_model
+    from tuba.project.claim import SolveBusy
+    from tuba.project.solve import solve_project, verify_project
 
-    script_text = project.model_path.read_text(encoding="utf-8")
+    artifact_dir = args.artifact_dir
     try:
-        require_model_script_style(script_text)
-    except ValueError as exc:
+        if artifact_dir is None and operations:
+            from tuba.project.evidence import study_artifact_dir
+
+            outcome = solve_project(project, namespace, study_file=args.study, force=args.force, solver=solver)
+            report = outcome.verification
+            artifact_dir = study_artifact_dir(project.root, operations)
+        else:
+            report = verify_project(project, namespace)
+    except (ValueError, SolveBusy) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    report = verify_model(namespace["model"], script=script_text)
     for warning in report.warnings:
         print(f"warning: {warning}", file=sys.stderr)
-    if not report.passed:
-        for error in report.errors:
-            print(f"error: {error}", file=sys.stderr)
-        return 1
-    artifact_dir = args.artifact_dir
-    if artifact_dir is None and operations:
-        from tuba.project.claim import SolveBusy
-        from tuba.project.evidence import study_artifact_dir
-        from tuba.project.solve import solve_project
-
-        try:
-            solve_project(project, namespace, study_file=args.study, force=args.force, solver=solver)
-        except SolveBusy as exc:
-            print(exc, file=sys.stderr)
-            return 1
-        artifact_dir = study_artifact_dir(project.root, operations)
     if settings.build_review is None:
         parser.error(f"{args.study} defines no build_review(namespace, output, ...).")
     root = settings.build_review(namespace, args.output, artifact_dir=artifact_dir)

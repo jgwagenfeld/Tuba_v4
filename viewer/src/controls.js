@@ -1,6 +1,7 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
 import { bodyIdForLayerId } from "./bodies.js";
 import { selectionKey } from "./reviewSelection.js";
+import { fitSelection } from "./selection.js";
 
 export function buildObjectTree(state, options = {}) {
   const groupBy = options.groupBy ?? "engineering";
@@ -241,6 +242,28 @@ export function applySectionBox(state, sectionBox) {
   return withVisibility({ ...state, sectionBox });
 }
 
+// Cut view keeps the section-box shape ({min, max}) so saved views and issue
+// views restore unchanged; `mode` only says how the box was made. A box without
+// one - an older saved view, an issue view's section_box - is a custom box.
+export function cutViewMode(state) {
+  if (!state.sectionBox) return "off";
+  return state.sectionBox.mode === "selection" ? "selection" : "custom";
+}
+
+// The selection's bounds grown by a tenth of their largest span (at least
+// 5 cm) on every side, or null when nothing selected has bounds to fit.
+export function sectionBoxAroundSelection(state) {
+  const fitted = fitSelection(state);
+  if (fitted === state) return null;
+  const bounds = fitted.camera.fitRequest.bounds;
+  const padding = Math.max(0.05, ...[0, 1, 2].map((axis) => (bounds[axis + 3] - bounds[axis]) * 0.1));
+  return {
+    mode: "selection",
+    min: bounds.slice(0, 3).map((value) => value - padding),
+    max: bounds.slice(3).map((value) => value + padding)
+  };
+}
+
 export function sectionBoxDefaults(bounds) {
   const scale = Math.max(1, ...bounds.map((value) => Math.abs(Number(value))));
   const padding = scale * 0.000001;
@@ -264,6 +287,7 @@ export function saveViewState(state, name) {
     hiddenObjectIds: [...(state.hiddenObjectIds ?? [])],
     isolatedObjectIds: [...(state.isolatedObjectIds ?? [])],
     sectionBox: state.sectionBox,
+    valueLabelsVisible: state.valueLabelsVisible !== false,
     visibleLayers: Object.fromEntries(Object.entries(state.layers).map(([id, layer]) => [id, layer.visible]))
   };
 }
@@ -282,6 +306,7 @@ export function restoreViewState(state, view) {
     hiddenObjectIds: [...(view.hiddenObjectIds ?? [])],
     isolatedObjectIds: [...(view.isolatedObjectIds ?? [])],
     sectionBox: view.sectionBox,
+    valueLabelsVisible: view.valueLabelsVisible ?? state.valueLabelsVisible,
     layers
   });
 }

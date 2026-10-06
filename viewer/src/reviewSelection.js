@@ -1,7 +1,12 @@
+import { getInterfaceMappings } from "./interfaceMappings.js";
+
 // Nodes and result arrows remain individually selectable. Structural bodies
 // share an engineering identity across their reference and solved shapes.
 export function selectionKey(object) {
+  if (["interface_mapping", "mesh_problem", "mesh_size_sample", "mesh_refinement_target"].includes(object?.kind)) return object.id;
   const ref = object?.entity_ref ?? object?.metadata?.source_ref;
+  if (typeof ref === "string" && ref.startsWith("component:") &&
+      ["imported_component", "local_coordinate_axis"].includes(object.kind)) return ref;
   if (typeof ref === "string" && ref.startsWith("element:") && !String(object.kind).includes("node") &&
       !String(object.kind).endsWith("_vector") && object.kind !== "applied_load") return ref;
   return object?.id;
@@ -9,6 +14,7 @@ export function selectionKey(object) {
 
 export function relatedSelectionIds(state, objectIds) {
   const ids = new Set(objectIds);
+  for (const id of objectIds) for (const mapping of getInterfaceMappings(state, id)) ids.add(mapping.id);
   const keys = new Set((state.objects ?? []).filter(o => ids.has(o.id)).map(selectionKey));
   return (state.objects ?? []).filter(o => ids.has(o.id) || keys.has(selectionKey(o))).map(o => o.id);
 }

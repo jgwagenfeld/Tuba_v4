@@ -1,6 +1,7 @@
 """Project solve: reuse, force, staging and promotion through the solver port (spec decisions 11-13, 18, 20)."""
 
 import json
+import hashlib
 import os
 import shutil
 from pathlib import Path
@@ -243,13 +244,35 @@ def test_a_volume_study_exports_its_solids_without_the_tensor_stress_table(tmp_p
     assert not (root / ".tuba" / "staging").exists()
 
 
-def test_a_volume_project_reuses_its_committed_evidence_without_exporting(tmp_path):
+@pytest.mark.parametrize('force', [False, True])
+def test_volume_evidence_never_bypasses_current_verification(tmp_path, monkeypatch, force):
+    from tuba.clash.types import ClashResult
+    from tuba.project import solve as solve_module
+    from tuba.project.solve import ProjectVerificationError
+    from tuba.refs import EntityRef
+
     project = _copy(tmp_path, TEE)
+    folder = project.root / 'evidence' / 'Operating'
+    before = {path.name: hashlib.sha256(path.read_bytes()).digest() for path in folder.iterdir() if path.is_file()}
+    real_verify = solve_module.verify_model
 
-    outcome = solve_project(project, solver=_RefuseToSolve())
+    def verify_with_a_clash(model, **kwargs):
+        report = real_verify(model, **kwargs)
+        report.clashes.append(ClashResult(
+            left=EntityRef("element", "branch"), right=EntityRef("element", "line_left"),
+            severity="hard", distance_m=0.0, penetration_m=0.01,
+        ))
+        return report
 
-    assert (outcome.solved, outcome.reused, outcome.unverified) == ((), ("Operating",), ())
-    assert outcome.runs["Operating"].study.metadata["volume_analysis"]
+    # The committed evidence matches this model. An attested past solve still
+    # cannot authorize skipping today's verification gate.
+    monkeypatch.setattr(solve_module, "verify_model", verify_with_a_clash)
+    with pytest.raises(ProjectVerificationError) as error:
+        solve_project(project, solver=_RefuseToSolve(), force=force)
+
+    assert len(error.value.report.blocking_clashes) == 1
+    assert {path.name: hashlib.sha256(path.read_bytes()).digest() for path in folder.iterdir() if path.is_file()} == before
+    assert not (project.root / '.tuba').exists()
 
 
 def test_an_interrupted_promotion_leaves_the_operation_unsolved_and_the_next_solve_repeats_it(tmp_path, monkeypatch):

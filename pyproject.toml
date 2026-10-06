@@ -93,7 +93,7 @@ dev = [
     "pyyaml>=6",
 ]
 mcp = [
-    "mcp>=1.0.0,<2",
+    "mcp>=2.2.0,<3",
 ]
 
 [dependency-groups]

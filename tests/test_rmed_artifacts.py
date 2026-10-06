@@ -8,6 +8,24 @@ from tuba.analysis.rmed import read_rmed_mesh_summary
 
 
 class TestRmedArtifacts(unittest.TestCase):
+    def test_static_med_time_step_geometry(self):
+        try:
+            import h5py
+        except ImportError:
+            self.skipTest("h5py is an optional RMED dependency")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "current.rmed"
+            with h5py.File(path, "w") as file:
+                frame = file.create_group("ENS_MAA/mesh/-0000000000000000001-0000000000000000001")
+                coordinates = frame.create_dataset("NOE/COO", data=np.zeros(6))
+                coordinates.attrs["NBR"] = 2
+                connectivity = frame.create_dataset("MAI/SE2/NOD", data=[1, 2])
+                connectivity.attrs["NBR"] = 1
+            summary = read_rmed_mesh_summary(path)
+        self.assertEqual(summary, {"mesh_name": "mesh", "node_count": 2,
+                                  "element_count": 1, "element_types": {"SE2": 1}})
+
     def test_missing_h5py_error_is_actionable_or_summary_loads(self):
         try:
             import h5py

@@ -37,9 +37,11 @@ with model.pipe(section="DN100", material="Steel") as builder:
 """
 
 
-def _rebuild(text: str) -> TubaModel:
+def _rebuild(text: str, script_path: Path | None = None) -> TubaModel:
     namespace: dict = {"__name__": "generated_model_check"}
-    exec(compile(text, "model.py", "exec"), namespace)
+    if script_path is not None:
+        namespace["__file__"] = str(script_path)
+    exec(compile(text, str(script_path or "model.py"), "exec"), namespace)
     return namespace["model"]
 
 
@@ -69,7 +71,7 @@ def test_a_generated_script_rebuilds_each_example_project(folder: Path):
     text = generate_model_script(model, prologue=prologue)
 
     assert is_generated(text)
-    assert same_model(model, _rebuild(text))
+    assert same_model(model, _rebuild(text, folder / "model.py"))
 
 
 def test_a_generated_script_keeps_awkward_names_and_numbers():
@@ -91,6 +93,46 @@ def test_a_generated_script_keeps_awkward_names_and_numbers():
     model.add_obstacle(id="far", type="cuboid", min_point=(float("-inf"), 0.0, 0.0), max_point=(float("inf"), 1.0, 1.0))
 
     assert same_model(model, _rebuild(generate_model_script(model)))
+
+
+def test_generated_mixed_records_navigate_to_new_definition_lines(tmp_path, monkeypatch):
+    import tuba.mcp.server as server
+
+    authored = tmp_path / "authored.py"
+    authored.write_text(
+        "from tuba import Model\n\ndef part(model):\n"
+        "    model.add_cad_asset(id='asset', source_path='geometry/part.step')\n"
+        "    model.add_imported_component(id='part', asset='cad_asset:asset', name='Part')\n"
+        "    model.add_port(id='inlet', owner='component:part', kind='circular_face', position=[0,0,0], axis=[1,0,0], radius=.05)\n"
+        "    reference=model.add_reference_point('reference', position=[0,0,0])\n"
+        "    model.add_shell_panel('panel', polygon=[[0,0,0],[1,0,0],[0,1,0]], thickness=.01, material='Steel')\n"
+        "    model.add_rigid_patch('patch', reference=reference, shell='panel', vertices=[0])\n"
+        "\nmodel=Model('Navigation')\nmodel.add_material('Steel', E=2.1e11, nu=.3)\npart(model)\n"
+    )
+    original = run_model_script(authored)["model"]
+    assert original.imported_components["part"].source_line == 5
+    assert original.imported_components["part"].source_call_line == 13
+    generated = tmp_path / "model.py"
+    text = generate_model_script(original)
+    generated.write_text(text)
+    assert "source_line=" not in text and "source_call_line=" not in text
+    rebuilt = run_model_script(generated)["model"]
+    assert same_model(original, rebuilt)
+    for name in ("_ACTIVE_MODEL", "_ACTIVE_PATH", "_SCRIPT_TEXT", "_EDIT_FINGERPRINTS"):
+        monkeypatch.setattr(server, name, getattr(server, name))
+    server.init_session(file_path=str(generated))
+    inspected = server.inspect_model()
+    for collection, method in (("cad_assets", "add_cad_asset"), ("imported_components", "add_imported_component"),
+                               ("analysis_regions", "add_analysis_region"), ("ports", "add_port"),
+                               ("mesh_groups", "add_mesh_group"), ("couplings", "add_coupling")):
+        for identity, record in getattr(rebuilt, collection).items():
+            definition = next(number for number, line in enumerate(text.splitlines(), 1)
+                              if line.startswith(f"model.{method}(id={identity!r},"))
+            assert record.source_line == definition
+            assert record.source_call_line is None
+            if collection in inspected:
+                assert inspected[collection][identity]["source_line"] == definition
+                assert "source_call_line" not in inspected[collection][identity]
 
 
 def test_a_generated_script_keeps_groups_specs_attributes_operations_and_placements():

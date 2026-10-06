@@ -1,4 +1,5 @@
 import json
+import shlex
 import subprocess
 import unittest
 from pathlib import Path, PureWindowsPath
@@ -29,6 +30,30 @@ from tuba.solver.aster import CodeAsterSolver
 
 
 class TestCodeAsterRuntime(unittest.TestCase):
+    def test_fresh_execution_cannot_attest_old_result_tables(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study.export").write_text("", encoding="utf-8")
+            for name in ("study_execution.json", "study_effo.csv", "study_sigm.csv"):
+                (root / name).write_text("stale", encoding="utf-8")
+            candidate = CodeAsterRuntimeCandidate("command", ("run_aster",))
+
+            def execute(*args, **kwargs):
+                for name in ("study_execution.json", "study_effo.csv", "study_sigm.csv"):
+                    self.assertFalse((root / name).exists())
+                (root / "study.mess").write_text("Code_Aster Version 17.1.0\n", encoding="utf-8")
+                for name in ("study.rmed", "study_depl.csv", "study_reac.csv", "study_sieq.csv"):
+                    (root / name).write_text("fresh", encoding="utf-8")
+                return subprocess.CompletedProcess(args[0], 0, "", "")
+
+            with patch.object(runtime, "discover_code_aster_runtimes", return_value=[candidate]), \
+                 patch.object(runtime.subprocess, "run", side_effect=execute):
+                execution = run_code_aster_export(root / "study.export", root, CodeAsterRuntimeConfig())
+            identity = SolverInputIdentity("f" * 64, "Cold", "tuba.model.v4", CODE_ASTER_COMPILER_ID)
+            with patch.object(runtime, "attested_code_aster_files", return_value=("study.mess", "study_effo.csv")), \
+                 self.assertRaisesRegex(ValueError, "study_effo.csv"):
+                runtime.write_code_aster_execution_attestation(root, execution, identity)
+
     def test_expected_attestation_artifacts_follow_study_metadata(self):
         standard = {
             "study.comm",
@@ -105,6 +130,17 @@ class TestCodeAsterRuntime(unittest.TestCase):
             ),
             volume,
         )
+
+    def test_shell_only_inventory_omits_line_force_table_but_preserves_mixed_legacy(self):
+        metadata = {"mixed_analysis": True, "volume_analysis": True}
+        legacy = runtime.expected_code_aster_artifact_files(metadata, compiler_id=MIXED_CODE_ASTER_COMPILER_ID)
+        shell = runtime.expected_code_aster_artifact_files(
+            {**metadata, "line_force_exported": False}, compiler_id=MIXED_CODE_ASTER_COMPILER_ID)
+        self.assertEqual(set(shell), set(legacy) - {"study_effo.csv"})
+        for invalid in (None, "false", 0):
+            with self.assertRaisesRegex(ValueError, "line_force_exported"):
+                runtime.expected_code_aster_artifact_files(
+                    {**metadata, "line_force_exported": invalid}, compiler_id=MIXED_CODE_ASTER_COMPILER_ID)
 
     def test_contact_history_artifact_is_required_only_for_declared_contact_law(self):
         legacy = runtime.expected_code_aster_artifact_files({}, compiler_id=CODE_ASTER_COMPILER_ID)
@@ -346,8 +382,30 @@ class TestCodeAsterRuntime(unittest.TestCase):
             )
 
         self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
-        self.assertIn("run_aster study.export", command[-1])
+        self.assertIn("then run_aster --wrkdir ", command[-1])
+        self.assertIn("study.export;", command[-1])
         self.assertIsNone(cwd)
+
+    def test_wsl_scratch_is_study_local_fresh_and_quotes_spaces_and_apostrophes(self):
+        root = PureWindowsPath("D:/Tuba Study's Output")
+        export = root / "study case's.export"
+        config = CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={})
+        scratch = []
+        for _ in range(2):
+            command, cwd = build_code_aster_command(export, root, config)
+            script = command[-1]
+            invocation = "run_aster " + script.split("then run_aster ", 1)[1].split("; elif", 1)[0]
+            args = shlex.split(invocation)
+            self.assertEqual(args[:2], ["run_aster", "--wrkdir"])
+            self.assertTrue(args[2].startswith("/mnt/d/Tuba Study's Output/.aster-work/"))
+            self.assertEqual(args[3:], ["study case's.export"])
+            self.assertIn("then as_run " + shlex.quote(export.name) + ";", script)
+            self.assertIn("then aster " + shlex.quote(export.name) + ";", script)
+            self.assertNotIn("as_run --wrkdir", script)
+            self.assertNotIn("aster --wrkdir", script.replace("run_aster --wrkdir", ""))
+            self.assertIsNone(cwd)
+            scratch.append(args[2])
+        self.assertNotEqual(scratch[0], scratch[1])
 
     def test_command_mode_runs_configured_runner_in_work_dir(self):
         with TemporaryDirectory() as tmpdir:
@@ -466,9 +524,9 @@ class TestCodeAsterRuntime(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            (root / "study.mess").write_text("line 1\nfatal solver error\n", encoding="utf-8")
 
             def fake_run(cmd, **_kwargs):
+                (root / "study.mess").write_text("line 1\nfatal solver error\n", encoding="utf-8")
                 return subprocess.CompletedProcess(cmd, 2, stdout="solver stdout", stderr="solver stderr")
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):

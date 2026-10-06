@@ -13,8 +13,8 @@ Source folder: `evidence/Operating`
 | Analysis mesh | analysis_mesh:Operating |
 | Mesh size | 57 nodes, 36 elements |
 | Solver | Code_Aster 18.0.12 |
-| Execution | python_bridge |
-| Solved at | 2026-09-30T13:43:46.894362Z |
+| Execution | wsl |
+| Solved at | 2026-10-04T17:04:42.455329Z |
 | Evidence | **verified** — the attestation is intact and the run was verified. |
 
 ## Code_Aster commands in the generated .comm
@@ -25,17 +25,17 @@ Source folder: `evidence/Operating`
 | `AFFE_CHAR_MECA` | 9 |
 | `AFFE_MATERIAU` | 2 |
 | `AFFE_MODELE` | 1 |
-| `CALC_CHAMP` | 1 |
+| `CALC_CHAMP` | 2 |
 | `CREA_CHAMP` | 2 |
 | `CREA_RESU` | 1 |
-| `CREA_TABLE` | 6 |
+| `CREA_TABLE` | 7 |
 | `DEBUT` | 1 |
 | `DEFI_LIST_INST` | 1 |
 | `DEFI_LIST_REEL` | 1 |
 | `DEFI_MATERIAU` | 2 |
 | `FIN` | 1 |
 | `IMPR_RESU` | 1 |
-| `IMPR_TABLE` | 4 |
+| `IMPR_TABLE` | 5 |
 | `LIRE_MAILLAGE` | 1 |
 | `STAT_NON_LINE` | 1 |
 
@@ -53,6 +53,7 @@ Source folder: `evidence/Operating`
 | reac | `study_reac.csv` | R | 40 | node reactions (REAC_NODA) |
 | sieq | `study_sieq.csv` | R | 41 | stress invariants (SIEQ_ELNO) |
 | libr | `study_contact.json` | R | 42 | contact history |
+| sipo | `study_sipo.csv` | R | 43 | frame member normal stress (SIPO_ELNO) |
 
 A unit the command file writes but the export omits is silently lost with the run directory; the two lists above are the check on that.
 
@@ -60,18 +61,19 @@ A unit the command file writes but the export omits is silently lost with the ru
 
 | File | Size | SHA-256 |
 | --- | --- | --- |
-| `study.comm` | 9.0 kB | `7c1d55b7db2a236e…` |
-| `study.export` | 377 B | `49d368425faa339a…` |
+| `study.comm` | 9.5 kB | `80c970f998616e36…` |
+| `study.export` | 404 B | `85dc46238025a16f…` |
 | `study.mail` | 7.2 kB | `733835882f248f56…` |
-| `study.mess` | 78.1 kB | `6bee4831d0f6c40a…` |
-| `study.rmed` | 1.24 MB | `c8e7705ab142e304…` |
+| `study.mess` | 84.5 kB | `e4c0980da72553ba…` |
+| `study.rmed` | 1.24 MB | `e165c552e0adc954…` |
 | `study_contact.json` | 205 B | `9efd5c90ffda2cd4…` |
-| `study_depl.csv` | 18.6 kB | `38119e2e7c8e7aeb…` |
-| `study_effo.csv` | 32.6 kB | `99626876efa5bca6…` |
-| `study_manifest.json` | 52.6 kB | `dc4afd5c906b143f…` |
-| `study_reac.csv` | 18.6 kB | `423b02a470a980d6…` |
-| `study_sieq.csv` | 2.94 MB | `98cea3061daaa488…` |
-| `study_tuba_fem.json` | 5.0 kB | `445693e59a057375…` |
+| `study_depl.csv` | 18.6 kB | `dcd13a3789f22bc7…` |
+| `study_effo.csv` | 32.6 kB | `769d724b5cfa1c0b…` |
+| `study_manifest.json` | 52.6 kB | `32f49736a9d597db…` |
+| `study_reac.csv` | 18.6 kB | `3cd27acb2b3696c3…` |
+| `study_sieq.csv` | 2.94 MB | `d69a2d98eef60458…` |
+| `study_sipo.csv` | 9.2 kB | `eab5e84624dc7332…` |
+| `study_tuba_fem.json` | 5.0 kB | `e9d6b57b5ae1a3e9…` |
 
 These hashes are what the solve attested. The evidence verdict above is taken by re-checking them against the files on disk.
 

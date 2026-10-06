@@ -135,7 +135,7 @@ use the support definition, including `pipe.end(support="anchor")`.
 
 The browser rail is one column of sections, not a set of tabs; see [visualization architecture](architecture/visualization.md) for what each holds. What colours the scene - a model property or a solver field - is chosen from the pinned **Colour by** control, above the result refinements, the layer list, and the issue list. The review's tables live in the generated report that the header links to.
 
-Those controls live in three places, not in a section of their own. Load-case and result-component selection, and physical or visual deformation, are with the result refinements. Camera presets and zoom sit on the viewport itself, beside the orientation gizmo. The six-plane section box is behind **Section box** at the foot of the rail. Section inputs clip crossing geometry in the renderer; they are not object-level hide/show filters.
+Those controls live in three places, not in a section of their own. Load-case and result-component selection, and physical or visual deformation, are with the result refinements. Camera presets and zoom sit on the viewport itself, beside the orientation gizmo. Cutting the model open is **Display → Cut view**: *Off*, *Around selection* (a box fitted to the selection plus 10 %), or *Custom* (one two-handle range per axis; click a readout to type an exact value). Right-click a selection and choose **Cut view around selection** for the same box. The box clips geometry that crosses it, and hides objects that lie wholly outside it.
 
 [Open the Code_Aster review scene](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
 

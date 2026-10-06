@@ -218,6 +218,30 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertNotIn("result_state.missing_node_geometry", {item.code for item in scene.diagnostics})
         self.assertEqual(len([obj for obj in scene.objects if obj.kind == "displacement_vector"]), 2)
 
+    def test_a_frame_members_normal_stress_is_its_own_field_beside_von_mises(self):
+        model, result_state = _model_and_result_state()
+        model.add_rectangular_section("Box", height_y=0.06, height_z=0.06, thickness_y=0.003, thickness_z=0.003)
+        n2 = model.add_node([1.0, 0.0, 1.0])
+        model.add_element(id="beam_0", type="beam", n1="N1", n2=n2, section="Box", material="Steel")
+        result_state = replace(
+            result_state,
+            node_displacements={**result_state.node_displacements, n2: (0.0,) * 6},
+            element_results={**result_state.element_results, "beam_0": {
+                "forces_n1": [0.0] * 6, "forces_n2": [0.0] * 6, "max_normal_stress": 165.0e6}},
+        )
+
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state]))
+        scene.validate()
+
+        beam = _result_overlay(scene, "beam_normal_stress")
+        self.assertEqual(beam.data["values"], {"object:element:beam_0": 165.0e6})
+        self.assertIn("SIPO_ELNO", beam.data["derivation"])
+        self.assertEqual(beam.data["compliance_role"], "visualization_only_not_asme_code_stress")
+        # Von Mises keeps only what von Mises exists for.
+        self.assertNotIn("object:element:beam_0", _result_overlay(scene, "stress").data["values"])
+        labels = {field.label for field in scene.result_fields}
+        self.assertIn("Beam normal stress", labels)
+
     def test_volume_stress_colors_the_analysis_surface_without_element_overlay(self):
         model, result_state = _model_and_result_state()
         model.add_support("N0", type="anchor")
@@ -289,6 +313,8 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         )
         self.assertEqual(displacement_asset.generation_config["vertex_values"], [0.0, 0.1, 0.2])
         self.assertEqual(displacement_asset.generation_config["deformation_scale"], 1.0)
+        # Both fields colour the one solved shape.
+        self.assertEqual(asset.generation_config["vertices"], displacement_asset.generation_config["vertices"])
         reaction = _result_overlay(scene, "reaction_force")
         self.assertEqual(reaction.data["vectors"][0]["node_id"], "N0")
         self.assertEqual(reaction.data["vectors"][0]["reaction_force_n"], [100.0, 0.0, 0.0])

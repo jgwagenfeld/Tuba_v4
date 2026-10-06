@@ -14,7 +14,17 @@ import webbrowser
 
 
 def viewer_assets_path():
-    """Return the installed viewer asset directory."""
+    """Return packaged assets, or an explicitly selected source-checkout build."""
+    override = os.environ.get("TUBA_VIEWER_ASSETS")
+    if override is not None:
+        if not override.strip():
+            raise ValueError("TUBA_VIEWER_ASSETS must name a built viewer directory.")
+        root = Path(override).expanduser().resolve()
+        if not root.is_dir():
+            raise ValueError(f"TUBA_VIEWER_ASSETS directory does not exist: {root}")
+        if not (root / "index.html").is_file():
+            raise ValueError(f"TUBA_VIEWER_ASSETS is incomplete (missing index.html): {root}")
+        return root
     return files("tuba.visualization").joinpath("_viewer")
 
 
@@ -87,8 +97,17 @@ def create_server(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Serve the packaged Tuba review viewer.")
-    parser.add_argument("bundle_directory", help="Scene bundle directory containing scene.json")
+    parser = argparse.ArgumentParser(
+        description="Serve the packaged Tuba review viewer.",
+        epilog=(
+            "Extract a received review ZIP and keep the complete bundle: scene.json, "
+            "geometry, reports, metadata and staged solver artifacts. Viewing existing "
+            "results needs no new Code_Aster execution. To edit or solve a project, use "
+            "python -m tuba.cli_studio <folder-containing-model.py>. "
+            "Guide: docs/content/project-sharing.md (Share and open a project)."
+        ),
+    )
+    parser.add_argument("bundle_directory", help="Complete extracted scene bundle directory containing scene.json")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true", dest="open_browser")

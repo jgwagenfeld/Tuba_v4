@@ -30,6 +30,10 @@ def _browser_preview(code):
     except BaseException as error:
         if isinstance(error, ModuleNotFoundError) and error.name in {'gmsh', 'meshio', 'ifcopenshell', 'h5py', 'pyvista'}:
             return json.dumps({'ok': False, 'error': f'This script needs {error.name}, a native package unavailable in the browser. Download model.py and run it in Tuba.'})
+        # A command-line tool (argparse in main()) exits when the preview runs it
+        # with no arguments. Said plainly rather than as "SystemExit: 2".
+        if isinstance(error, SystemExit):
+            return json.dumps({'ok': False, 'error': 'This script reads command-line arguments (a file to import, an output folder), which the browser preview cannot give it. Download model.py and run it in Tuba.'})
         line = getattr(error, 'lineno', None) if isinstance(error, SyntaxError) else None
         tb = error.__traceback__
         while tb is not None:

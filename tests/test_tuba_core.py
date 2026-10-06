@@ -533,6 +533,46 @@ class TestCodeAsterSolver(unittest.TestCase):
         reloaded = Model.from_dict(tension_only_model.to_dict())
         self.assertEqual(reloaded.sections["GuySec"].compression_modulus_ratio, 1.0e-4)
 
+        # The mast's beam stress (SIPO_ELNO) refuses a material that also
+        # carries CABLE, so the shared Steel is written twice: ELAS only for the
+        # mast, and an indexed ELAS + CABLE copy the guy alone is given.
+        steel = default_comm.split("MAT_STEEL = DEFI_MATERIAU(", 1)[1].split(");", 1)[0]
+        self.assertNotIn("CABLE", steel)
+        self.assertIn("MC0 = DEFI_MATERIAU(", default_comm)
+        self.assertIn("MATER=MC0),", default_comm)
+
+    def test_a_cable_copy_never_takes_an_authored_materials_name(self):
+        from tuba.solver.aster import CodeAsterSolver
+
+        model = Model("Cable_Copy_Names")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5, rho=7850)
+        model.add_material("Steel_C", E=7.0e10, nu=0.3, alpha=2.3e-5, rho=2700)
+        model.add_pipe_section("MastSec", OD=0.2, WT=0.008)
+        model.add_cable_section("GuySec", radius=0.006, pretension=5000.0)
+        with model.pipe(section="MastSec", material="Steel") as mast:
+            mast.start([0.0, 0.0, 0.0], support="anchor")
+            mast.set_direction([0.0, 0.0, 1.0])
+            mast.beam(5.0)
+            mast.end()
+        with model.pipe(section="MastSec", material="Steel_C") as arm:
+            arm.start([0.0, 0.0, 5.0])
+            arm.set_direction([1.0, 0.0, 0.0])
+            arm.beam(1.0)
+        with model.pipe(section="GuySec", material="Steel") as guy:
+            guy.start([0.0, 0.0, 5.0])
+            guy.set_direction([3.0, 0.0, -5.0])
+            guy.cable(5.830951894845301)
+            model.add_support(node=guy.last_node_id, type="anchor")
+        model.define_load_case("Wind", gravity=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            CodeAsterSolver().export_study(model, "Wind", Path(tmpdir))
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertEqual(comm.count("MAT_STEEL_C = DEFI_MATERIAU("), 1)
+        aluminium = comm.split("MAT_STEEL_C = DEFI_MATERIAU(", 1)[1].split(");", 1)[0]
+        self.assertIn("E=7.000000E+10", aluminium)
+        self.assertNotIn("CABLE", aluminium)
+
     def test_cables_alone_are_solved_nonlinearly_without_a_contact_definition(self):
         """A cable is nonlinear by itself, with or without a resting support.
 

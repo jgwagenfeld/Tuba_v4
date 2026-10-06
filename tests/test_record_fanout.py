@@ -89,19 +89,32 @@ def test_element_encoding_stays_conditional_and_float_cast():
     }
 
 
-def test_support_encoding_omits_imposed_displacement():
-    """Pinned, not accidental: the record carries the field, the encoding drops it.
-
-    ``imposed_displacement`` is consumed by reporting and contact code but was never
-    serialized; making the encoding canonical must not silently change that. A
-    follow-up decides whether the encoding should carry it.
-    """
+def test_support_encoding_preserves_imposed_displacement():
+    """Saving must not turn a moving restraint into a fixed zero restraint."""
     model = _record_model()
     support = model.supports[0]
 
     assert support.imposed_displacement == [0.0, 0.0, 0.001]
-    assert "imposed_displacement" not in support.to_dict()
-    assert set(support.to_dict()) == SUPPORT_KEYS - {"imposed_displacement"}
+    assert support.to_dict()["imposed_displacement"] == [0.0, 0.0, 0.001]
+    assert set(support.to_dict()) == SUPPORT_KEYS - {"attachment_mode"}
+    restored = Model.from_dict(model.to_dict())
+    assert restored.supports[0].imposed_displacement == support.imposed_displacement
+
+
+def test_prescribed_support_displacement_cannot_compile_as_zero(tmp_path):
+    from tuba.solver.aster import CodeAsterSolver
+
+    model = Model("Prescribed movement")
+    model.add_material("Steel", E=2e11, nu=0.3)
+    model.add_pipe_section("Pipe", OD=0.08, WT=0.003)
+    with model.pipe(section="Pipe", material="Steel") as pipe:
+        pipe.start([0, 0, 0]).run(1.0)
+    model.add_support(pipe.last_node_id, "anchor", imposed_displacement=[0, 0, 0.08])
+    model.define_load_case("Moved", gravity=False)
+    restored = Model.from_dict(model.to_dict())
+    with pytest.raises(ValueError, match="Prescribed support displacement"):
+        CodeAsterSolver().export_analysis_study(restored, "Moved", tmp_path / "solve")
+    assert not (tmp_path / "solve").exists()
 
 
 def _operation_schema(op: str) -> dict:

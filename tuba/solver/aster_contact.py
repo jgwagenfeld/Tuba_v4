@@ -94,12 +94,14 @@ def validate_path(model, load_case, load_path):
 
 
 def attachment_equations(model, support, helper, dofs, map_name):
-    """Tie at the physical attachment point, including its rigid-rotation offset."""
+    """Tie selected global DOFs, with the authored attachment's offset convention."""
+    support.__post_init__()
     helper, other = map_name(helper), map_name(f"GN_{support.attached_to}")
     dx, dy, dz = map(float, model.nodes[support.node].coords - model.nodes[support.attached_to].coords)
     # Contact/spring helpers have a fictitious 1 m separation. The lever arm is
     # between the authored nodes, so displacement = translation + rotation x offset.
-    rotations = {"DX": (0., -dz, dy), "DY": (dz, 0., -dx), "DZ": (-dy, dx, 0.)}
+    rotations = ({"DX": (0., -dz, dy), "DY": (dz, 0., -dx), "DZ": (-dy, dx, 0.)}
+                 if support.attachment_mode == "rigid_offset" else {})
     for dof in dofs:
         groups, degrees, coefficients = [helper, other], [dof, dof], [1., -1.]
         for rotation, coefficient in zip(("DRX", "DRY", "DRZ"), rotations.get(dof, ())):

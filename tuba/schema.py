@@ -46,6 +46,7 @@ _SUPPORT_PROPERTIES = {
     "normal_stiffness": {"type": "number", "exclusiveMinimum": 0},
     "tangential_stiffness": {"type": "number", "exclusiveMinimum": 0},
     "attached_to": {"type": "string"},
+    "attachment_mode": {"enum": ["rigid_offset", "dof_equality"]},
 }
 _PATCH_SUPPORT_PROPERTIES = {key: value for key, value in _SUPPORT_PROPERTIES.items() if key != "id"}
 
@@ -294,6 +295,27 @@ MODEL_SCHEMA_V4 = {
             "type": "object",
             "additionalProperties": {"$ref": "#/$defs/couplingSpec"},
         },
+        "mesh_settings": {
+            "type": "object",
+            "properties": {
+                "global_size_m": {"type": "number", "exclusiveMinimum": 0},
+                "size_factor": {"type": "number", "exclusiveMinimum": 0},
+                "region_sizes_m": {"type": "object", "additionalProperties": {"type": "number", "exclusiveMinimum": 0}},
+            }, "additionalProperties": False,
+        },
+        "mesh_refinements": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object", "required": ["id", "target", "size_m", "influence_distance_m", "transition_distance_m"],
+                "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "target": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "object"}]},
+                    "size_m": {"type": "number", "exclusiveMinimum": 0},
+                    "influence_distance_m": {"type": "number", "minimum": 0},
+                    "transition_distance_m": {"oneOf": [{"type": "null"}, {"type": "number", "exclusiveMinimum": 0}]},
+                }, "additionalProperties": False,
+            },
+        },
     },
     "$defs": {
         "entityRef": {
@@ -464,7 +486,7 @@ MODEL_SCHEMA_V4 = {
                 "owner": {"$ref": "#/$defs/entityRefLike"},
                 "role": {"type": "string", "minLength": 1},
                 "code_aster_modelisation": {"type": "string", "minLength": 1},
-                "material": {"type": "string", "minLength": 1},
+                "material": {"type": "string"},
                 "mesh_group": {"type": "string", "minLength": 1},
                 "element_order": {"type": "integer", "minimum": 1},
                 "status": {"type": "string"},

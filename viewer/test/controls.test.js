@@ -12,6 +12,8 @@ import {
   groupIssues,
   restoreViewState,
   saveViewState,
+  cutViewMode,
+  sectionBoxAroundSelection,
   sectionBoxDefaults
 } from "../src/controls.js";
 
@@ -201,6 +203,33 @@ test("saveViewState and restoreViewState roundtrip selection and sectioning", ()
     "object:element:pipe_0",
     "object:issue:clash:element:pipe_0:obstacle:equipment_box"
   ]);
+});
+
+test("cut view around the selection pads its box by a tenth of the largest span", () => {
+  assert.equal(sectionBoxAroundSelection(fixtureState()), null, "nothing selected, nothing to fit");
+  const state = selectObject(fixtureState(), "object:element:pipe_0");
+  const box = sectionBoxAroundSelection(state);
+
+  assert.equal(box.mode, "selection");
+  assert.deepEqual(box.min.map((value) => Number(value.toFixed(6))), [-0.2, -0.3, -0.3]);
+  assert.deepEqual(box.max.map((value) => Number(value.toFixed(6))), [2.2, 0.3, 0.3]);
+  assert.equal(cutViewMode(applySectionBox(state, box)), "selection");
+});
+
+test("cut view mode reads Off, and a box without a mode as Custom", () => {
+  const state = fixtureState();
+  assert.equal(cutViewMode(state), "off");
+  // An older saved view or an issue view's section_box carries no mode.
+  assert.equal(cutViewMode(applySectionBox(state, { min: [0, 0, 0], max: [1, 1, 1] })), "custom");
+  assert.equal(cutViewMode(applySectionBox(state, { mode: "custom", min: [0, 0, 0], max: [1, 1, 1] })), "custom");
+});
+
+test("saved views carry Show values, and older views leave it as it is", () => {
+  const view = saveViewState({ ...fixtureState(), valueLabelsVisible: false }, "Quiet");
+  assert.equal(view.valueLabelsVisible, false);
+  assert.equal(restoreViewState(fixtureState(), view).valueLabelsVisible, false);
+  const { valueLabelsVisible, ...older } = view;
+  assert.equal(restoreViewState({ ...fixtureState(), valueLabelsVisible: false }, older).valueLabelsVisible, false);
 });
 
 test("filterIssues narrows by status severity and type", () => {

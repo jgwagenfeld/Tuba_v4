@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, Mapping, Sequence
+from uuid import uuid4
 
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
@@ -174,7 +175,10 @@ def _build_command_for_candidate(
         return [*candidate.command, export_name], work_dir
     if candidate.kind == "wsl":
         wsl_dir = _win_to_wsl(work_dir)
-        return [*candidate.command, "bash", "-lc", f"cd {shlex.quote(wsl_dir)} && {_runner_detection_script(export_name)}"], None
+        # Explicit run_aster scratch stays with the study for evidence/cleanup.
+        # A fresh child prevents repeated solves appending to an old fort.80.
+        scratch = _win_to_wsl(work_dir / ".aster-work" / uuid4().hex)
+        return [*candidate.command, "bash", "-lc", f"cd {shlex.quote(wsl_dir)} && {_runner_detection_script(export_name, wrkdir=scratch)}"], None
     if candidate.kind == "docker":
         image = candidate.command[-1] if candidate.command else docker_image
         return [
@@ -195,7 +199,7 @@ def _build_command_for_candidate(
     raise ValueError(f"Unsupported Code_Aster runtime kind: {candidate.kind}")
 
 
-def run_code_aster_export(export_file: Path, work_dir: Path, config: CodeAsterRuntimeConfig) -> CodeAsterExecution:
+def run_code_aster_export(export_file: Path, work_dir: Path, config: CodeAsterRuntimeConfig, *, execution_controller=None) -> CodeAsterExecution:
     if not export_file.exists():
         raise FileNotFoundError(f"Export file not found: {export_file}")
 
@@ -204,16 +208,27 @@ def run_code_aster_export(export_file: Path, work_dir: Path, config: CodeAsterRu
         if not candidate.available:
             continue
         command, cwd = _build_command_for_candidate(candidate, export_file, work_dir, docker_image=config.docker_image)
+        # A fresh attempt must never attest tables left by an earlier solve or fallback.
+        for name in (
+            "study_execution.json", "study.mess", "study.rmed", "study_depl.csv",
+            "study_effo.csv", "study_reac.csv", "study_sieq.csv", "study_sigm.csv",
+            "study_contact.json", "study_sipo.csv", *BUCKLING_ATTESTED_CODE_ASTER_FILES,
+        ):
+            (work_dir / name).unlink(missing_ok=True)
         try:
-            result = subprocess.run(
-                command,
-                cwd=str(cwd) if cwd is not None else None,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=config.timeout_seconds,
-            )
+            if execution_controller is not None:
+                result = execution_controller.execute(candidate, command, cwd, config.timeout_seconds, work_dir)
+                execution_controller.check_cancelled()
+            else:
+                result = subprocess.run(
+                    command,
+                    cwd=str(cwd) if cwd is not None else None,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=config.timeout_seconds,
+                )
             execution = CodeAsterExecution(
                 candidate,
                 tuple(command),
@@ -345,6 +360,8 @@ def expected_code_aster_artifact_files(
     compiler_inputs = study_metadata.get("compiler_inputs", {})
     if not isinstance(compiler_inputs, Mapping):
         raise ValueError("Code_Aster compiler_inputs metadata must be an object.")
+    if "line_force_exported" in study_metadata and not isinstance(study_metadata["line_force_exported"], bool):
+        raise ValueError("Code_Aster line_force_exported metadata must be a boolean.")
     contact_files: tuple[str, ...] = ()
     if "contact_law" in compiler_inputs:
         contact_law = compiler_inputs["contact_law"]
@@ -356,7 +373,8 @@ def expected_code_aster_artifact_files(
         if study_metadata.get("pipe_stress_exported") is False:
             files = tuple(name for name in files if name != "study_sieq.csv")
     else:
-        files = VOLUME_ATTESTED_CODE_ASTER_FILES + (("study_effo.csv",) if mixed_analysis else ()) + (
+        line_files = ("study_effo.csv",) if study_metadata.get("line_force_exported", mixed_analysis) else ()
+        files = VOLUME_ATTESTED_CODE_ASTER_FILES + line_files + (
             ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
         )
     if "buckling" in compiler_inputs:
@@ -373,6 +391,9 @@ def expected_code_aster_artifact_files(
             files = files + ("study_buckling.json",)
         else:
             files = files + BUCKLING_ATTESTED_CODE_ASTER_FILES
+    if "beam_stress" in compiler_inputs:
+        # Frame members' SIPO_ELNO table (parse_sipo_table), in 1D and mixed runs alike.
+        files = files + ("study_sipo.csv",)
     return files + contact_files
 
 
@@ -465,6 +486,18 @@ def execution_trust(attestation: Mapping[str, Any] | None) -> Literal["verified"
     return "verified"
 
 
+def export_text(lines: list[str]) -> str:
+    """An export's text, refusing two files on one Fortran unit.
+
+    Code_Aster copies a unit's one fort.N file to every name the export gives
+    it, so a second table on a taken unit silently merges into the first.
+    """
+    units = [line.split()[-1] for line in lines if line.startswith("F ")]
+    if duplicated := sorted({unit for unit in units if units.count(unit) > 1}):
+        raise ValueError(f"Code_Aster export names more than one file on unit(s) {duplicated}.")
+    return "\n".join(lines)
+
+
 def write_artifact_text(path: str | Path, text: str) -> None:
     """Write a solver artifact without letting the platform choose its line endings.
 
@@ -541,11 +574,12 @@ def _win_to_wsl(path: Path) -> str:
     return posix
 
 
-def _runner_detection_script(export_name: str) -> str:
+def _runner_detection_script(export_name: str, *, wrkdir: str | None = None) -> str:
     export_arg = shlex.quote(export_name)
+    work_arg = f"--wrkdir {shlex.quote(wrkdir)} " if wrkdir is not None else ""
     return (
         "if [ -f /opt/activate.sh ]; then . /opt/activate.sh; fi; "
-        f"if command -v run_aster >/dev/null 2>&1; then run_aster {export_arg}; "
+        f"if command -v run_aster >/dev/null 2>&1; then run_aster {work_arg}{export_arg}; "
         f"elif command -v as_run >/dev/null 2>&1; then as_run {export_arg}; "
         f"elif command -v aster >/dev/null 2>&1; then aster {export_arg}; "
         'else echo "Code_Aster runner not found" >&2; exit 127; fi'

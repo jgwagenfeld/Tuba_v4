@@ -102,6 +102,10 @@ def _bend_pipe_model():
     return model, n0, n1
 
 
+def _volume_elements(mesh):
+    return {id: mesh.elements[id] for id, source in mesh.element_sources.items() if source.role == "volume_cell"}
+
+
 def _hexa_component_count(elements):
     cells = [tuple(nodes[:8]) for nodes in elements.values()]
     neighbours = [set() for _cell in cells]
@@ -163,12 +167,26 @@ def test_builds_grouped_quadratic_straight_pipe_med(tmp_path):
     assert np.isfinite(np.asarray(generated.surface_vertices)).all()
     assert generated.surface_faces
     assert {len(face) for face in generated.surface_faces} == {4}
-    assert {len(nodes) for nodes in generated.analysis_mesh.elements.values()} == {20}
+    assert {len(nodes) for nodes in _volume_elements(generated.analysis_mesh).values()} == {20}
     assert max(index for face in generated.surface_faces for index in face) < len(generated.surface_vertices)
 
     med = meshio.read(output)
     assert any(block.type == "hexahedron20" for block in med.cells)
     assert not any(block.type.startswith("tetra") for block in med.cells)
+
+
+def test_default_volume_sizing_keeps_remaining_1d_spacing(tmp_path):
+    from tuba.geometry.volume import build_volume_geometry
+    from tuba.meshing.policy import resolve_mesh_policy
+    model, _ = _mixed_straight_pipe_model()
+    geometry = build_volume_geometry(model, ["solid"])
+    policy = resolve_mesh_policy(model, volume_geometry=geometry)
+    assert policy.base_size("element:solid") == pytest.approx(.005)
+    assert policy.base_size("element:left") == pytest.approx(.0125)
+    generated = build_pipe_volume_mesh(model, tmp_path / "default.med", element_ids=["solid"])
+    sources = generated.analysis_mesh.element_sources
+    assert sum(str(s.source_ref) == "element:left" and s.role == "native_element" for s in sources.values()) == 8
+    assert sum(str(s.source_ref) == "element:right" and s.role == "native_element" for s in sources.values()) == 8
 
 
 def test_selected_volume_keeps_remaining_pipes_in_the_same_analysis_mesh(tmp_path):
@@ -199,6 +217,29 @@ def test_selected_volume_keeps_remaining_pipes_in_the_same_analysis_mesh(tmp_pat
     assert all(len(mesh.elements[element_id]) == 3 for element_id in line_elements)
     assert mesh.groups[f"G_NODE_{nodes[1]}"]
     assert mesh.groups[f"G_NODE_{nodes[2]}"]
+
+
+def test_terminal_surface_groups_retain_quadratic_connectivity_without_polluting_solid_group(tmp_path):
+    model, nodes = _mixed_straight_pipe_model()
+    mesh = build_pipe_volume_mesh(model, tmp_path / "surface-records.med",
+        element_ids=["solid"], max_element_size=0.005).analysis_mesh
+    volume_ids = {id for id, source in mesh.element_sources.items() if source.role == "volume_cell"}
+    assert set(mesh.groups["G_SOLID_region_0"]) == volume_ids
+    for node in nodes[1:3]:
+        face_ids = mesh.groups[f"G_END_{node}"]
+        assert face_ids
+        for id in face_ids:
+            assert id in mesh.elements
+            assert len(mesh.elements[id]) == 8
+            assert len(set(mesh.elements[id])) == 8
+            assert all(node_id in mesh.nodes for node_id in mesh.elements[id])
+            assert mesh.element_sources[id].role == "volume_skin"
+            assert str(mesh.element_sources[id].source_ref) == "element:solid"
+            assert mesh.element_sources[id].metadata["solver_element_tag"] == int(id.removeprefix("VS"))
+    skin_ids = {id for id, source in mesh.element_sources.items() if source.role == "volume_skin"}
+    assert skin_ids == {id for name, ids in mesh.groups.items()
+                        if name.startswith(("G_END_", "G_INNER_", "G_OUTER_")) for id in ids}
+    assert not skin_ids & volume_ids
 
 
 @pytest.mark.parametrize(
@@ -236,9 +277,9 @@ def test_builds_grouped_quadratic_bend_pipe_med(tmp_path):
         f"G_END_{n1}",
     ):
         assert generated.groups[name]
-    assert _hexa_component_count(generated.analysis_mesh.elements) == 1
+    assert _hexa_component_count(_volume_elements(generated.analysis_mesh)) == 1
     assert {len(face) for face in generated.surface_faces} == {4}
-    assert {len(nodes) for nodes in generated.analysis_mesh.elements.values()} == {20}
+    assert {len(nodes) for nodes in _volume_elements(generated.analysis_mesh).values()} == {20}
     assert np.isfinite(np.asarray(generated.surface_vertices)).all()
     assert generated.surface_faces
     assert generated.analysis_mesh.surface_mesh
@@ -290,7 +331,7 @@ def test_meshes_conformal_explicit_tee(tmp_path, branch_od):
     assert generated.groups[f"G_TEE_{junction}"]
     assert generated.groups["G_SOLID_region_0"]
     assert {f"G_END_{node}" for node in ends} <= generated.groups.keys()
-    assert _hexa_component_count(generated.analysis_mesh.elements) == 1
+    assert _hexa_component_count(_volume_elements(generated.analysis_mesh)) == 1
     expected_sources = ["element:branch", "element:left", "element:right"]
     assert {str(source.source_ref) for source in generated.analysis_mesh.node_sources.values()} == {
         f"node:{junction}"

@@ -3,10 +3,12 @@ import test from "node:test";
 
 import {
   OPACITY_STEPS,
+  SUBPOINT_MODES,
   ambiguousSubpointNodeKeys,
   SUBPOINT_NODE_ANY,
   UNLABELLED_NODE,
   bodyIdForLayerId,
+  bodyLegendText,
   VECTOR_SCALE_STEPS,
   bodyOpacity,
   bodyOpacityForObjectIds,
@@ -39,9 +41,11 @@ import {
   subpointNodeBase,
   subpointNodeId,
   subpointPassesThreshold,
+  subpointThresholdLabel,
   subpointValueCutoff,
   withDefaultBodyOpacity
 } from "../src/bodies.js";
+import { createViewerState } from "../src/sceneLoader.js";
 
 const MESH_IDENTITY = {
   mesh_id: "analysis_mesh:Hot",
@@ -71,6 +75,17 @@ const SECTION_PROFILE = {
   subpoints_per_node: 231,
   generatrice: { vector: [1, 1, 1], source: "code_aster_gene_tuyau", solved: true }
 };
+
+test("large subpoint payloads without range metadata keep a finite peak cutoff", () => {
+  const state = { subpointMode: "peak", subpointThreshold: .8,
+    geometryAssets: [{ format: "tuyau_subpoint_glyphs", generation_config: {
+      values: [null, "", NaN, ...Array.from({ length: 200000 }, (_, i) => i)]
+    } }] };
+  assert.equal(subpointValueCutoff(state), 199999 * .8);
+  const unavailable = { ...state, geometryAssets: [{ format: "tuyau_subpoint_glyphs",
+    generation_config: { values: [null, "", NaN] } }] };
+  assert.equal(subpointValueCutoff(unavailable), null);
+});
 
 function sceneState(overrides = {}) {
   const layers = {
@@ -224,48 +239,113 @@ test("the mesh identity badge describes the mesh without making it look drawn", 
   assert.equal(getMeshIdentity(state).node_count, 23);
 });
 
-test("badges come from the scene, not from the body name", () => {
+test("the dimension facts the row badges carried live in the details", () => {
   const bodies = getBodies(sceneState());
-  assert.deepEqual(bodies[1].badge, { text: "1D", tone: "accent" });
-  assert.deepEqual(bodies[2].badge, { text: "2.5D", tone: "accent" });
-  assert.equal(bodies[3].badge.text, "DEFORMED");
+  assert.equal(bodies[0].metrics[0], "3D solid");
+  assert.equal(bodies[1].metrics[0], "Mesh: 1D");
+  assert.equal(bodies[2].metrics[0], "2.5D: 1D elements, stress through the wall");
+  assert.ok(bodies.every((body) => !("badge" in body)));
 });
 
 test("mesh metrics name the element family the connectivity actually has", () => {
   const bodies = getBodies(sceneState());
-  assert.deepEqual(bodies[1].metrics, ["11 SEG3 · 23 nodes · TUYAU_3M"]);
+  assert.deepEqual(bodies[1].metrics, ["Mesh: 1D", "11 SEG3 · 23 nodes · TUYAU_3M"]);
+});
+
+// The volume tee carries HEXA20 and TUYAU SEG3 in one mesh. Its badge read
+// "3D" - the highest dimension - and the details named only the first family.
+test("a mixed mesh lists every dimension and family it has", () => {
+  const identity = {
+    ...MESH_IDENTITY,
+    topological_dim: 3,
+    node_count: 56141,
+    element_families: [{ family: "HEXA20", element_count: 11252 }, { family: "SEG3", element_count: 84 }],
+    modelisations: [
+      { modelisation: "3D", element_count: 11252, topological_dim: 3 },
+      { modelisation: "TUYAU_3M", element_count: 84, topological_dim: 1 }
+    ]
+  };
+  const state = sceneState();
+  state.layers["analysis_mesh:identity:m1"] = { ...state.layers["analysis_mesh:identity:m1"], meshIdentity: identity };
+  const mesh = getBodies(state).find((body) => body.id === "analysis_mesh");
+  assert.deepEqual(mesh.metrics, ["Mesh: 1D + 3D", "11252 HEXA20 · 84 SEG3 · 56141 nodes · 3D + TUYAU_3M"]);
+  // "No surface exists" was only true of the line mesh; a solid has a skin.
+  assert.equal(mesh.description, "Pipe and beam elements on the centerline; solid elements, drawn as their outer skin.");
+});
+
+test("a line mesh says its tube is swept, and an unknown mesh claims nothing", () => {
+  const mesh = getBodies(sceneState()).find((body) => body.id === "analysis_mesh");
+  assert.equal(mesh.description, "Pipe and beam elements on the centerline. The tube is swept from section properties.");
+  const state = sceneState();
+  state.layers["analysis_mesh:identity:m1"] = { ...state.layers["analysis_mesh:identity:m1"], meshIdentity: null };
+  assert.equal(getBodies(state).find((body) => body.id === "analysis_mesh").description, "The elements the solver received.");
+});
+
+test("a half-shown body names which of its layers are hidden", () => {
+  const state = sceneState();
+  state.layers["analysis_mesh:skin"] = {
+    id: "analysis_mesh:skin", label: "Volume skin", category: "analysis_mesh", count: 1, visible: true,
+    objectIds: ["o:skin"], source: "object"
+  };
+  state.layers["analysis_mesh:elements"] = { ...state.layers["analysis_mesh:elements"], label: "Elements", visible: false };
+  state.layers["analysis_mesh:group:G_TUBE"] = {
+    id: "analysis_mesh:group:G_TUBE", label: "Elements: Tube", category: "analysis_mesh", count: 1, visible: false,
+    objectIds: ["o:mesh"], source: "object"
+  };
+  const mesh = getBodies(state).find((body) => body.id === "analysis_mesh");
+  assert.equal(mesh.partiallyVisible, true);
+  assert.equal(mesh.status, "Volume skin shown · Elements hidden · some groups hidden");
+  // Every named layer on and a group off: the group is the whole reason.
+  state.layers["analysis_mesh:elements"] = { ...state.layers["analysis_mesh:elements"], visible: true };
+  const groupOnly = getBodies(state).find((body) => body.id === "analysis_mesh");
+  assert.equal(groupOnly.partiallyVisible, true);
+  assert.match(groupOnly.status, /some groups hidden$/);
+  // Fully on or fully off says all there is to say.
+  assert.equal(getBodies(sceneState()).find((body) => body.id === "analysis_mesh").status, null);
+});
+
+test("the deformed row states its load case and display scale", () => {
+  const deformed = (overrides) => getBodies(sceneState(overrides)).find((body) => body.id === "deformed");
+  // A state_type of "deformed" restates the row's name, so only the scale shows.
+  assert.equal(deformed().status, "×50 · display only");
+  const operating = [{ id: "overlay:gs", data: { id: "gs:op", state_type: "deformed", load_case: "Operating", visual_scale: 50 } }];
+  assert.equal(deformed({ geometryStates: operating, activeGeometryStateId: "gs:op" }).status, "Operating · ×50 · display only");
+  // Not shouted: the scene's own words, sentence case.
+  const typed = [{ id: "overlay:gs", data: { id: "gs:op", state_type: "operating" } }];
+  assert.equal(deformed({ geometryStates: typed, activeGeometryStateId: "gs:op", visualDeformationScale: 1 }).status, "Operating");
 });
 
 test("geometry metrics report the tally and the section it was authored with", () => {
   const [geometry] = getBodies(sceneState());
   // o:result_state sits in the same layer but carries no geometry, so it is not
   // tallied as authored content.
-  assert.equal(geometry.metrics[0], "1 pipe · 1 support");
+  assert.equal(geometry.metrics[1], "1 pipe · 1 support");
   // A tenth of a millimetre matters here: 114.3 is DN100, 114 is nothing.
-  assert.equal(geometry.metrics[1], "OD 114.3 · WT 6.02 mm");
+  assert.equal(geometry.metrics[2], "OD 114.3 · WT 6.02 mm");
 });
 
 test("a truncated sub-point field says so rather than reading as full coverage", () => {
   // Measured mode is the one that shows the bundle's own count, so the point of
   // the line is the bundle's truncation and not the display cut.
   const bodies = getBodies(sceneState({ subpointMode: "measured" }));
-  assert.equal(bodies[2].metrics[0], "33 sectors × 7 layers · NSEC 16 · NCOU 3");
-  assert.equal(bodies[2].metrics[1], "2 of 5 points drawn");
+  assert.equal(bodies[2].metrics[1], "33 sectors × 7 layers · NSEC 16 · NCOU 3");
+  assert.equal(bodies[2].metrics[2], "2 of 5 points drawn");
 });
 
 test("the default sub-point body reports its own cut, not the bundle's", () => {
   // Opened without a mode, the field is thinned - so the metric that used to
   // quote the bundle's rendered count now has to quote what the screen shows.
   const bodies = getBodies(sceneState());
-  assert.equal(bodies[2].metrics[1], "top 80% · 1 of 5 points drawn");
-  assert.equal(bodies[2].metrics[2], "drawn through the wall");
+  // At or above 80% of the range top: the worst fifth, not a "top 80%".
+  assert.equal(bodies[2].metrics[2], "≥ 80% of max · 1 of 5 points drawn");
+  assert.equal(bodies[2].metrics[3], "drawn through the wall");
 });
 
 
-test("deformed metrics report the peak and flag the display scale", () => {
+test("deformed metrics report the peak; the display scale is on the row", () => {
   const bodies = getBodies(sceneState());
-  assert.equal(bodies[3].metrics[0], "max |D| 42.6 mm at N14");
-  assert.equal(bodies[3].metrics[1], "drawn at ×50 (display only)");
+  assert.deepEqual(bodies[3].metrics, ["max |D| 42.6 mm at N14"]);
+  assert.match(bodies[3].status, /×50 · display only/);
 });
 
 test("the deformed body reports the scale it is drawn at, not the bundle's", () => {
@@ -285,11 +365,13 @@ test("toggling a body fans out to every layer that draws it", () => {
   assert.equal(getBodies(state)[0].visible, false);
 });
 
-test("toggling analysis mesh automatically dims geometry and restores it", () => {
+// It used to drop Geometry to 35% - off the opacity steps, so the chip read a
+// value it could not cycle back to - and the mesh lines are drawn without a
+// depth test, so nothing needed hiding in the first place.
+test("toggling the FE mesh leaves geometry opacity where the reviewer put it", () => {
   let state = { ...sceneState(), bodyOpacity: { geometry: 1.0, analysis_mesh: 1 } };
   state = setBodyVisibility(state, "analysis_mesh", true);
-  assert.equal(bodyOpacity(state, "geometry"), 0.35);
-
+  assert.equal(bodyOpacity(state, "geometry"), 1.0);
   state = setBodyVisibility(state, "analysis_mesh", false);
   assert.equal(bodyOpacity(state, "geometry"), 1.0);
 });
@@ -512,6 +594,50 @@ test("attachment links appear as their own row only when the scene draws them", 
   assert.equal(hidden.layers.support.visible, true, "toggling links leaves glyphs put");
 });
 
+test("imposed displacements get their own counted row, only when the scene prescribes one", () => {
+  assert.equal(getOverlays(overlayState()).some((overlay) => overlay.id === "imposed_displacement"), false);
+  const state = overlayState();
+  state.layers["support:imposed_displacement"] = {
+    id: "support:imposed_displacement", category: "design", count: 1, visible: true, objectIds: [], source: "object"
+  };
+  const overlays = getOverlays(state);
+  // Right under the supports it is a kind of, inside the same group.
+  assert.deepEqual(overlays.map((overlay) => overlay.id).slice(0, 2), ["support", "imposed_displacement"]);
+  const imposed = overlays.find((overlay) => overlay.id === "imposed_displacement");
+  assert.equal(imposed.label, "Imposed displacements");
+  // Volume and mixed studies impose it exactly (DDL_IMPO): no penalty claim.
+  assert.doesNotMatch(imposed.description, /penalty/i);
+  assert.equal(imposed.count, 1);
+  assert.equal(imposed.scale, null);
+  const hidden = setOverlayVisibility(state, "imposed_displacement", false);
+  assert.equal(hidden.layers["support:imposed_displacement"].visible, false);
+  assert.equal(hidden.layers.support.visible, true, "ordinary supports stay put");
+});
+
+// The scene files a prescribed support under both layers (builders/_objects.py),
+// so it is one of the Supports & BCs as well as an imposed displacement.
+test("a prescribed support counts under both rows, and either row hides it", () => {
+  const support = (id, layerIds) => ({ id: `object:support:${id}`, kind: "support", name: id, geometry_asset_id: `asset:${id}`, layer_ids: layerIds });
+  const asset = (id) => ({ id: `asset:${id}`, format: "point", bounds: [0, 0, 0, 0, 0, 0], object_ids: [`object:support:${id}`], generation_config: {} });
+  const state = createViewerState({
+    scene: {
+      scene_id: "scene:imposed",
+      objects: [support("held", []), support("driven", ["support", "support:imposed_displacement"])],
+      geometry_assets: [asset("held"), asset("driven")],
+      overlays: []
+    }
+  });
+  const rows = Object.fromEntries(getOverlays(state).map((overlay) => [overlay.id, overlay]));
+  assert.equal(rows.support.count, 2);
+  assert.equal(rows.imposed_displacement.count, 1);
+  for (const rowId of ["support", "imposed_displacement"]) {
+    const hidden = setOverlayVisibility(state, rowId, false);
+    assert.equal(hidden.visibleObjectIds.includes("object:support:driven"), false, `${rowId} hides the prescribed support`);
+  }
+  const imposedOff = setOverlayVisibility(state, "imposed_displacement", false);
+  assert.equal(imposedOff.visibleObjectIds.includes("object:support:held"), true, "ordinary supports stay put");
+});
+
 test("cycleVectorScale walks the steps and wraps", () => {
   assert.deepEqual(VECTOR_SCALE_STEPS.map((step) => cycleVectorScale(step)), [1, 2, 5, 0.5]);
   // A scale set by the slider that is not one of the steps starts the cycle
@@ -549,7 +675,7 @@ test("peak mode quotes the cut it drew, and says the marks are through the wall"
   assert.equal(getSubpointDrawnCount(state), 1);
 
   const metrics = getBodies(state).find((candidate) => candidate.id === "subpoints").metrics;
-  assert.ok(metrics.some((metric) => metric.includes("top 80%")));
+  assert.ok(metrics.some((metric) => metric.includes("≥ 80% of max")));
   assert.ok(metrics.some((metric) => metric.includes("1 of 5 points drawn")));
   assert.ok(metrics.some((metric) => metric === "drawn through the wall"));
 });
@@ -810,3 +936,23 @@ test("the body row says which section the panel is showing", () => {
   );
 });
 
+// The chips used to read "Peak" / "Measured" and "top 80%" - the last one
+// inverted, since the cut keeps values at or above 80% of the range top.
+test("sub-point chips say what they draw", () => {
+  assert.deepEqual(SUBPOINT_MODES.map((mode) => mode.label), ["Hot spots", "All points"]);
+  assert.equal(subpointThresholdLabel(sceneState()), "≥ 80% of max");
+  assert.equal(subpointThresholdLabel({ subpointThreshold: 0.5 }), "≥ 50% of max");
+  assert.equal(getBodies(sceneState()).find((body) => body.id === "analysis_mesh").label, "FE mesh");
+});
+
+test("the viewport key names a body without a note by its label alone", () => {
+  assert.equal(bodyLegendText({ id: "geometry", label: "Geometry" }), "Geometry — surface, interpolated");
+  assert.equal(bodyLegendText({ id: "future_body", label: "Future body" }), "Future body");
+});
+
+test("the Mesh body leaves the mesh review diagnostics to the mesh panel", () => {
+  for (const suffix of ["sizing", "targets", "problems"]) {
+    assert.equal(bodyIdForLayerId(`analysis_mesh:review:${suffix}`, "analysis_mesh"), null);
+  }
+  assert.equal(bodyIdForLayerId("analysis_mesh:lines", "analysis_mesh"), "analysis_mesh");
+});

@@ -19,6 +19,8 @@ REFERENCE_TESTS = (
     'tests/test_code_aster_node_temperatures.py',
     'tests/test_code_aster_pipe_volume_reference.py',
     'tests/test_code_aster_mixed_volume_reference.py',
+    'tests/test_code_aster_step_component_reference.py',
+    'tests/test_code_aster_mixed_connections_reference.py',
     'tests/test_code_aster_tee_volume_reference.py',
     'tests/test_code_aster_buckling_reference.py',
     'tests/test_insulation_solver.py',

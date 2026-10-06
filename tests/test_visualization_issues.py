@@ -72,6 +72,19 @@ class TestVisualizationIssues(unittest.TestCase):
         self.assertEqual(issue.external_refs["clash"]["left"], {"kind": "element", "id": "pipe_0"})
         self.assertGreater(issue.external_refs["clash"]["penetration_m"], 0.0)
 
+    def test_duplicate_node_issue_focuses_members_without_dangling_scene_objects(self):
+        model, _ = self._model_and_clash()
+        native = model.elements[0].n1
+        duplicate = model.add_node(model.nodes[native].coords.copy())
+        clashes = ClashEngine().check_duplicate_nodes(model)
+        scene = build_visualization_scene(SceneRequest(model, clash_results=clashes))
+        scene.validate()
+        self.assertEqual(len(scene.issues), 1)
+        self.assertEqual({ref.id for ref in scene.issues[0].entity_refs}, {native, duplicate})
+        overlay = next(item for item in scene.overlays if item.kind == "clash")
+        self.assertIn("object:element:pipe_0", overlay.object_ids)
+        self.assertFalse(any(item.startswith("object:node:") for item in overlay.object_ids))
+
 
 if __name__ == "__main__":
     unittest.main()

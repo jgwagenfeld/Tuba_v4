@@ -1,7 +1,8 @@
 import { loadOptionalReview } from "./reviewLoader.js";
 import { colorChannelOf, sceneStage, visibilityPresetForStage } from "./workflowState.js";
-import { createColoringState } from "./coloring.js";
+import { createColoringState, getActiveField } from "./coloring.js";
 import { contactColoringActive } from "./resultReview.js";
+import { selectedInterfaceMappingIds } from "./interfaceMappings.js";
 
 // Only reached now when a review was asked for, when a folder holds a single
 // bundle, or when the viewer is embedded: a multi-bundle landing page shows the
@@ -185,11 +186,54 @@ export function createViewerState(bundle) {
   // The colouring channel is explicit state: a solved scene opens on its
   // results, a model with none on its own properties.
   const withChannel = { ...state, colorChannel: colorChannelOf(state) };
-  return {
+  return applyResultFieldPreset({
     ...withChannel,
     coloring: createColoringState(withChannel),
     visibleObjectIds: getVisibleObjectIds(withChannel)
-  };
+  });
+}
+
+// Interface markers - a CAD part's ports, its local axes, the coupling lines to
+// its pipes - say how a model is wired. In a result view they are coloured
+// dots and arrows on the very part being read, in hues the legend does not hold.
+const INTERFACE_MARKER_LAYERS = Object.freeze(["mixed_ports", "mixed_couplings", "local_coordinate_axes"]);
+
+// While a result field colours the scene, only that field's own result objects
+// are drawn - its arrows and its field bodies - and interface markers step back.
+// Reaction arrows in a stress view, or a volume run's displacement solid stacked
+// on its stress solid, are a second quantity on screen in colours the legend
+// does not explain. A preset, not a rule - applied when the field is chosen, so
+// the layer toggles still bring any of them back. Back on the model channel they
+// return to what the bundle declared. Build has its own preset; a legacy scene
+// with no field catalogue and a derived envelope, which no overlay owns, are
+// left alone.
+export function applyResultFieldPreset(state) {
+  if (sceneStage(state) === "build" || (state.resultFields ?? []).length === 0) return state;
+  const results = colorChannelOf(state) === "results";
+  const activeOverlayId = results ? getActiveField(state)?.overlay_id : null;
+  if (results && !activeOverlayId) return state;
+  const objectsById = new Map((state.objects ?? []).map((object) => [object.id, object]));
+  const own = new Set();
+  const others = new Set();
+  for (const overlay of state.overlays ?? []) {
+    if (overlay.kind !== "solver_result") continue;
+    for (const objectId of overlay.object_ids ?? []) {
+      const object = objectsById.get(objectId);
+      if (!/_(vector|field)$/.test(String(object?.kind ?? ""))) continue;
+      for (const layerId of state.objectLayerIds?.[objectId] ?? object.layer_ids ?? []) {
+        (overlay.id === activeOverlayId ? own : others).add(layerId);
+      }
+    }
+  }
+  for (const layerId of INTERFACE_MARKER_LAYERS) others.add(layerId);
+  let next = state;
+  for (const layerId of new Set([...own, ...others])) {
+    const layer = state.layers?.[layerId];
+    if (!layer) continue;
+    const visible = layer.defaultVisible !== false && (!results || own.has(layerId));
+    if (layer.visible !== visible) next = setLayerVisibility(next, layerId, visible);
+  }
+  return next;
 }
 
 export function setLayerVisibility(state, layerId, visible) {
@@ -216,11 +260,14 @@ export function setLayerVisibility(state, layerId, visible) {
 export function getVisibleObjectIds(state) {
   const hidden = new Set(state.hiddenObjectIds ?? []);
   const isolated = new Set(state.isolatedObjectIds ?? []);
+  const mappingIds = sceneStage(state) === "build" && state.interfaceMappingsVisible !== false
+    ? selectedInterfaceMappingIds(state) : new Set();
   const hiddenOverlayObjectIds = overlayHiddenObjectIds(state);
   // Same question the colouring asks: is a review governing the scene? Build
   // inspects the built model, so its authored vectors stay drawn.
   const contactReview = sceneStage(state) !== "build" && contactColoringActive(state);
   return state.objects
+    .filter((obj) => obj.kind !== "interface_mapping" || mappingIds.has(obj.id))
     .filter((obj) => !state.activeLoadCase || !obj.metadata?.load_case || obj.metadata.load_case === state.activeLoadCase)
     .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
     .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)
@@ -343,7 +390,7 @@ function layerIdsForObject(obj) {
 
 function objectLayersVisible(state, obj) {
   const layerIds = state.objectLayerIds?.[obj.id] ?? layerIdsForObject(obj);
-  return layerIds.every((layerId) => state.layers[layerId]?.visible !== false);
+  return layerIds.every((layerId) => state.layers?.[layerId]?.visible !== false);
 }
 
 function objectIntersectsSectionBox(state, objectId) {
@@ -412,7 +459,7 @@ function labelForLayer(key) {
 // for bundles written before the contract carried them.
 const CATEGORY_ORDER = [
   { id: "design", label: "Design" },
-  { id: "analysis_mesh", label: "Analysis mesh" },
+  { id: "analysis_mesh", label: "FE mesh" },
   { id: "results", label: "Results" },
   { id: "annotations", label: "Annotations" }
 ];

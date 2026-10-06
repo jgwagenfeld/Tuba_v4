@@ -1,9 +1,16 @@
+import math
 from collections import Counter
 
 import numpy as np
 import pytest
 
-from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
+from tuba.geometry.section_mesh import (
+    beam_local_frame,
+    deformed_section_sweep_surface_mesh,
+    section_loops,
+    section_sweep_surface_mesh,
+    straight_section_surface_mesh,
+)
 from tuba.model import BarSection, CableSection, IBeamSection, PipeSection, RectangularSection
 
 
@@ -120,3 +127,44 @@ def test_the_two_display_surfaces_start_from_one_shared_beam_frame():
     assert np.allclose(np.cross(local_x, local_y), local_z)
     for axis in (local_x, local_y, local_z):
         assert np.isclose(np.linalg.norm(axis), 1.0)
+
+
+def test_a_sweep_through_stations_rings_each_and_caps_only_the_ends():
+    rhs = _sections()[3]
+    two = straight_section_surface_mesh(rhs, (0.0, 0.0, 0.0), (3.0, 0.0, 0.0))
+    swept = section_sweep_surface_mesh(rhs, [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.5, 0.0, 0.0), (3.0, 0.0, 0.0)])
+    ring = len(two.vertices) // 2
+    sides = 2 * ring  # two triangles per loop edge
+    caps = len(two.faces) - sides
+
+    assert len(swept.vertices) == 4 * ring
+    assert len(swept.faces) == 3 * sides + caps
+    assert set(Counter(edge for face in swept.faces for edge in _edges(face)).values()) == {2}  # closed, no inner caps
+
+
+def test_a_deformed_sweep_moves_and_turns_each_ring_with_its_own_station():
+    rhs = _sections()[3]
+    stations = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)]
+    deformations = [(0, 0, 0, 0, 0, 0), (0, 0, -0.1, 0, 0, 0), (0, 0, 0, math.pi / 2, 0, 0)]
+    base, deformed = deformed_section_sweep_surface_mesh(rhs, stations, deformations, scale=2.0)
+    ring = len(base.vertices) // 3
+    vertices = np.asarray(deformed.vertices)
+
+    np.testing.assert_allclose(vertices[:ring], np.asarray(base.vertices[:ring]))
+    np.testing.assert_allclose(vertices[ring:2 * ring, 2], np.asarray(base.vertices[ring:2 * ring])[:, 2] - 0.2)
+    # A quarter turn about x at scale 2 is a half turn: the ring is mirrored.
+    np.testing.assert_allclose(vertices[2 * ring:, 1:], -np.asarray(base.vertices[2 * ring:])[:, 1:], atol=1e-12)
+
+
+def test_a_sweep_refuses_stations_off_the_member_axis():
+    with pytest.raises(ValueError, match="one straight axis"):
+        section_sweep_surface_mesh(_sections()[3], [(0.0, 0.0, 0.0), (1.0, 0.2, 0.0), (2.0, 0.0, 0.0)])
+    with pytest.raises(ValueError, match="one straight axis"):
+        section_sweep_surface_mesh(_sections()[3], [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (1.0, 0.0, 0.0)])
+    with pytest.raises(ValueError, match="one six-component deformation per station"):
+        deformed_section_sweep_surface_mesh(_sections()[3], [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], [(0,) * 6])
+
+
+def _edges(face):
+    a, b, c = face
+    return [tuple(sorted(pair)) for pair in ((a, b), (b, c), (c, a))]

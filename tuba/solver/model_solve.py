@@ -43,11 +43,19 @@ def solve_model(
     if load_path is not None or load_step != 0.1:
         kwargs['load_step'] = load_step
     solver = CodeAsterSolver(**kwargs)
+    if any(region.role in {"solid_3d", "shell_2d", "reference"} for region in model.analysis_regions.values()):
+        if volume_element_ids is not None or pipe_modelization is not None or load_path is not None:
+            raise ValueError("Mixed solid/shell studies choose their own modelizations; do not combine them with native volume selections or load paths.")
+        if load_step != 0.1:
+            raise ValueError("Mixed solid/shell studies do not support contact load steps.")
+        return solver.solve_mixed_study(
+            model, lc_name, max_element_size=max_element_size, force=force,
+        )
     if selected_modelization is PipeModelization.SOLID_3D:
         if load_path is not None or any(s.friction_coefficient for s in model.supports):
             raise ValueError('Friction, gap, contact stiffness and load-path histories require a 1D study (TUYAU_3M or POU_D_T).')
-        if not volume_element_ids or max_element_size is None:
-            raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
+        if not volume_element_ids:
+            raise ValueError("SOLID_3D requires volume_element_ids.")
         return solver.solve_volume_study(
             model,
             lc_name,

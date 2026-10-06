@@ -41,6 +41,9 @@ class ElementResult:
     von_mises_n1: float = float("nan")
     von_mises_n2: float = float("nan")
     max_von_mises: float = float("nan")
+    # A beam's extreme fibre normal stress, |axial| + bending, over every solver
+    # node of the member (Code_Aster SIPO_ELNO; see parse_sipo_table).
+    max_normal_stress: float = float("nan")
 
 
 @dataclass(frozen=True)

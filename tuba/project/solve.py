@@ -25,8 +25,30 @@ from tuba.project import STUDY_SCRIPT, Project
 from tuba.project.claim import claim_solve
 from tuba.project.evidence import evidence_dir, evidence_verdict, promote_evidence
 from tuba.project.freshness import expected_identity, export_study
+from tuba.validation import ModelValidationError
+from tuba.verify import VerifyReport, verify_model
 
 STAGING = Path(".tuba") / "staging"
+
+
+class ProjectVerificationError(ModelValidationError):
+    """The project's cold-model gate failed; no evidence or solver state was changed."""
+
+    def __init__(self, report: VerifyReport):
+        self.report = report
+        super().__init__("Model verification failed; no solver run.\n" + "\n".join(report.errors))
+
+
+def verify_project(project: Project, namespace: Mapping[str, Any]) -> VerifyReport:
+    """Verify a project snapshot before solving or building its engineering review."""
+    from tuba.project.script import require_model_script_style
+
+    script = project.model_path.read_text(encoding="utf-8")
+    require_model_script_style(script)
+    report = verify_model(namespace["model"], script=script)
+    if not report.passed:
+        raise ProjectVerificationError(report)
+    return report
 
 
 class Solver(Protocol):
@@ -46,6 +68,7 @@ class ProjectSolve:
     solved: tuple[str, ...]
     reused: tuple[str, ...]
     unverified: tuple[str, ...]
+    verification: VerifyReport
 
 
 def solve_project(
@@ -60,6 +83,7 @@ def solve_project(
 
     *namespace* is the model script's globals, ``project.run_model()`` when omitted; a caller that already ran
     the script passes that snapshot. *study_file* picks the study, as :meth:`Project.load_study` does.
+    *force* only disables evidence reuse; it never bypasses project verification.
     *solver* defaults to Code_Aster. A study that cannot be solved as written raises ValueError before the
     model runs (:func:`tuba.project.study.study_settings`). Nothing reaches ``evidence/`` before every solve
     has finished and the study's ``check(solved)`` has passed, so a solve or check that raises leaves the
@@ -72,7 +96,7 @@ def solve_project(
         raise ValueError(f"{project.name} has no study operations to solve.")
     namespace = project.run_model() if namespace is None else namespace
     model = namespace["model"]
-    model.validate()
+    verification = verify_project(project, namespace)
     folders = {operation: evidence_dir(project.root, operation) for operation in operations}
     exporter = settings.solver()
     identities = {
@@ -113,6 +137,7 @@ def solve_project(
             for operation in operations
         }
     return ProjectSolve(
+        verification=verification,
         runs=runs,
         solved=solve,
         reused=tuple(operation for operation in operations if operation not in solve),

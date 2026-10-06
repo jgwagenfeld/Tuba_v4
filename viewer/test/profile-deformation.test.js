@@ -37,3 +37,20 @@ test("cached mesh and local frame follow solved section rotations, including pre
     assert.ok(Math.abs(frame.getZ(1)-mesh.getZ(0))<1e-6);
   }
 });
+
+test("a profiled span bends through every station, each ring turning with its own node", () => {
+  // Three rings of two vertices, as a member span swept through three solved nodes.
+  const config = { base_vertices: [[0,1,0],[0,0,1],[1,1,0],[1,0,1],[2,1,0],[2,0,1]],
+    section_origins: [[0,0,0],[1,0,0],[2,0,0]],
+    section_deformations: [[0,0,0,0,0,0],[0,0,-0.1,0,0,0],[0,0,0,Math.PI/2,0,0]] };
+  for (const scale of [1, 3]) {
+    const points = scaledSectionPoints(config, scale);
+    assert.deepEqual(points.slice(0, 2), config.base_vertices.slice(0, 2));
+    assert.ok(Math.abs(points[2][2] + 0.1 * scale) < 1e-12);
+    assert.ok(Math.abs(points[3][2] - (1 - 0.1 * scale)) < 1e-12);
+    const turned = config.base_vertices[4].slice(1);
+    const angle = Math.PI / 2 * scale;
+    assert.ok(Math.abs(points[4][1] - (turned[0] * Math.cos(angle) - turned[1] * Math.sin(angle))) < 1e-12);
+    assert.ok(Math.abs(points[4][2] - (turned[0] * Math.sin(angle) + turned[1] * Math.cos(angle))) < 1e-12);
+  }
+});

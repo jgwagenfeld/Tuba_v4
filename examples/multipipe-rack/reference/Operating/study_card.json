@@ -2,13 +2,13 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "aa464f5b0771c551be65a7debaa71e5758d910f9684c252a86b26cc1a39f6f23",
-      "size_bytes": 38544
+      "sha256": "5c851ae1cb5fccbc26a5abef517b6d1389e2688ea4c955c181d2e75cafb00062",
+      "size_bytes": 39003
     },
     {
       "name": "study.export",
-      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
-      "size_bytes": 377
+      "sha256": "85dc46238025a16f78479122b6a833c2b8bf49ec20bf72cbcd8cd0338cbcb7fc",
+      "size_bytes": 404
     },
     {
       "name": "study.mail",
@@ -17,12 +17,12 @@
     },
     {
       "name": "study.mess",
-      "sha256": "5ce560a5080f50d2e38d40609184f626746c7369f0666f7405aad06023be6628",
-      "size_bytes": 213697
+      "sha256": "4a24d40ca0ff71eddb5f3ec1145038a9d9d3db935cb60f5692ff54e723a7da2f",
+      "size_bytes": 225723
     },
     {
       "name": "study.rmed",
-      "sha256": "73719c528427c0d3bc87cf049b4c35c7f3155d97f370e0b9e041fc05a9cf051d",
+      "sha256": "e472b22bb897de412d05783c568a777f16059df0639e5b9cdfe32eb18b08f611",
       "size_bytes": 1081653
     },
     {
@@ -32,32 +32,37 @@
     },
     {
       "name": "study_depl.csv",
-      "sha256": "6f7956a4a1a53cbef6fc28415c183c5a30df605e17c452bed763b2d233ec033c",
+      "sha256": "4cbce9f5487817049768603465ee25fa02ea71917e840c91a7b46c81f2cbbc4b",
       "size_bytes": 112110
     },
     {
       "name": "study_effo.csv",
-      "sha256": "c49afa5ec07baf98ade28cfb2dee0142f522cd9b22a3b761a6eb194752234291",
+      "sha256": "07a82fb04e68dc3e3868a76af52def4e9d9ff01739428aec8efc0a206bcfa388",
       "size_bytes": 243418
     },
     {
       "name": "study_manifest.json",
-      "sha256": "0331fb3298d3b2c9cfbfd055fdf6d3939580c8ea3c85aa21a2d0bcaa5709e76d",
-      "size_bytes": 254987
+      "sha256": "079a156baeaaab2c8c93da95ec7bf80204a365dbc8f27410e11c9f8b3693ecaa",
+      "size_bytes": 255023
     },
     {
       "name": "study_reac.csv",
-      "sha256": "9a23f4a40228360636e1383e386d1fce64d5b8e48b96b8479075fcf7fdf8e4c4",
+      "sha256": "797f4ff45b72ad265076a601683d987d25bfbbb1d53a3e67b4072bd5b7e1f5fe",
       "size_bytes": 112110
     },
     {
       "name": "study_sieq.csv",
-      "sha256": "61800197a6ba74673e8070514936ddab36099fc094d9bc91a23e8c34dd8d6d8f",
+      "sha256": "c19f499416a95cc1b2a8fd4e4fd79e2a06a3a794b47c9ae1bc50529a34f89d64",
       "size_bytes": 1946196
     },
     {
+      "name": "study_sipo.csv",
+      "sha256": "62de834b2fc54b3cd3e78d418914e05b455f82960c69c32d26f66416f87187fd",
+      "size_bytes": 174148
+    },
+    {
       "name": "study_tuba_fem.json",
-      "sha256": "40f23bda95489bf766c7f2788fb4ef8957b056644a73ba00c8478faf7ce23fbc",
+      "sha256": "1d416405ca42faa57e57aca1c05860066410c425b0b549529daee4bac4065453",
       "size_bytes": 38068
     }
   ],
@@ -79,7 +84,7 @@
       "name": "AFFE_MODELE"
     },
     {
-      "count": 1,
+      "count": 2,
       "name": "CALC_CHAMP"
     },
     {
@@ -91,7 +96,7 @@
       "name": "CREA_RESU"
     },
     {
-      "count": 28,
+      "count": 29,
       "name": "CREA_TABLE"
     },
     {
@@ -119,7 +124,7 @@
       "name": "IMPR_RESU"
     },
     {
-      "count": 4,
+      "count": 5,
       "name": "IMPR_TABLE"
     },
     {
@@ -203,6 +208,13 @@
       "logical": "libr",
       "meaning": "contact history",
       "unit": "42"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sipo.csv",
+      "logical": "sipo",
+      "meaning": "frame member normal stress (SIPO_ELNO)",
+      "unit": "43"
     }
   ],
   "keyword_inventory_is_lower_bound": false,
@@ -210,14 +222,14 @@
   "source": "evidence/Operating",
   "study": {
     "element_count": 328,
-    "execution_method": "python_bridge",
+    "execution_method": "wsl",
     "id": "analysis_study:Operating",
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "model_revision": 0,
     "node_count": 340,
     "project_name": "MultipipeRack",
-    "solved_at": "2026-09-30T13:40:57.099884Z",
+    "solved_at": "2026-10-04T17:06:01.778280Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

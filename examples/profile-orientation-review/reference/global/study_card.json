@@ -2,13 +2,13 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "b7e47b3c613832cb8e8d203bd27f5255fe5f10ac8b9f4e62ffc05c1904763e7e",
-      "size_bytes": 8157
+      "sha256": "b8e3f7d11f9a2cbc54c0dfc0f3024e6850ba1813a846c0675ac760818f46eef1",
+      "size_bytes": 8598
     },
     {
       "name": "study.export",
-      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
-      "size_bytes": 377
+      "sha256": "85dc46238025a16f78479122b6a833c2b8bf49ec20bf72cbcd8cd0338cbcb7fc",
+      "size_bytes": 404
     },
     {
       "name": "study.mail",
@@ -17,37 +17,42 @@
     },
     {
       "name": "study.mess",
-      "sha256": "adb0bb6910dd555e92d4766c68f1c07e01cb17a76823adc9829b03ae46a0d5cd",
-      "size_bytes": 37780
+      "sha256": "9a6cefed743f70c5c8b3580673ed78af37f39871c3c0ffac2b4ac28762ae76e1",
+      "size_bytes": 42757
     },
     {
       "name": "study.rmed",
-      "sha256": "07795b31fa7aefd4b832b12c5a3bb8fc53e6104c1dd5d09fae515b81544da062",
+      "sha256": "ccd913c0bc8a2cd6302047b08b28e897c9e47e58cb3b19a3cf271946aea3f2ec",
       "size_bytes": 138254
     },
     {
       "name": "study_depl.csv",
-      "sha256": "135f2b6f32c7333910667abb1444f356474b08a67a5ef0c34b349b93ea1dc97a",
+      "sha256": "61200ad698380685ccfa432491b7e86ecde48b3bcd24b68cd459d59899e77b8a",
       "size_bytes": 95989
     },
     {
       "name": "study_effo.csv",
-      "sha256": "4bfe9ca7755cf65ea8cdb5edefe6224ad2bed7732c45eede3ffc2dc91024cb9a",
+      "sha256": "60f7e3b858c094691b85177e0b88d7bc39bfabb5c4670ac1cc9799259be41d05",
       "size_bytes": 209930
     },
     {
       "name": "study_manifest.json",
-      "sha256": "7f3bf62a1f41070b674c39a1bc93f95e7a8ed88e10cf1a9bcc2c4b1a5be49689",
-      "size_bytes": 206605
+      "sha256": "4a5cdb31388fe994ab1bb56ea08daf852d4932a0bbe6d2fd05b2ce10e40c25d3",
+      "size_bytes": 206641
     },
     {
       "name": "study_reac.csv",
-      "sha256": "312709846dc91bd7915e708515892dcd5f2db4e8d06cf3bef9cb0987d3aaf237",
+      "sha256": "99cf1f07966ece396d4393800fbdb611fa9d6f35ab4b16b73436336ae54e2760",
       "size_bytes": 95989
     },
     {
+      "name": "study_sipo.csv",
+      "sha256": "c6aefb6987c3dcc084cffc2a567bf4ef3808a139400ac566964ea61b3fc52b37",
+      "size_bytes": 164996
+    },
+    {
       "name": "study_tuba_fem.json",
-      "sha256": "4b71f17cfc6ecf6604b840a384fc44cde8d0d6ca14910ce7bf21c956482e08b1",
+      "sha256": "bd218134e96d8922e6d146c34d81762b3ade3124f3ec2db041262f334af45952",
       "size_bytes": 29288
     }
   ],
@@ -69,11 +74,11 @@
       "name": "AFFE_MODELE"
     },
     {
-      "count": 1,
+      "count": 2,
       "name": "CALC_CHAMP"
     },
     {
-      "count": 3,
+      "count": 4,
       "name": "CREA_TABLE"
     },
     {
@@ -93,7 +98,7 @@
       "name": "IMPR_RESU"
     },
     {
-      "count": 3,
+      "count": 4,
       "name": "IMPR_TABLE"
     },
     {
@@ -177,6 +182,13 @@
       "logical": "libr",
       "meaning": "contact history",
       "unit": "42"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sipo.csv",
+      "logical": "sipo",
+      "meaning": "frame member normal stress (SIPO_ELNO)",
+      "unit": "43"
     }
   ],
   "keyword_inventory_is_lower_bound": false,
@@ -191,7 +203,7 @@
     "model_revision": 0,
     "node_count": 291,
     "project_name": "I-section orientation: the same tip force at 0, 45 and 90 degrees",
-    "solved_at": "2026-09-19T14:34:53.003617Z",
+    "solved_at": "2026-10-04T17:06:38.255536Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

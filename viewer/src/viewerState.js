@@ -1,9 +1,10 @@
-import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+import { applyResultFieldPreset, applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import {
   cycleBodyOpacity,
   cycleSubpointMode,
   cycleSubpointNodeId,
   cycleSubpointThreshold,
+  getBodies,
   setBodyOpacity,
   setBodyVisibility,
   setOverlayVisibility,
@@ -44,6 +45,19 @@ import {
   setVisualDeformationScale
 } from "./resultReview.js";
 
+// The Build "FE mesh" button and Alt+M. Visibility only: Geometry opacity is
+// the reviewer's own setting, and pressing the toggle twice used to leave it at
+// 100 % whatever it was before. Mesh view shows what the solver received and
+// nothing else - 1D lines, shells, solids - so showing it takes the same route
+// as "View solved FE mesh" and hiding it brings the geometry back. It used to
+// keep the geometry for line and mixed models, where the opaque pipes buried
+// the centreline mesh.
+function toggleFeMesh(state) {
+  const showing = !(getBodies(state).find((body) => body.id === "analysis_mesh")?.visible ?? false);
+  if (showing) return reduceViewerState(state, { type: "showAnalysisMesh" });
+  return setBodyVisibility(setBodyVisibility(state, "analysis_mesh", false), "geometry", true);
+}
+
 export function reduceViewerState(state, action) {
   switch (action.type) {
     case "selectObjects":
@@ -53,8 +67,25 @@ export function reduceViewerState(state, action) {
       });
     case "selectObject":
       return selectObject(state, action.objectId, { additive: action.additive });
+    case "setSourceMeshVisible": {
+      const object = state.objects.find(candidate => candidate.id === action.objectId);
+      const asset = state.geometryAssets.find(candidate => candidate.id === object?.geometry_asset_id);
+      if (object?.kind !== "imported_component" || asset?.format !== "mesh" ||
+          object.metadata?.geometry_representation === "bounds_envelope") return state;
+      const ids = new Set(state.sourceMeshObjectIds ?? []);
+      action.visible ? ids.add(object.id) : ids.delete(object.id);
+      return { ...state, sourceMeshObjectIds: [...ids] };
+    }
+    // The F = / q = / μ = badges on loads and supports. Visibility only: the
+    // renderer hides the sprites it already built, so no graph rebuild.
+    case "setValueLabelsVisible":
+      return { ...state, valueLabelsVisible: Boolean(action.visible) };
+    case "setInterfaceMappingsVisible":
+      return withVisibility({ ...state, interfaceMappingsVisible: Boolean(action.visible) });
     case "hideSelected":
       return hideSelected(state);
+    case "setFocusSelection":
+      return { ...state, focusSelection: Boolean(action.enabled) };
     case "isolateSelection":
       return isolateSelection(state);
     case "fitSelection":
@@ -73,6 +104,13 @@ export function reduceViewerState(state, action) {
       return setOverlayVisibility(state, action.overlayId, action.visible);
     case "setBodyVisibility":
       return setBodyVisibility(state, action.bodyId, action.visible);
+    case "showAnalysisMesh":
+      return {
+        ...setBodyVisibility(setBodyVisibility(restoreVisibility(state), "analysis_mesh", true), "geometry", false),
+        colorChannel: "model"
+      };
+    case "toggleFeMesh":
+      return toggleFeMesh(state);
     case "setBodyOpacity":
       return setBodyOpacity(state, action.bodyId, action.opacity);
     case "cycleBodyOpacity":
@@ -91,11 +129,11 @@ export function reduceViewerState(state, action) {
       return setUnitSystem(state, action.unitSystem);
     case "setModelColorBy":
       // Picking a model property colour is choosing the model channel.
-      return { ...state, modelColorBy: action.colorBy ?? "default", colorChannel: "model" };
+      return applyResultFieldPreset({ ...state, modelColorBy: action.colorBy ?? "default", colorChannel: "model" });
     case "setColorChannel":
       // The selector's own channel action, for a legacy scene whose results are
       // a solver overlay with no field catalogue to name.
-      return { ...state, colorChannel: action.colorChannel ?? state.colorChannel };
+      return applyResultFieldPreset({ ...state, colorChannel: action.colorChannel ?? state.colorChannel });
     case "setStage": {
       // A stage change, not a rail change: the stage picks the layer preset.
       // This used to be "enterBuild", which also forced a workflow tab - a
@@ -103,7 +141,7 @@ export function reduceViewerState(state, action) {
       //
       // Only Build has a preset; entering Review applies none, so the review is
       // drawn as the bundle declared it.
-      return applyStageVisibilityPreset({ ...state, stage: action.stage }, action.stage);
+      return withVisibility(applyStageVisibilityPreset({ ...state, stage: action.stage }, action.stage));
     }
     case "resetLayerVisibility": {
       // Back from Build: every layer returns to what the bundle declared, so the
@@ -112,7 +150,7 @@ export function reduceViewerState(state, action) {
       for (const layer of Object.values(state.layers ?? {})) {
         declared = setLayerVisibility(declared, layer.id, layer.defaultVisible !== false);
       }
-      return withVisibility(declared);
+      return withVisibility(applyResultFieldPreset(declared));
     }
     case "setContactNeutral":
       return withVisibility({ ...state, contactNeutral: action.neutral });
@@ -125,7 +163,7 @@ export function reduceViewerState(state, action) {
     case "setActiveLoadCase":
       return withVisibility(setColoringLoadCase(setActiveLoadCase(state, action.loadCase), action.loadCase));
     case "setColoringField":
-      return setColoringField(state, action.fieldId);
+      return applyResultFieldPreset(setColoringField(state, action.fieldId));
     case "setColoringComponent":
       return setColoringComponent(state, action.component);
     case "setActiveGeometryState":
@@ -212,6 +250,10 @@ export function preserveViewerStateForReload(previousState, nextState, { reviewD
     overlays,
     camera: previousState.camera ?? nextState.camera,
     selectedObjectIds: (previousState.selectedObjectIds ?? []).filter((id) => objectIds.has(id)),
+    interfaceMappingsVisible: previousState.interfaceMappingsVisible ?? true,
+    sourceMeshObjectIds: (previousState.sourceMeshObjectIds ?? []).filter(id =>
+      nextState.objects.some(object => object.id === id && object.kind === "imported_component" &&
+        object.metadata?.geometry_representation !== "bounds_envelope")),
     hiddenObjectIds: (previousState.hiddenObjectIds ?? []).filter((id) => objectIds.has(id)),
     isolatedObjectIds: (previousState.isolatedObjectIds ?? []).filter((id) => objectIds.has(id)),
     activeLoadCase: coherentState.activeLoadCase,
@@ -224,6 +266,7 @@ export function preserveViewerStateForReload(previousState, nextState, { reviewD
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
+    valueLabelsVisible: previousState.valueLabelsVisible ?? nextState.valueLabelsVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
     modelColorBy: reviewDefaultColor ? nextState.modelColorBy : previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
     // Which channel tints the scene is the reader's choice, so a reload keeps it.

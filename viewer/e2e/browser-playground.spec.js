@@ -27,8 +27,12 @@ test("gallery scripts build in the browser or explicitly require a native packag
     }), { code, workerFile });
     console.log(entry.id, result);
     if (!result.ok) {
+      // The one gallery script that cannot preview is a command-line tool: it
+      // needs a STEP file argument (and gmsh to read it). Since tuba.meshing
+      // imports gmsh lazily it reaches argparse first, so either reason is the
+      // honest one - but it must be said plainly, never as a bare SystemExit.
       expect(entry.id).toBe("imported_component_mixed_demo");
-      expect(result.error).toContain("native package unavailable in the browser");
+      expect(result.error).toMatch(/native package unavailable in the browser|reads command-line arguments/);
     } else {
       expect(result.objects).toBeGreaterThan(0);
       expect(result.results).toBe(0);
@@ -106,8 +110,8 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   await expect(run).toHaveText("Update geometry");
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(previewObjects);
   await page.getByRole("button", { name: "Exchange", exact: true }).click();
-  await page.getByText("Example actions", { exact: true }).click();
-  await page.getByRole("button", { name: "Reset example", exact: true }).click();
+  await page.getByText("Reset example", { exact: true }).click();
+  await page.getByRole("button", { name: "Discard edits", exact: true }).click();
   await expect(editor).toHaveValue(original);
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(originalObjects);
   await expect(page.locator("[data-status-chip] [data-status]")).not.toHaveAttribute("data-status", "stale");

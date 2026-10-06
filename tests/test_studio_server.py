@@ -73,11 +73,14 @@ class TestStudioServer(unittest.TestCase):
         server = self._start_studio(Path(tmpdir))
 
         with urlopen(server.base_url + "api/script", timeout=10) as response:
-            self.assertEqual(json.loads(response.read().decode("utf-8")), {"ok": True, "code": _SMALL_SCRIPT})
+            from tuba.project.source import read_source
+
+            self.assertEqual(json.loads(response.read().decode("utf-8")), {"ok": True, **read_source(server.script_path)})
 
         status, payload = self._post_script(server, _BUILDER_SCRIPT)
         self.assertEqual(status, 200, payload)
         self.assertEqual(payload["elements"], 3)
+        self.assertEqual(payload["source_revision"], read_source(server.script_path)["source_revision"])
         self.assertEqual(server.script_path.read_text(encoding="utf-8"), _BUILDER_SCRIPT)
 
     def test_profile_library_uses_catalog_and_all_authored_sections(self):
@@ -126,6 +129,70 @@ class TestStudioServer(unittest.TestCase):
         )
         self.assertEqual(json.loads(exported.stdout), catalog)
 
+    def test_stale_browser_save_preserves_agent_source_and_last_scene(self):
+        from urllib.error import HTTPError
+        from urllib.request import Request
+
+        from tuba.project.source import save_source
+
+        server = self._start_studio(Path(self.enterContext(TemporaryDirectory())), poll_interval_s=60)
+        loaded = server.get_python_script()
+        scene = (server.out_dir / "build" / "scene.json").read_bytes()
+        agent_code = _SMALL_SCRIPT.replace("StudioStart", "AgentEdit")
+        current_revision = save_source(server.script_path, agent_code, loaded["source_revision"])
+        browser_code = _SMALL_SCRIPT.replace("StudioStart", "UnsavedBrowserEdit")
+        body = {"code": browser_code, "expected_revision": loaded["source_revision"]}
+        request = Request(server.base_url + "api/script", data=json.dumps(body).encode(),
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with self.assertRaises(HTTPError) as failure:
+            urlopen(request, timeout=10)
+        self.assertEqual(failure.exception.code, 409)
+        payload = json.loads(failure.exception.read())
+        self.assertTrue(payload["conflict"])
+        self.assertEqual(payload["source_revision"], current_revision)
+        self.assertEqual(server.get_python_script()["code"], agent_code)
+        self.assertEqual((server.out_dir / "build" / "scene.json").read_bytes(), scene)
+        self.assertEqual(body["code"], browser_code)
+
+    def test_http_save_requires_revision_and_direct_call_remains_supported(self):
+        from urllib.error import HTTPError
+        from urllib.request import Request
+
+        server = self._start_studio(Path(self.enterContext(TemporaryDirectory())))
+        for revision in (None, "bad", 3):
+            payload = {"code": _BUILDER_SCRIPT}
+            if revision is not None:
+                payload["expected_revision"] = revision
+            request = Request(server.base_url + "api/script", data=json.dumps(payload).encode(),
+                              headers={"Content-Type": "application/json"}, method="POST")
+            with self.assertRaises(HTTPError) as failure:
+                urlopen(request, timeout=10)
+            self.assertEqual(failure.exception.code, 400)
+            failure.exception.close()
+            self.assertEqual(server.get_python_script()["code"], _SMALL_SCRIPT)
+        saved = server.execute_python_code(_SMALL_SCRIPT)
+        self.assertTrue(saved["ok"])
+        self.assertEqual(saved["source_revision"], server.get_python_script()["source_revision"])
+
+    def test_project_api_identifies_session_and_stop_unregisters_only_its_own_session(self):
+        from tuba.project.session import project_id, studio_session
+        from tuba.visualization.preview.server import ProjectStudioServer
+
+        server = self._start_studio(Path(self.enterContext(TemporaryDirectory())))
+        with urlopen(server.base_url + "api/project", timeout=10) as response:
+            info = json.loads(response.read())
+        self.assertEqual(info["project_root"], str(server.project.root.resolve()))
+        self.assertEqual(info["project_id"], project_id(server.project.root))
+        self.assertEqual(info["base_url"], server.base_url)
+        self.assertEqual(info["session_id"], studio_session(server.project.root)["session_id"])
+        newer = ProjectStudioServer(server.project.root, server.out_dir.parent / "newer", port=0).start()
+        self.addCleanup(newer.stop)
+        replacement = studio_session(server.project.root)
+        server.stop()
+        self.assertEqual(studio_session(server.project.root)["session_id"], replacement["session_id"])
+        newer.stop()
+        self.assertIsNone(studio_session(server.project.root))
+
     def test_profile_catalog_is_platform_stable(self):
         import math
         from unittest.mock import patch
@@ -168,7 +235,7 @@ class TestStudioServer(unittest.TestCase):
 
         project = root / "project"
         project.mkdir()
-        (project / "model.py").write_text(script, encoding="utf-8")
+        (project / "model.py").write_text(script, encoding="utf-8", newline="")
         server = ProjectStudioServer(project, root / "out", port=0, **kwargs)
         server._recorder = _RecordingClient()
         server.broker.add(server._recorder)
@@ -182,7 +249,7 @@ class TestStudioServer(unittest.TestCase):
 
         request = Request(
             server.base_url + "api/script",
-            data=json.dumps({"code": code}).encode("utf-8"),
+            data=json.dumps({"code": code, "expected_revision": server.get_python_script()["source_revision"]}).encode("utf-8"),
             headers={"Content-Type": "application/json", **headers},
             method="POST",
         )
@@ -390,7 +457,7 @@ class TestStudioServer(unittest.TestCase):
 
         status, payload = self._post_script(server, broken)
         self.assertEqual(status, 400)
-        self.assertEqual(set(payload), {"ok", "error", "line", "traceback"})
+        self.assertEqual(set(payload), {"ok", "error", "line", "traceback", "review_stale", "source_revision"})
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["line"], 5)
         self.assertTrue(payload["error"].startswith("AttributeError"), payload["error"])
@@ -479,7 +546,7 @@ class TestStudioServer(unittest.TestCase):
 
         self._wait_for(script_errors, "a failing model.py did not broadcast script_error")
         event = script_errors()[0]
-        self.assertEqual(set(event), {"type", "error", "line"})
+        self.assertEqual(set(event), {"type", "error", "line", "review_stale"})
         self.assertEqual(event["line"], _line_of(broken, "builder.rn("))
         self.assertTrue(event["error"].startswith("AttributeError"), event["error"])
         self._wait_for(lambda: "pipe_str_2" in self._scene_objects(server), "a failing model.py replaced the last good scene")

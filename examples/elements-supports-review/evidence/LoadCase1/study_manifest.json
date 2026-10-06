@@ -2593,7 +2593,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f2c9aed896583e28db896565f96460d18de5b9e88d84bbeb7071b685b1d4b85b",
+      "fingerprint": "ed1d73f6db10afeb1d5556ac4481c3c8274275733af2d678f6f43204f930be60",
       "load_case": "LoadCase1",
       "schema_id": "tuba.model.v4"
     },
@@ -2612,6 +2612,7 @@
     "mesh_id": "analysis_mesh:LoadCase1",
     "metadata": {
       "compiler_inputs": {
+        "beam_stress": "SIPO_ELNO",
         "contact_law": "DIS_CHOC",
         "contact_stiffness_defaults": [
           10000000000.0,
@@ -2631,7 +2632,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f2c9aed896583e28db896565f96460d18de5b9e88d84bbeb7071b685b1d4b85b",
+      "fingerprint": "ed1d73f6db10afeb1d5556ac4481c3c8274275733af2d678f6f43204f930be60",
       "load_case": "LoadCase1",
       "schema_id": "tuba.model.v4"
     },

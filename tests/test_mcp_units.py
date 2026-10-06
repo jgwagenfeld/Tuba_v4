@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,12 @@ POSTS = (
 )
 
 
+def test_unit_lint_accepts_non_ascii_source():
+    from tuba.assemblies import check_unit_style
+
+    check_unit_style("traeger", 'def traeger(model):\n    """Träger — Prüfdefinition."""\n', "traeger")
+
+
 def test_save_unit_enforces_construction_style(tmp_path: Path):
     model_file = tmp_path / "proj" / "model.py"
     init_session(project_name="Units", file_path=str(model_file), load_existing=False)
@@ -44,8 +51,8 @@ def test_save_unit_enforces_construction_style(tmp_path: Path):
     assert not (model_file.parent / "units").exists()
 
 
+@pytest.mark.skipif(shutil.which("ruff") is None, reason="ruff executable is unavailable")
 def test_save_unit_rejects_lint_dirty_code(tmp_path: Path):
-    pytest.importorskip("ruff")
     model_file = tmp_path / "proj" / "model.py"
     init_session(project_name="Units", file_path=str(model_file), load_existing=False)
     with pytest.raises(ValueError, match="statically clean"):
@@ -54,9 +61,13 @@ def test_save_unit_rejects_lint_dirty_code(tmp_path: Path):
                   where="model")
 
 
-def test_save_unit_to_model_py_and_apply_it(tmp_path: Path):
+@pytest.mark.parametrize("crlf", [False, True])
+def test_save_unit_to_model_py_and_apply_it(tmp_path: Path, crlf):
     model_file = tmp_path / "proj" / "model.py"
     init_session(project_name="Units", file_path=str(model_file), load_existing=False)
+    if crlf:
+        model_file.write_bytes(model_file.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        init_session(file_path=str(model_file))
 
     saved = save_unit(name="posts", code=POSTS, func="posts", where="model", params={"n": 1})
     assert saved == {"status": "saved", "ref": "posts", "where": "model", "dry_run": True}

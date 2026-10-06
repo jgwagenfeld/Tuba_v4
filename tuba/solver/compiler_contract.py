@@ -40,6 +40,10 @@ class CompilerContract:
     mixed_analysis: bool = False
 
 
+#: The Code_Aster option a frame member's stress is read from (parse_sipo_table).
+BEAM_STRESS_OPTION = "SIPO_ELNO"
+
+
 def bend_segments(pipe_modelization: PipeModelization | str) -> int:
     """Bend interior segments per modelization: POU_D_T needs more than TUYAU_3M's sixteen."""
     return 32 if PipeModelization(pipe_modelization) is PipeModelization.POU_D_T else 16
@@ -82,6 +86,9 @@ def beam_contract(
     from tuba.solver.aster_contact import shoes, validate_path
     from tuba.physical import _fluid_density_by_element, _physical_properties_for_element, _element_quantities
 
+    if any(support.imposed_displacement is not None for support in model.supports):
+        raise ValueError("Prescribed support displacement is unsupported by the native Code_Aster compiler; refusing to substitute zero restraints.")
+
     if pipe_modelization is PipeModelization.POU_D_T:
         if load_case.internal_pressure != 0 or any(f.quantity == "pressure" and f.value != 0 for f in load_case.fields):
             raise ValueError("POU_D_T pipe pressure is unsupported: pressure end thrust and pressure stress require qualification.")
@@ -121,6 +128,10 @@ def beam_contract(
         inputs = dict(inputs or {}, discrete_support_nodes="GROUP_NO")
     if coupling := attached_support_coupling(model):
         inputs = dict(inputs or {}, attached_support_coupling=coupling)
+    if any(element.type == "beam" for element in model.elements):
+        # Frame members carry their extreme fibre stress; evidence solved before
+        # it was requested lacks the table, so it reads stale.
+        inputs = dict(inputs or {}, beam_stress=BEAM_STRESS_OPTION)
     contact_specs = shoes(model, pipe_modelization)
     if contact_specs:
         reject_fluid_contents(load_case, "native contact studies")
@@ -160,6 +171,15 @@ def beam_contract(
             inputs or {},
             buckling=resolve_buckling_options(load_case.buckling).to_dict(),
         )
+    from tuba.meshing.policy import has_mesh_policy, resolve_mesh_policy, line_stations
+    if has_mesh_policy(model):
+        policy = resolve_mesh_policy(model)
+        stations = line_stations(model,policy,minimum_segments={
+            e.id: (bend_segments(pipe_modelization) if e.type=="pipe_bend" else
+                   line_segments if subdivides_straight_segments(e,pipe_modelization=pipe_modelization,line_segments=line_segments) else 1)
+            for e in model.elements
+        })
+        inputs = dict(inputs or {}, mesh_policy=policy.to_dict(), element_stations=stations)
     return CompilerContract(
         compiler_id=CODE_ASTER_COMPILER_ID,
         compiler_inputs=inputs,

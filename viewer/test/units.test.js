@@ -12,6 +12,7 @@ import {
   formatQuantity,
   formatUtilization,
   formatValue,
+  formatScaleSeries,
   formatValueSeries,
   getUnitSystem,
   isConvertible,
@@ -113,6 +114,10 @@ test("display precision follows magnitude without erasing tiny results", () => {
 
 test("compared values gain precision only when rounded labels would coincide", () => {
   assert.deepEqual(formatNumberSeries([0, 25, 50, 75, 100]), ["0", "25", "50", "75", "100"]);
+  // Round-off at a fixed support is zero on a colour scale - and only there:
+  // result-step times keep a real 1e-5 s first step.
+  assert.deepEqual(formatScaleSeries([7.487e-23, 0.08283], "m"), ["0", "82.83"]);
+  assert.notEqual(formatNumberSeries([1e-5, 1e5])[0], "0");
   assert.deepEqual(formatValueSeries([100000000, 100001000, 100002000], "Pa"), ["100", "100.001", "100.002"]);
   for (const values of [[999999, 1000000], [1e-12, 1.00001e-12], [-100.001, -100, -99.999]]) {
     assert.equal(new Set(formatNumberSeries(values).map(Number)).size, values.length);
@@ -166,9 +171,9 @@ test("body metrics follow the unit chip", () => {
     geometryPayloads: []
   };
   const engineering = getBodies({ ...state, unitSystem: "engineering" })[0];
-  assert.equal(engineering.metrics[1], "OD 114.3 · WT 6.02 · R 342.9 mm");
+  assert.equal(engineering.metrics[2], "OD 114.3 · WT 6.02 · R 342.9 mm");
   const si = getBodies({ ...state, unitSystem: "si" })[0];
-  assert.equal(si.metrics[1], "OD 0.1143 · WT 0.00602 · R 0.3429 m");
+  assert.equal(si.metrics[2], "OD 0.1143 · WT 0.00602 · R 0.3429 m");
 });
 
 // The header clock that runs while Code_Aster does. A solve emits solve_started

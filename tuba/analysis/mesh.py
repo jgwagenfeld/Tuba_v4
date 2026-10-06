@@ -146,6 +146,7 @@ class AnalysisMesh:
     #: mesh. The id carries the geometry fingerprint, so mesh, solver input
     #: identity, and scene all pin the same solid.
     geometry_ref: str | None = None
+    mesh_review: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisMesh id")
@@ -212,6 +213,11 @@ class AnalysisMesh:
             object.__setattr__(self, "surface_mesh", surface_mesh)
         if self.geometry_ref is not None and not self.geometry_ref:
             raise ValueError("AnalysisMesh geometry_ref must not be empty when set.")
+        if self.mesh_review is not None:
+            from copy import deepcopy
+            if not isinstance(self.mesh_review,dict) or self.mesh_review.get("schema")!="tuba.mesh-review.v1":
+                raise ValueError("AnalysisMesh mesh_review must use schema tuba.mesh-review.v1.")
+            object.__setattr__(self,"mesh_review",deepcopy(self.mesh_review))
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -238,6 +244,8 @@ class AnalysisMesh:
             data["surface_mesh"] = surface_mesh
         if self.geometry_ref is not None:
             data["geometry_ref"] = self.geometry_ref
+        if self.mesh_review is not None:
+            data["mesh_review"] = self.mesh_review
         return data
 
     @classmethod
@@ -262,6 +270,7 @@ class AnalysisMesh:
             ),
             surface_mesh=(dict(data["surface_mesh"]) if data.get("surface_mesh") is not None else None),
             geometry_ref=data.get("geometry_ref"),
+            mesh_review=data.get("mesh_review"),
         )
 
 

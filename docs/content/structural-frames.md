@@ -20,22 +20,32 @@ python -m tuba.cli_studio examples/steel-portal-frame
 Its committed evidence lives in `evidence/<case>/` and is checked against the
 model fingerprint on import, so editing `model.py` correctly invalidates it.
 
-## Result coverage: no stress without pipes
+## Result coverage: no von Mises for frame members
 
-Tuba requests Code_Aster's `SIEQ` equivalent-stress field only when the model
-contains pipe elements. A structural frame therefore produces **no von Mises
-stress**, and `max_von_mises` is `None` for every member. Displacements and
-reactions are real and complete.
+Tuba requests Code_Aster's `SIEQ` equivalent-stress field only for pipe
+elements. A `POU_D_T` frame member has no stress tensor in Code_Aster, so it
+produces **no von Mises stress**, and `max_von_mises` is `None` for every member.
+Displacements and reactions are real and complete.
+
+What a frame member does get is its **extreme fibre normal stress**,
+`max_normal_stress`: axial plus bending, the largest over the member's solver
+nodes. It is read from `SIPO_ELNO` and combined the way Code_Aster's own
+`SIPM_ELNO` combines it: `SN ± |SMFY| ± |SMFZ|` for rectangular and I-sections,
+and `SN ± √(SMFY² + SMFZ²)` for circular ones. `SIPM_ELNO` itself cannot be used,
+because it is zero in `STAT_NON_LINE` runs and for `SECTION='GENERALE'`. Shear
+and torsion are not part of this value. The viewer shows it as its own field,
+**Beam normal stress**, never inside the von Mises one.
 
 | Result | Pipe model | Structural frame |
 | --- | --- | --- |
 | Node displacements | yes | yes |
 | Node reactions | yes | yes |
 | Element von Mises stress | yes | **not computed** |
+| Extreme fibre normal stress | no | yes |
 
-Report the missing stress as "not computed". Never render it as `0.0`: an absent
-result is not a zero result, and the difference matters when a reviewer reads the
-number as "this member is unstressed".
+Report the missing von Mises stress as "not computed". Never render it as `0.0`:
+an absent result is not a zero result, and the difference matters when a reviewer
+reads the number as "this member is unstressed".
 
 ## Element semantics
 
@@ -147,8 +157,9 @@ model here answers *how does the frame deflect, how much load reaches the
 foundations, and how far is the linearised buckling factor*, and deliberately not
 *is any member adequate*.
 
-That is also why section forces, not von Mises, are the deliverable. A member
-code consumes N, Vy, Vz, Mt, My, Mz.
+That is also why section forces, not a stress, are the deliverable. A member
+code consumes N, Vy, Vz, Mt, My, Mz. The normal stress field is there for
+finding where a frame works hardest, not for showing that it is adequate.
 
 ## Buckling
 

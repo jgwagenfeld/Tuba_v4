@@ -1,7 +1,8 @@
 """The solve claim: one solve per project folder at a time, across processes (spec decision 20).
 
 A solve holds ``<project>/.tuba/solve.lock``, created atomically, and touches it every few seconds. A
-claim nobody has touched for a minute belonged to a solve that crashed, and the next solve breaks it.
+ordinary claim nobody has touched for a minute belonged to a solve that crashed. Owned external
+execution also carries a durable cleanup obligation: only verified cleanup may release that claim.
 """
 
 from __future__ import annotations
@@ -31,7 +32,25 @@ def solve_claimed(project_root: str | Path, *, stale_after_s: float = STALE_AFTE
         touched = (Path(project_root) / CLAIM).stat().st_mtime
     except FileNotFoundError:
         return False
-    return time.time() - touched < stale_after_s
+    return bool(cleanup_claim(project_root)) or time.time() - touched < stale_after_s
+
+
+def cleanup_claim(project_root):
+    """Read the exact durable job obligation, independent of owner heartbeat/death."""
+    try:
+        record = json.loads((Path(project_root) / CLAIM).read_text(encoding="utf-8"))
+        return record if record.get("cleanup_obligation") is not None else None
+    except (OSError, ValueError):
+        return None
+
+
+def release_cleanup_claim(project_root, *, token, obligation):
+    """Called only after independent runtime cleanup; never release another job's claim."""
+    path = Path(project_root) / CLAIM
+    record = cleanup_claim(project_root)
+    if record is None or record.get("token") != token or record.get("cleanup_obligation") != obligation:
+        raise SolveBusy("Cleanup claim identity changed; release refused.")
+    path.unlink()
 
 
 @contextmanager
@@ -40,7 +59,8 @@ def claim_solve(
     *,
     heartbeat_s: float = HEARTBEAT_S,
     stale_after_s: float = STALE_AFTER_S,
-) -> Iterator[None]:
+    cleanup_obligation: dict | None = None,
+) -> Iterator[str]:
     """Hold the project's solve claim for the block, or raise :class:`SolveBusy` while a live solve holds it."""
     root = Path(project_root)
     path = root / CLAIM
@@ -49,11 +69,11 @@ def claim_solve(
     if not ignore.exists():
         ignore.write_text("*\n", encoding="utf-8")  # .tuba/ is tool state, never committed
     token = uuid.uuid4().hex
-    if not _create(path, token):
+    if not _create(path, token, cleanup_obligation):
         if solve_claimed(root, stale_after_s=stale_after_s):
             raise SolveBusy(f"{root.name} is already being solved.")
         _break(path, token)
-        if not _create(path, token):
+        if not _create(path, token, cleanup_obligation):
             raise SolveBusy(f"{root.name} is already being solved.")
     stop = threading.Event()
     heartbeat = threading.Thread(
@@ -61,20 +81,23 @@ def claim_solve(
     )
     heartbeat.start()
     try:
-        yield
+        yield token
     finally:
         stop.set()
         heartbeat.join()
         _release(path, token)
 
 
-def _create(path: Path, token: str) -> bool:
+def _create(path: Path, token: str, cleanup_obligation=None) -> bool:
     try:
         descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         return False
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-        json.dump({"token": token, "pid": os.getpid(), "host": socket.gethostname(), "started_at": time.time()}, stream)
+        record = {"token": token, "pid": os.getpid(), "host": socket.gethostname(), "started_at": time.time()}
+        if cleanup_obligation is not None:
+            record["cleanup_obligation"] = cleanup_obligation
+        json.dump(record, stream)
     return True
 
 
@@ -104,7 +127,8 @@ def _break(path: Path, token: str) -> None:
 
 def _release(path: Path, token: str) -> None:
     try:
-        if json.loads(path.read_text(encoding="utf-8")).get("token") == token:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if record.get("token") == token and record.get("cleanup_obligation") is None:
             path.unlink()
     except (OSError, ValueError):
         pass  # already broken by another solve, or held open by a reader: it goes stale in a minute

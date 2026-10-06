@@ -12,6 +12,7 @@ from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
 from tuba.clash.engine import _segment_aabb_distance
 from tuba.clash.types import ClashResult
+from tuba.clash.reference import reference_polyline_distance, stl_reference_surfaces
 from tuba.geometry.deformed import DeformedEnvelope, build_deformed_envelopes
 from tuba.geometry.spatial import Bounds, SpatialIndex, union_bounds
 from tuba.model import Element, TubaModel
@@ -75,6 +76,38 @@ def check_operating_state(
                 analysis_mesh=analysis_mesh,
             )
         )
+    surfaces = stl_reference_surfaces(model)
+    if not surfaces:
+        return clashes
+    for envelope in operating_envelopes:
+        element = elements_by_id[envelope.entity.id]
+        cold_polyline = _cold_polyline(model, element, result_state=result_state, analysis_mesh=analysis_mesh)
+        if element.type == "pipe_bend" and (len(cold_polyline) <= 2 or len(envelope.polyline) <= 2):
+            raise ValueError("STL operating bend clearance requires generated centerline nodes; coverage unavailable.")
+        for surface in surfaces:
+            cold_distance, _, cold_enclosed = reference_polyline_distance(model, element, cold_polyline, surface)
+            operating_distance, location, operating_enclosed = reference_polyline_distance(
+                model, element, envelope.polyline, surface)
+            cold_overlaps, operating_overlaps = cold_distance < envelope.radius_m, operating_distance < envelope.radius_m
+            if not (cold_overlaps or operating_overlaps):
+                continue
+            # An entirely excluded local interface has infinite distance; it
+            # cannot be involved in an issue and must not enter JSON metadata.
+            if not np.isfinite(cold_distance) or not np.isfinite(operating_distance):
+                raise ValueError("STL operating reference clearance distance is unavailable.")
+            clashes.append(ClashResult(left=envelope.entity, right=EntityRef("component", surface.component_id),
+                severity=_classify(cold_overlaps, operating_overlaps, envelope_type),
+                distance_m=float(operating_distance),
+                penetration_m=max(envelope.radius_m-operating_distance, 0.0),
+                location=tuple(float(v) for v in location), diagnostics=list(envelope.diagnostics),
+                metadata={"check": "imported_reference", "source_format": "STL",
+                    "geometry_state": operating_state.id, "load_case": operating_state.load_case,
+                    "result_state_id": result_state.id, "displacement_source": result_state.id,
+                    "envelope_type": envelope_type, "cold_distance_m": float(cold_distance),
+                    "operating_distance_m": float(operating_distance), "cold_enclosed": cold_enclosed,
+                    "operating_enclosed": operating_enclosed, "closed_surface": surface.closed,
+                    "introduced_by_deformation": not cold_overlaps and operating_overlaps,
+                    "safety_factor": operating_state.safety_factor}))
     return clashes
 
 

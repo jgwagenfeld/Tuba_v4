@@ -108,6 +108,12 @@ textarea,
   outline-color: var(--focus-on-dark);
 }
 
+/* The Display palette floats over the canvas but is itself a dark panel, so it
+   takes the dark ring back: the light one measured ~2.7:1 against it. */
+.display-palette :focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -121,7 +127,7 @@ textarea,
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -259,6 +265,7 @@ textarea,
    the rail closes entirely in Build - which is why the unit chip governing all
    the readouts had to end up here rather than in the rail foot. */
 .status-strip {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -290,30 +297,111 @@ textarea,
   }
 }
 
-.analysis-details {
-  position: relative;
-  font-size: 0.75rem;
-}
-
-.analysis-details > summary,
 .field-details > summary {
   cursor: pointer;
 }
 
-.analysis-details-content {
-  position: absolute;
-  bottom: calc(100% + 0.6rem);
-  left: 0;
-  z-index: 10;
-  width: max-content;
-  max-width: min(34rem, 65vw);
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.75rem;
+/* The strip's way into the dock. A button, not a bare summary: it looks
+   pressable, says whether the dock is open, and keeps the warning colour the
+   summary text carries. The chevron points where the dock will go. */
+.analysis-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: auto;
   border: 1px solid var(--graphite-line);
-  border-radius: 0.25rem;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text-1);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.analysis-toggle::after {
+  content: "";
+  width: 0.35rem;
+  height: 0.35rem;
+  border-top: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  transform: translateY(0.1rem) rotate(45deg);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.analysis-toggle[aria-expanded="true"]::after {
+  transform: translateY(-0.1rem) rotate(225deg);
+}
+
+.analysis-toggle:hover,
+.analysis-toggle[aria-expanded="true"] {
+  border-color: var(--focus-on-dark);
+  color: var(--chrome-text);
+}
+
+.analysis-toggle[aria-expanded="true"] {
+  background: var(--graphite-raised);
+}
+
+.analysis-toggle[hidden],
+.analysis-dock[hidden] {
+  display: none;
+}
+
+/* A row of the shell between the workspace and the strip, so opening it
+   shortens the script and the viewport instead of covering them. Fixed height
+   with its own scroller: the workspace above should not jump with every mesh
+   job's status line. */
+.analysis-dock {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: min(19rem, 42vh);
+  min-height: 0;
+  border-top: 1px solid var(--graphite-line);
   background: var(--graphite);
-  box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 25%);
+  color: var(--chrome-text);
+  font-size: 0.8rem;
+}
+
+.analysis-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0.85rem;
+  border-bottom: 1px solid var(--graphite-line);
+}
+
+.analysis-dock-head h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.analysis-dock-head button {
+  width: auto;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text-2);
+  font: inherit;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+
+.analysis-dock-head button:hover {
+  border-color: var(--graphite-line);
+  color: var(--chrome-text);
+}
+
+.analysis-details-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem 1rem;
 }
 
 .analysis-details-content .mesh-check,
@@ -618,31 +706,7 @@ textarea,
 }
 
 .find-scope {
-  display: flex;
-  gap: 0.2rem;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
-  scrollbar-width: thin;
-}
-
-.scope-chip {
-  flex: 0 0 auto;
-  min-height: 1.5rem;
-  width: auto;
-  border: 1px solid var(--graphite-line);
-  border-radius: 0.9rem;
-  background: transparent;
-  color: var(--chrome-text-2);
-  cursor: pointer;
-  font-size: 0.66rem;
-  padding: 0.15rem 0.5rem;
-  white-space: nowrap;
-}
-
-.scope-chip[aria-pressed="true"] {
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  font-weight: 650;
+  width: 100%;
 }
 
 .object-list {
@@ -739,6 +803,10 @@ textarea,
   background: rgb(94 216 229 / 26%);
   color: inherit;
   border-radius: 0.1rem;
+}
+
+.object-row.selected .object-name mark {
+  color: var(--chrome-text);
 }
 
 /* The two-line row: name above, identity below. The name may ellipsise - it is
@@ -902,9 +970,12 @@ textarea,
   background: var(--sidebar-control);
 }
 
+/* One line, always: the caret stays at the row's end rather than wrapping
+   under the name. Anything that does not fit goes on a line of its own below
+   (.body-status, .body-controls). */
 .body-head {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.4rem;
 }
@@ -952,11 +1023,6 @@ textarea,
   color: #c5ced1;
 }
 
-.body-badge-accent {
-  background: rgb(94 216 229 / 16%);
-  color: var(--accent);
-}
-
 .body-opacity,
 .body-scale {
   flex: 0 0 auto;
@@ -979,7 +1045,36 @@ textarea,
   background: #36434c;
 }
 
+/* The control's name in the UI face, its value in mono - "Opacity 60%". */
+.body-chip-key {
+  font-family: var(--font-ui);
+  color: var(--chrome-text-1);
+}
+
+/* Lines under the name share the metrics' indent, so they read as the row's
+   own and not as the next row. */
+.body-status {
+  margin: 0;
+  padding-left: 1.35rem;
+  overflow: hidden;
+  color: var(--chrome-text-1);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-left: 1.35rem;
+}
+
+/* 24px target, 12px drawn chevron; it turns down when the details open. */
 .body-caret {
+  display: grid;
+  place-items: center;
   width: 1.5rem;
   height: 1.5rem;
   flex: 0 0 auto;
@@ -988,9 +1083,15 @@ textarea,
   background: transparent;
   color: #7f9099;
   cursor: pointer;
-  font-size: 0.6rem;
-  line-height: 1;
   padding: 0;
+}
+
+.body-caret svg {
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.body-caret[aria-expanded="true"] svg {
+  transform: rotate(90deg);
 }
 
 .body-caret:hover,
@@ -1532,6 +1633,16 @@ textarea,
   color: #8b96a2;
   font-family: var(--font-mono);
   font-size: 0.66rem;
+}
+
+/* The scene's "no result" hatch (hatchNoResult in renderer.js), as a swatch. */
+.legend-no-result { display: flex; align-items: center; gap: .4rem; }
+.legend-no-result-swatch {
+  flex: none;
+  width: 1.1rem;
+  height: .7rem;
+  border: 1px solid rgb(100 116 139 / 70%);
+  background: repeating-linear-gradient(-45deg, rgb(100 116 139 / 75%) 0 2px, rgb(156 163 175 / 30%) 2px 6px);
 }
 
 .averaging-note,
@@ -2158,7 +2269,7 @@ textarea,
   padding-left: var(--controls-width);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width, 20rem);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
     "viewport inspector"
@@ -2201,7 +2312,7 @@ section {
 }
 
 body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
-  --controls-width: min(18.5rem, max(45vw, 15rem));
+  --controls-width: var(--review-pane-width, min(18.5rem, max(45vw, 15rem)));
 }
 
 /* Every floating control in the viewport is inset by this, so nothing can sit
@@ -2213,6 +2324,8 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
 .viewport {
   --viewport-chrome: 0.75rem;
   --viewport-chrome-wide: 2.5rem;
+  /* Height of the result legend plus its inset; app.js measures it. */
+  --legend-clearance: 0px;
 }
 
 .rail-toggle {
@@ -2363,37 +2476,6 @@ body[data-rail-open="true"] .rail-toggle {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   line-height: 1;
-}
-
-.section-box-controls button {
-  width: auto;
-}
-
-.section-box-controls {
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 0.65rem;
-}
-
-.section-box-controls h3 {
-  margin: 0;
-  font-size: 0.8rem;
-}
-
-.section-box-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.25rem;
-}
-
-.section-box-grid label {
-  display: grid;
-  gap: 0.1rem;
-  font-size: 0.72rem;
-}
-
-.section-box-grid input {
-  min-width: 0;
 }
 
 /* Lives inside .camera-controls now (moved there in renderCameraControls), so
@@ -2772,6 +2854,7 @@ pre {
 
 [data-embed="true"] .app-header,
 [data-embed="true"] .status-strip,
+[data-embed="true"] .analysis-dock,
 [data-embed="true"] .sidebar,
 [data-embed="true"] .cockpit-rail,
 [data-embed="true"] .inspector {
@@ -2807,7 +2890,7 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     position: absolute;
     z-index: 4;
     inset: 0 0 0 auto;
-    width: min(20rem, 100%);
+    width: min(var(--inspector-width, 20rem), 100%);
     box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
   }
 
@@ -2983,7 +3066,7 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     right: 0.75rem;
     top: 3.5rem;
     max-width: calc(100% - 1.5rem);
-    max-height: calc(100% - 7rem);
+    max-height: calc(100% - 3.75rem - max(3.25rem, var(--legend-clearance, 0px) + 0.5rem));
   }
 
   .display-palette[open] {
@@ -3411,6 +3494,14 @@ body[data-view="gallery"] {
 .exchange-products { max-height: 14rem; overflow: auto; }
 .exchange-products label { padding: .3rem 0; border-bottom: 1px solid var(--graphite-line); }
 
+.geometry-import { width: min(48rem, calc(100vw - 2rem)); }
+.geometry-import fieldset { border: 1px solid var(--graphite-line); margin: .8rem 0; }
+.geometry-triplet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.geometry-triplet input { width: 100%; box-sizing: border-box; }
+.geometry-viewport canvas { display: block; width: 100%; height: 18rem; background: var(--graphite); }
+.geometry-import textarea { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--font-mono); background: var(--graphite); color: var(--chrome-text-1); border: 1px solid var(--graphite-line); padding: .7rem; }
+.geometry-relations { display: flex; flex-wrap: wrap; gap: .4rem; }
+
 /* The thumbnails are 1280x800 - a 16:10 frame, not 8:5 - and `cover` cropped
    about 11% off the top and bottom to fit, which cut the shoe markings and the
    support symbols off the bottom of every card. `contain` shows the whole
@@ -3814,7 +3905,7 @@ body[data-studio="true"] .app-identity {
 /* The script takes the rail's slot, wider: a builder call runs to about sixty
    characters and should neither wrap nor scroll sideways. */
 body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
-  --controls-width: min(34rem, max(42vw, 20rem));
+  --controls-width: var(--script-pane-width, min(34rem, max(42vw, 20rem)));
 }
 
 .code-pane {
@@ -3919,7 +4010,6 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   .code-run kbd {
     display: none;
   }
-  .code-role { display: none; }
 }
 
 .code-tabs {
@@ -3983,19 +4073,6 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   border-bottom-color: #6b7a83;
   background: var(--graphite);
   color: var(--chrome-text);
-}
-
-.code-role {
-  color: var(--chrome-text-2);
-  font-size: 0.625rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* A permanent tag on the model.py tab, not a state, so it reads as a label
-   rather than as something that just happened. */
-.code-role-source {
-  color: var(--chrome-text-2);
 }
 
 /* Generated text reads a step quieter than the source it came from. */
@@ -4067,10 +4144,51 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   color: var(--accent);
 }
 
+/* Dimmed, not faded out: a blocked button's label says why it is blocked. */
 .code-pane .code-mesh-toggle:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.7;
 }
+
+/* Generation, requested sizing and measured quality side by side; they wrap
+   to a single column when the window is too narrow for three. */
+.mesh-review { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.75rem 2rem; align-items: start; }
+.mesh-review[hidden] { display: none; }
+.mesh-check:not([hidden]) ~ .mesh-review, .balance-check:not([hidden]) ~ .mesh-review { padding-top: .75rem; border-top: 1px solid var(--graphite-line); }
+.mesh-review-group { min-width: 0; }
+/* The quality table has seven columns; an equal third cut off its threshold. */
+@media (min-width: 1100px) { .mesh-review { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); } }
+.mesh-review-wide { grid-column: 1 / -1; min-width: 0; }
+.mesh-review h3 { margin: 0 0 .45rem; color: var(--chrome-text); font-size: .8rem; font-weight: 600; }
+.mesh-review p { margin: .3rem 0; color: var(--chrome-text-1); line-height: 1.4; max-width: 70ch; }
+.mesh-review button { display: inline-flex; width: auto; border: 1px solid var(--graphite-line); border-radius: .15rem; background: transparent; color: var(--chrome-text-1); font: inherit; cursor: pointer; padding: .25rem .5rem; }
+.mesh-review button:hover { border-color: var(--focus-on-dark); color: var(--chrome-text); }
+.mesh-review button:disabled { cursor: not-allowed; opacity: .5; }
+.mesh-review .mesh-notice { color: var(--chrome-text-2); }
+.mesh-review .mesh-status { color: var(--chrome-text); font-weight: 600; }
+.mesh-error { color: var(--danger-on-dark); overflow-wrap: anywhere; }
+.mesh-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+.mesh-refinement { margin: .4rem 0; }
+.mesh-refinement span { display: block; margin-top: .2rem; }
+.mesh-visibility { display: flex; flex-wrap: wrap; gap: .5rem; margin: .4rem 0; }
+.mesh-visibility label { display: flex; align-items: center; gap: .3rem; cursor: pointer; color: var(--chrome-text-1); }
+.mesh-visibility input { accent-color: var(--accent); }
+.mesh-size-legend { margin-top: .5rem; padding-top: .45rem; border-top: .35rem solid; border-image: linear-gradient(to right, #e65a28, #2563eb) 1; }
+.mesh-size-legend[data-uniform="true"] { border-image: none; border-top-color: #865e8a; }
+.mesh-size-range { display: flex; justify-content: space-between; gap: .5rem; margin-top: .25rem; font-family: var(--font-mono); font-size: .75rem; color: var(--chrome-text-1); }
+.mesh-statistics { font-variant-numeric: tabular-nums; }
+.mesh-metrics { width: 100%; margin: .5rem 0; border-collapse: collapse; font-size: .75rem; }
+.mesh-metrics th, .mesh-metrics td { padding: .25rem .4rem; border-bottom: 1px solid var(--graphite-line); text-align: right; white-space: nowrap; }
+.mesh-metrics th { color: var(--chrome-text-2); font-weight: 500; }
+.mesh-metrics td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--chrome-text-1); }
+.mesh-metrics th:nth-child(-n+2), .mesh-metrics td:nth-child(-n+2) { text-align: left; padding-left: 0; }
+.mesh-metrics td:nth-child(2) { font-family: var(--font-ui); }
+.mesh-comparison { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .75rem; }
+.mesh-comparison th, .mesh-comparison td { padding: .35rem; border-bottom: 1px solid var(--graphite-line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.mesh-comparison th:nth-child(1) { width: 24%; }
+.mesh-comparison th:nth-child(2) { width: 40%; }
+.mesh-level-status { white-space: nowrap; }
+.mesh-comparison summary { font-weight: normal; }
 
 .code-pane .code-run {
   display: inline-flex;
@@ -4377,30 +4495,48 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   padding: 0 0.85rem;
 }
 
-/* Drag handle on the script pane's right edge. A drag writes --controls-width
-   on the workspace, which is what reserves the pane's width for the viewport
-   (padding-left), so the scene grows exactly as the pane shrinks. */
-.code-resize {
+/* Full-height handles stay outside the panes so scrolling cannot move them. */
+.pane-resize {
   position: absolute;
-  top: 0;
-  right: -5px;
-  bottom: 0;
   z-index: 7;
-  width: 11px;
+  width: 10px;
   cursor: ew-resize;
   touch-action: none;
 }
 
-.code-resize:hover::after,
-.code-resize[data-dragging]::after {
+.code-state:empty,
+.exchange-note:empty,
+.exchange-dialog p[role="status"]:empty {
+  display: none;
+}
+
+.inspector .evidence-title {
+  margin: 0;
+  font-size: 1.05rem;
+  text-transform: none;
+}
+
+.pane-resize[hidden] { display: none; }
+
+.pane-resize::after {
   content: "";
   position: absolute;
   top: 0;
-  right: 5px;
   bottom: 0;
-  width: 1px;
+  left: 4px;
+  width: 2px;
+  background: var(--graphite-line);
+}
+
+.pane-resize:hover::after,
+.pane-resize:focus-visible::after,
+.pane-resize[data-dragging]::after {
   background: var(--accent);
 }
+
+.pane-resize:focus-visible { outline-offset: -3px; }
+.viewer-workspace[data-pane-resizing],
+.viewer-workspace[data-pane-resizing] * { cursor: ew-resize; user-select: none; }
 
 /* The inspector's link back to the script. */
 .inspector .script-link-reveal {
@@ -4726,7 +4862,6 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
 }
 .review-section .rail-find { padding-inline: 0; }
-.review-section .find-scope { flex-wrap: wrap; }
 .review-section .object-list { max-height: 24rem; overflow: auto; }
 
 /* Display stays reachable even when the review rail is closed. The tint keeps
@@ -4742,7 +4877,9 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   top: var(--viewport-chrome, 0.75rem);
   left: calc(var(--viewport-chrome, 0.75rem) + 2.25rem);
   max-width: calc(100% - 3.25rem);
-  max-height: calc(100% - 4.5rem);
+  /* Ends above the result legend when one is showing (--legend-clearance is
+     measured in app.js), so the colour bar is never drawn under the palette. */
+  max-height: calc(100% - var(--viewport-chrome, 0.75rem) - max(3.75rem, var(--legend-clearance, 0px) + 0.5rem));
   overflow: auto;
   overflow-anchor: none;
   overscroll-behavior: contain;
@@ -4789,6 +4926,223 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 .display-palette .meta,
 .display-palette .layer-toggle { color: var(--chrome-text-1); }
 .display-palette .body-metric { color: var(--chrome-text-1); }
+
+/* A group heading with one control at its end: "Show values" belongs to the
+   whole Supports, loads & vectors group, not to any one row. */
+.display-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.display-group-head h2 { flex: 1 1 auto; }
+.value-labels-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.5rem;
+  color: var(--chrome-text-1);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Cut view: a three-way segmented control, then the mode's own controls. */
+.cut-view-modes {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  border: 1px solid #65747c;
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+.cut-view-modes label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.6rem;
+  color: var(--chrome-text-1);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cut-view-modes label + label { border-left: 1px solid #65747c; }
+.cut-view-modes input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.cut-view-modes label:hover { color: var(--chrome-text); background: var(--sidebar-control); }
+.cut-view-modes label:has(input:checked) {
+  background: rgb(94 216 229 / 16%);
+  color: var(--chrome-text);
+  font-weight: 600;
+}
+/* Dimmer text alone read as a quieter option, not an unavailable one. The
+   hatch says "not now" while the name stays readable (#8895a0 is 4.9:1 on the
+   palette). */
+.cut-view-modes label:has(input:disabled) {
+  color: var(--chrome-text-3);
+  background: repeating-linear-gradient(135deg, transparent 0 4px, rgb(255 255 255 / 6%) 4px 8px);
+  cursor: not-allowed;
+}
+.cut-view-modes label:has(input:focus-visible) {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: -2px;
+}
+.cut-view-hint {
+  margin: 0.3rem 0 0;
+  color: var(--chrome-text-1);
+  font-size: 0.72rem;
+}
+.cut-view-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  color: var(--chrome-text-1);
+  font-size: 0.75rem;
+}
+.cut-view-selection button {
+  width: auto;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+/* Two native range inputs over one track. The inputs ignore the pointer and
+   only their thumbs take it, so either handle can be grabbed. */
+.cut-view-ranges {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.15rem;
+  margin-top: 0.45rem;
+}
+.cut-axis-name {
+  color: var(--chrome-text-1);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.cut-axis-readout {
+  min-width: 7.5rem;
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+/* Each end of the readout is a value you can click to type over: dotted, like
+   a field, not boxed like a button. */
+.display-palette .cut-axis-readout button {
+  width: auto;
+  min-height: 1.5rem;
+  padding: 0 0.15rem;
+  border: 0;
+  border-bottom: 1px dotted var(--chrome-text-1);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+}
+.display-palette .cut-axis-readout button:hover { border-bottom-color: var(--accent); }
+.display-palette .cut-axis-readout input {
+  width: 5.5em;
+  min-height: 1.5rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.15rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  font: inherit;
+  text-align: right;
+}
+.display-palette .cut-axis-readout input[aria-invalid="true"] { border-color: var(--danger-on-dark); }
+.cut-range {
+  /* The handle positions as 0-1 fractions, set inline per axis. */
+  --lo: 0;
+  --hi: 1;
+  --thumb: 14px;
+  position: relative;
+  height: 1.5rem;
+}
+.cut-range::before,
+.cut-range-fill {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+}
+.cut-range::before {
+  left: calc(var(--thumb) / 2);
+  right: calc(var(--thumb) / 2);
+  background: #65747c;
+}
+.cut-range-fill {
+  left: calc(var(--lo) * (100% - var(--thumb)) + var(--thumb) / 2);
+  right: calc((1 - var(--hi)) * (100% - var(--thumb)) + var(--thumb) / 2);
+  background: var(--accent);
+}
+.cut-range input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.cut-range input[type="range"]:focus-visible { outline: none; }
+.cut-range input[type="range"]::-webkit-slider-runnable-track { height: 100%; background: none; }
+.cut-range input[type="range"]::-moz-range-track { background: none; }
+.cut-range input[type="range"]::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((1.5rem - var(--thumb)) / 2);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--graphite);
+  cursor: grab;
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.cut-range input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--graphite);
+  cursor: grab;
+  pointer-events: auto;
+}
+.cut-range input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; background: var(--accent); }
+.cut-range input[type="range"]:active::-moz-range-thumb { cursor: grabbing; background: var(--accent); }
+.cut-range input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--focus-on-dark); }
+.cut-range input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--focus-on-dark); }
+/* Every field the palette can hold, including the colour select Build mode
+   moves in here, which loses its rail styling on the way. */
+.display-palette input[type="number"],
+.display-palette select {
+  border-color: #65747c;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.4rem;
+}
+.display-palette input[type="number"] { font-family: var(--font-mono); }
+.display-palette input:disabled { color: var(--chrome-text-3); }
 
 .group-header[aria-pressed="true"] { color: var(--accent); border-left: 2px solid var(--accent); }
 .review-drawer {
@@ -4837,7 +5191,7 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
     right: 0.75rem;
     left: auto;
     max-width: calc(100% - 1.5rem);
-    max-height: calc(100% - 7rem);
+    max-height: calc(100% - 3.75rem - max(3.25rem, var(--legend-clearance, 0px) + 0.5rem));
   }
 
   .display-palette[open] {
@@ -4856,37 +5210,90 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 }
 
 
+.select-other {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0.25rem;
+  width: min(15rem, calc(100vw - 1rem));
+  max-height: calc(100dvh - 1rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #65747c;
+  border-radius: 0.25rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  color-scheme: dark;
+  box-shadow: 0 0.4rem 1.4rem rgb(14 20 24 / 25%);
+}
+.select-other-head { padding: 0.25rem 0.4rem 0.4rem; color: var(--chrome-text-1); font-size: 0.75rem; }
+.select-other-list { max-height: min(12rem, calc(100dvh - 4rem)); overflow: auto; overscroll-behavior: contain; }
+.context-menu-actions { margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px solid #65747c; }
+.select-other > button, .context-menu-actions button, .select-other-list button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0.15rem;
+  background: transparent;
+  color: var(--chrome-text);
+  text-align: left;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.select-other-list strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.select-other-list span { flex: 0 1 5rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--chrome-text-1); font-size: 0.7rem; }
+.select-other button:not(:disabled):hover, .select-other button:focus-visible { background: var(--graphite-highlight); outline: 1px solid var(--accent); outline-offset: -1px; }
+.select-other button[aria-checked="true"] { border-left-color: #f59e0b; }
+.select-other button:disabled { opacity: 0.4; }
+[data-pick-open]::after { content: "\203a"; margin-left: auto; }
+
 /* Shared profile drawer: native dialog owns focus, Escape and the backdrop. */
 .profile-library {
-  width: min(48rem, calc(100vw - 2rem));
-  height: calc(100dvh - 2rem);
-  max-height: none;
-  margin: 1rem 1rem 1rem auto;
+  width: min(40rem, calc(100vw - 2rem));
+  height: min(32rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 1rem;
+  font-size: .875rem;
 }
-.profile-library-tabs, .profile-library-filters { display: flex; gap: .6rem; flex-wrap: wrap; }
+.profile-library[open] { display: flex; flex-direction: column; gap: .5rem; }
+.profile-library .exchange-head h2 { font-size: 1.25rem; }
+.profile-library button { padding: .35rem .55rem; }
+.profile-library p { margin: 0; }
+.profile-library .exchange-note { font-size: .8rem; }
+.profile-library-tabs { display: flex; gap: .4rem; flex-wrap: wrap; }
 .profile-library-tabs button[aria-pressed="true"], .profile-library-list button[aria-pressed="true"] { border-color: var(--accent); background: var(--graphite-highlight); }
-.profile-library-filters label { flex: 1 1 8rem; }
+.profile-library-filters { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) repeat(2, minmax(0, .9fr)); gap: .5rem; }
+.profile-library-filters label { min-width: 0; margin: 0; font-size: .8rem; }
 .profile-library-filters input, .profile-library-filters select { display: block; width: 100%; }
-.profile-library-content { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(0, 1.5fr); gap: 1.2rem; }
-.profile-library-list { max-height: 60dvh; overflow: auto; display: flex; flex-direction: column; gap: .3rem; }
+.profile-library-content { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(11rem, 1fr) minmax(0, 1.5fr); gap: .75rem; }
+.profile-library-list { overflow: auto; display: flex; flex-direction: column; gap: .25rem; }
 .profile-library-list button { text-align: left; flex-shrink: 0; }
 .profile-library-list small { display: block; color: var(--chrome-text-1); }
-.profile-library-preview h3 { margin-top: 0; }
+.profile-library-preview { min-width: 0; overflow: auto; }
+.profile-library-preview h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.profile-library-preview .profile-diagram { width: 10rem; }
 .profile-library-preview .property-table { width: 100%; }
+.profile-library-preview .exchange-note { margin: .4rem 0; }
 .profile-library-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 @media (max-width: 600px) {
-  .profile-library-content { grid-template-columns: minmax(0, 1fr); }
-  .profile-library-list { max-height: 25dvh; }
+  .profile-library { height: min(36rem, calc(100dvh - 2rem)); }
+  .profile-library-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-library-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(5rem, .4fr) minmax(0, 1fr); }
 }
 
-.profile-library input, .profile-library select { color: var(--chrome-text); background: var(--sidebar-control); border: 1px solid var(--graphite-line); padding: .45rem; }
-
-.profile-library[open] { display: flex; flex-direction: column; }
-.profile-library-content { flex: 1; min-height: 0; }
-.profile-library-list { max-height: none; }
-.profile-library-preview { overflow: auto; }
-@media (max-width: 600px) {
-  .profile-library-content { grid-template-rows: minmax(5rem, .4fr) minmax(0, 1fr); }
+.exchange-dialog input:not([type="file"]):not([type="checkbox"]),
+.exchange-dialog select,
+.exchange-dialog textarea {
+  color: var(--chrome-text);
+  background: var(--sidebar-control);
+  border: 1px solid var(--graphite-line);
+  padding: .45rem;
 }
 
 .profile-library-preview a { color: var(--accent); }

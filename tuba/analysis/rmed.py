@@ -20,6 +20,14 @@ def read_rmed_mesh_summary(path: str | Path) -> dict[str, Any]:
         mesh_root = f["ENS_MAA"]
         mesh_name = next(iter(mesh_root.keys()))
         mesh = mesh_root[mesh_name]
+        # MED 3/4 put geometry inside a time-step group. Older exports put
+        # NOE/MAI directly under the named mesh. Do not confuse field groups
+        # with geometry or silently pick a frame from a moving mesh.
+        if "NOE" not in mesh:
+            frames = [group for group in mesh.values() if isinstance(group, h5py.Group) and "NOE" in group]
+            if len(frames) != 1:
+                raise ValueError("RMED mesh summary requires exactly one geometry frame.")
+            mesh = frames[0]
         node_count = int(mesh["NOE"]["COO"].attrs["NBR"])
         element_types = {}
         element_count = 0

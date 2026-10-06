@@ -60,3 +60,31 @@ def test_viewer_rejects_missing_bundle_directory(tmp_path):
 
     with pytest.raises(ValueError, match="does not exist"):
         create_server(tmp_path / "missing")
+
+
+def test_viewer_asset_directory_default_and_external_build(tmp_path, monkeypatch):
+    from importlib.resources import files
+    from tuba.visualization.viewer import viewer_assets_path
+
+    monkeypatch.delenv("TUBA_VIEWER_ASSETS", raising=False)
+    assert viewer_assets_path() == files("tuba.visualization").joinpath("_viewer")
+    (tmp_path / "index.html").write_text("<!doctype html><title>External viewer</title>")
+    monkeypatch.setenv("TUBA_VIEWER_ASSETS", str(tmp_path))
+    assert viewer_assets_path() == tmp_path.resolve()
+    from tuba.visualization.viewer import create_server
+    server, _ = create_server(_bundle(tmp_path), port=0)
+    server.server_close()
+
+
+@pytest.mark.parametrize("path_kind", ["empty", "missing", "file", "incomplete"])
+def test_viewer_asset_override_rejects_invalid_paths(tmp_path, monkeypatch, path_kind):
+    from tuba.visualization.viewer import viewer_assets_path
+
+    root = tmp_path / path_kind
+    if path_kind == "file":
+        root.write_text("not a directory")
+    elif path_kind == "incomplete":
+        root.mkdir()
+    monkeypatch.setenv("TUBA_VIEWER_ASSETS", " " if path_kind == "empty" else str(root))
+    with pytest.raises(ValueError, match="TUBA_VIEWER_ASSETS"):
+        viewer_assets_path()

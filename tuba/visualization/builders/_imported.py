@@ -1,6 +1,7 @@
 """Imported-component scene builders."""
 
 from __future__ import annotations
+from dataclasses import replace
 from typing import Any
 from typing import Iterable
 import numpy as np
@@ -10,7 +11,7 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneContribution
-from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _node_coords, _normalised_vector, _numeric_triplet, _object_id
+from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _node_coords, _normalised_vector, _numeric_triplet, _object_id, _script_line_fields
 
 
 _BOX_FACES = [
@@ -29,7 +30,7 @@ _BOX_FACES = [
 ]
 def _build_imported_component_scene(
     model: TubaModel,
-) -> tuple[list[SceneObject], list[GeometryAsset], list[SceneDiagnostic]]:
+) -> SceneContribution:
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
     diagnostics: list[SceneDiagnostic] = []
@@ -47,8 +48,31 @@ def _build_imported_component_scene(
             continue
 
         asset_record = model.cad_assets[component.asset.id]
+        actual_mesh = _valid_mesh_payload(asset_record.metadata.get("mesh_vertices_local"), asset_record.metadata.get("mesh_faces"))
+        if not actual_mesh:
+            required = asset_record.source_format.upper() in {"STL", "STEP", "STP"} and (
+                asset_record.source_format.upper() == "STL" or asset_record.metadata.get("analysis_import_version"))
+            diagnostics.append(SceneDiagnostic(
+                severity="error" if required else "warning", code="imported_component.missing_surface",
+                message=(f"Imported component {component.id!r} has no valid actual surface mesh." if required else
+                         f"Component {component.id!r} shows only its declared bounds envelope; actual source geometry is unavailable."),
+                target=f"component:{component.id}",
+            ))
+            if required:
+                continue
         component_ref = EntityRef("component", component.id)
         component_object, component_asset = _build_imported_component_object(component_ref, component, asset_record)
+        owned_ports = [port for port in model.ports.values() if port.owner == component_ref]
+        port_ids = {port.id for port in owned_ports}
+        component_object = replace(component_object, metadata={
+            **component_object.metadata,
+            "geometry_representation": "source_surface" if actual_mesh else "bounds_envelope",
+            "placed_bounds_m": list(component_asset.bounds),
+            "analysis_regions": [region.to_dict() for region in model.analysis_regions.values() if region.owner == component_ref],
+            "ports": [{**port.to_dict(), **_script_line_fields(port)} for port in owned_ports],
+            "couplings": [{**coupling.to_dict(), **_script_line_fields(coupling)} for coupling in model.couplings.values()
+                          if coupling.target == component_ref or (coupling.target.kind == "port" and coupling.target.id in port_ids)],
+        })
         objects.append(component_object)
         assets.append(component_asset)
 
@@ -83,7 +107,7 @@ def _build_imported_component_scene(
                     "entity_ref": str(port_ref),
                     "point": point,
                     "radius_m": radius,
-                    "color": "#f97316",
+                    "color": "#22c55e" if port.status == "confirmed" else "#f97316",
                 },
             )
         )
@@ -95,24 +119,41 @@ def _build_imported_component_scene(
                 name=port.id,
                 geometry_asset_id=asset_id,
                 layer_ids=["imported_components", "mixed_ports"],
-                metadata=port.to_dict(),
+                metadata={**port.to_dict(), **_script_line_fields(port)},
             )
         )
 
     for coupling in model.couplings.values():
-        if coupling.kind != "pipe_to_solid_port" or coupling.source_node.id not in model.nodes:
+        if coupling.source_node.id not in model.nodes:
             continue
-        port = model.ports.get(coupling.target.id)
-        if port is None:
+        if coupling.kind == "rigid_patch":
+            start = _node_coords(model, coupling.source_node.id)
+            targets = _rigid_patch_points(model, coupling)
+            if not targets:
+                diagnostics.append(SceneDiagnostic(severity="warning", code="mixed_coupling.missing_patch_selection",
+                    message=f"Rigid patch {coupling.id!r} has no displayable selected geometry.", target=f"coupling:{coupling.id}"))
+                continue
+            points = [start]
+            for target in targets:
+                points.extend([target, start])
+            coincident = all(np.linalg.norm(np.asarray(target) - start) <= 1e-9 for target in targets)
+            config = {"point": start, "radius_m": 0.025} if coincident else {"points": points}
+            geometry_format = "marker" if coincident else "polyline"
+        elif coupling.kind == "pipe_to_solid_port":
+            port = model.ports.get(coupling.target.id)
+            if port is None:
+                continue
+            start = _node_coords(model, coupling.source_node.id)
+            end = _numeric_triplet(port.position)
+            if end is None:
+                continue
+            axis = _normalised_vector(port.axis) or [1.0, 0.0, 0.0]
+            if float(np.linalg.norm(np.asarray(end) - np.asarray(start))) <= 1e-9:
+                # A coincident cut interface is shown as connection intent along its real port axis.
+                end = [float(end[i] + axis[i] * max(port.radius * 2.5, 0.18)) for i in range(3)]
+            config, geometry_format = {"points": [start, end]}, "line"
+        else:
             continue
-        start = _node_coords(model, coupling.source_node.id)
-        end = _numeric_triplet(port.position)
-        if end is None:
-            continue
-        axis = _normalised_vector(port.axis) or [1.0, 0.0, 0.0]
-        if float(np.linalg.norm(np.asarray(end) - np.asarray(start))) <= 1e-9:
-            # ponytail: coincident endpoint/port; draw the coupling intent along the port axis.
-            end = [float(end[i] + axis[i] * max(port.radius * 2.5, 0.18)) for i in range(3)]
 
         coupling_ref = EntityRef("coupling", coupling.id)
         object_id = _object_id(coupling_ref)
@@ -120,13 +161,13 @@ def _build_imported_component_scene(
         assets.append(
             GeometryAsset(
                 id=asset_id,
-                format="line",
-                bounds=_bounds_for_points([start, end], 0.0),
+                format=geometry_format,
+                bounds=_bounds_for_points([start] if geometry_format == "marker" else config["points"], 0.025 if geometry_format == "marker" else 0.0),
                 object_ids=[object_id],
                 generation_config={
                     "source": "tuba.mixed_coupling",
                     "entity_ref": str(coupling_ref),
-                    "points": [start, end],
+                    **config,
                     "color": "#ea580c",
                 },
             )
@@ -139,7 +180,9 @@ def _build_imported_component_scene(
                 name=coupling.id,
                 geometry_asset_id=asset_id,
                 layer_ids=["imported_components", "mixed_couplings"],
-                metadata=coupling.to_dict(),
+                metadata={**coupling.to_dict(), **_script_line_fields(coupling),
+                          "continuation_family": "frame" if coupling.code_aster_option == "3D_POU" else "pipe" if coupling.code_aster_option == "3D_TUYAU" else None,
+                          "attachments": _reference_attachments(model, coupling.source_node.id)},
             )
         )
 
@@ -173,6 +216,7 @@ def _build_imported_component_object(component_ref: EntityRef, component: Any, a
         metadata={
             **component.to_dict(),
             "cad_asset": asset_record.to_dict(),
+            **_script_line_fields(asset_record), **_script_line_fields(component),
         },
     )
     return obj, asset
@@ -230,9 +274,48 @@ def _valid_mesh_payload(vertices: Any, faces: Any) -> bool:
         isinstance(vertices, list)
         and isinstance(faces, list)
         and len(vertices) >= 3
-        and all(isinstance(point, (list, tuple)) and len(point) >= 3 for point in vertices)
-        and all(isinstance(face, (list, tuple)) and len(face) >= 3 for face in faces)
+        and bool(faces)
+        and all(isinstance(point, (list, tuple)) and len(point) == 3
+                and all(isinstance(value, (int, float)) and not isinstance(value, bool) and np.isfinite(value) for value in point) for point in vertices)
+        and all(isinstance(face, (list, tuple)) and len(face) == 3
+                and all(isinstance(index, int) and not isinstance(index, bool) and 0 <= index < len(vertices) for index in face) for face in faces)
     )
+
+def _rigid_patch_points(model: TubaModel, coupling: Any) -> list[list[float]]:
+    data = coupling.metadata
+    if data.get("selection") == "nodes":
+        return [_node_coords(model, node) for node in data.get("nodes", []) if node in model.nodes]
+    if coupling.target.kind == "group":
+        region = next((region for region in model.analysis_regions.values() if region.role == "shell_2d" and region.owner == coupling.target), None)
+        if region is None:
+            return []
+        polygon = region.metadata["polygon_m"]
+        indices = data.get("vertices", []) if data.get("selection") == "shell_vertices" else [i for edge in data.get("edges", []) for i in (edge, (edge + 1) % len(polygon))]
+        return [list(polygon[index]) for index in dict.fromkeys(indices)]
+    component = model.imported_components.get(coupling.target.id)
+    if component is None:
+        return []
+    if data.get("node_filter"):
+        from tuba.visualization.builders._mappings import _component_faces
+        _, points = _component_faces(model, component, data.get("face_selectors", []), node_filter=data["node_filter"])
+        return points[::max(1, (len(points)+11)//12)]
+    asset = model.cad_assets[component.asset.id]
+    return _transform_asset_points([selector["position"] for selector in data.get("face_selectors", []) if _numeric_triplet(selector.get("position")) is not None], asset)
+
+def _reference_attachments(model: TubaModel, node: str) -> list[dict[str, Any]]:
+    from tuba.solver.aster_comm import _held_dofs
+    dofs = ("DX", "DY", "DZ", "DRX", "DRY", "DRZ")
+    attachments = []
+    for support in model.supports:
+        if support.node != node or support.attached_to is None:
+            continue
+        held = _held_dofs(support)
+        attachments.append({"id": support.id, "node": node, "attached_to": support.attached_to,
+            "held_dof": [dof for dof in dofs if dof in held], "released_dof": [dof for dof in dofs if dof not in held],
+            "attachment_mode": support.attachment_mode,
+            "offset_m": (model.nodes[node].coords - model.nodes[support.attached_to].coords).tolist(),
+            **_script_line_fields(support)})
+    return attachments
 def _asset_local_bounds(asset_record: Any) -> list[float]:
     bounds = asset_record.metadata.get("local_bounds")
     if isinstance(bounds, (list, tuple)) and len(bounds) == 6:

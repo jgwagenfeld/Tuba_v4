@@ -2,6 +2,7 @@
 
 from io import BytesIO
 from pathlib import Path
+import subprocess
 import sys
 import tomllib
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
@@ -10,6 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def browser_runtime_archive(root: Path = ROOT) -> bytes:
+    # Publish repository inputs only; local files must never enter the bundle.
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", "tuba", "examples"], cwd=root,
+    ).decode("utf-8").split("\0")
     output = BytesIO()
     # Python versions bundle different zlib implementations; store identical bytes.
     with ZipFile(output, "w", compression=ZIP_STORED) as archive:
@@ -23,9 +28,10 @@ def browser_runtime_archive(root: Path = ROOT) -> bytes:
             # `evidence` and `reference` are excluded together on purpose: a study card
             # describes evidence for a reader of the repository, so a browser that
             # carries neither carries nothing that depends on them.
-            for path in sorted((root / folder).rglob("*"), key=lambda path: path.relative_to(root).as_posix()):
+            for name in sorted(name for name in tracked if name.startswith(folder + "/")):
+                path = root / name
                 if (path.is_file() and path.suffix in {".py", ".json", ".input", ".output", ".stl"}
-                        and not {"_viewer", "__pycache__", "evidence", "reference"}.intersection(path.parts)):
+                        and not {"_viewer", "__pycache__", ".tuba", "evidence", "reference", "review"}.intersection(path.parts)):
                     data = path.read_bytes()
                     # Git checkouts may use CRLF; keep the shipped archive identical.
                     if path.suffix != ".stl":

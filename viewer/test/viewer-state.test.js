@@ -4,6 +4,35 @@ import test from "node:test";
 import { createViewerState, setLayerVisibility } from "../src/sceneLoader.js";
 import { preserveViewerStateForReload, reduceViewerState } from "../src/viewerState.js";
 import { createWorkflowState } from "../src/workflowState.js";
+import { getBodies } from "../src/bodies.js";
+
+test("source mesh visibility is limited to imported components and survives source reload", () => {
+  const state = createViewerState(bundle());
+  state.objects.push({ id: "part", kind: "imported_component", geometry_asset_id: "part_mesh" });
+  state.geometryAssets.push({ id: "part_mesh", format: "mesh", object_ids: ["part"], generation_config: { faces: [[0, 1, 2]] } });
+  const shown = reduceViewerState(state, { type: "setSourceMeshVisible", objectId: "part", visible: true });
+  assert.deepEqual(shown.sourceMeshObjectIds, ["part"]);
+  assert.deepEqual(reduceViewerState(shown, { type: "setSourceMeshVisible", objectId: "part", visible: true }).sourceMeshObjectIds, ["part"]);
+  assert.deepEqual(reduceViewerState(shown, { type: "setSourceMeshVisible", objectId: "object:cold", visible: true }).sourceMeshObjectIds, ["part"]);
+  const proxy = { ...state, objects: state.objects.map(object => object.id === "part" ?
+    { ...object, metadata: { geometry_representation: "bounds_envelope" } } : object) };
+  assert.equal(reduceViewerState(proxy, { type: "setSourceMeshVisible", objectId: "part", visible: true }), proxy);
+  assert.deepEqual(preserveViewerStateForReload(shown, proxy).sourceMeshObjectIds, []);
+  assert.deepEqual(preserveViewerStateForReload(shown, state).sourceMeshObjectIds, ["part"]);
+  assert.deepEqual(preserveViewerStateForReload(shown, createViewerState(bundle())).sourceMeshObjectIds, []);
+  assert.deepEqual(reduceViewerState(shown, { type: "setSourceMeshVisible", objectId: "part", visible: false }).sourceMeshObjectIds, []);
+});
+
+test("Show values is display state: a toggle, kept across a reload, visibility untouched", () => {
+  const state = createViewerState(bundle());
+  assert.notEqual(state.valueLabelsVisible, false, "values show by default");
+  const hidden = reduceViewerState(state, { type: "setValueLabelsVisible", visible: false });
+  assert.equal(hidden.valueLabelsVisible, false);
+  // No object visibility change, so the scene graph is not rebuilt for it.
+  assert.equal(hidden.visibleObjectIds, state.visibleObjectIds);
+  assert.equal(preserveViewerStateForReload(hidden, createViewerState(bundle())).valueLabelsVisible, false);
+  assert.equal(reduceViewerState(hidden, { type: "setValueLabelsVisible", visible: true }).valueLabelsVisible, true);
+});
 
 function bundle(overrides = {}) {
   return {
@@ -122,6 +151,49 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
   const review = reduceViewerState(build, { type: "resetLayerVisibility" });
   assert.equal(review.layers["analysis_mesh:volume_skin"].visible, true);
   assert.equal(review.layers["overlay:result_state"].visible, true);
+
+  const isolated = reduceViewerState(
+    reduceViewerState(build, { type: "selectObject", objectId: "object:cold" }),
+    { type: "isolateSelection" }
+  );
+  const reloaded = preserveViewerStateForReload({
+    ...isolated, hiddenObjectIds: ["object:skin"],
+    sectionBox: { min: [0, 0, 0], max: [0.1, 0.1, 0.1] }
+  }, state);
+  const mesh = reduceViewerState(reloaded, { type: "showAnalysisMesh" });
+  assert.ok(mesh.visibleObjectIds.includes("object:skin"), "opening the FE mesh clears source isolation and hidden mesh IDs");
+  assert.ok(!mesh.visibleObjectIds.includes("object:cold"));
+  assert.deepEqual(mesh.isolatedObjectIds, []);
+  assert.deepEqual(mesh.hiddenObjectIds, []);
+  assert.equal(mesh.sectionBox, undefined);
+  assert.equal(mesh.colorChannel, "model");
+});
+
+// Alt+M and the Build "FE mesh" button. They used to set Geometry to 30 % on
+// the way in and 100 % on the way out, so a reviewer's 60 % came back as 100 %.
+test("toggling the FE mesh swaps the geometry for the mesh and back, keeping the reviewer's opacity", () => {
+  const base = bundle().scene;
+  let state = createViewerState(bundle({
+    objects: [
+      ...base.objects,
+      { id: "object:mesh", kind: "analysis_mesh_element", name: "Mesh", geometry_asset_id: "asset:mesh", layer_ids: ["analysis_mesh:elements"] },
+    ],
+    geometry_assets: [
+      ...base.geometry_assets,
+      { id: "asset:mesh", format: "polyline", bounds: [0, 0, 0, 1, 0, 0], object_ids: ["object:mesh"], generation_config: {} },
+    ],
+    layers: [{ id: "analysis_mesh:elements", category: "analysis_mesh", label: "Elements", default_visible: false }],
+  }));
+  state = reduceViewerState(state, { type: "setBodyOpacity", bodyId: "geometry", opacity: 0.6 });
+
+  const shown = reduceViewerState(state, { type: "toggleFeMesh" });
+  assert.equal(shown.layers["analysis_mesh:elements"].visible, true);
+  assert.equal(shown.bodyOpacity.geometry, 0.6);
+  assert.equal(getBodies(shown).find((body) => body.id === "geometry").visible, false, "a line mesh is shown alone");
+  const hidden = reduceViewerState(shown, { type: "toggleFeMesh" });
+  assert.equal(hidden.layers["analysis_mesh:elements"].visible, false);
+  assert.equal(hidden.bodyOpacity.geometry, 0.6);
+  assert.equal(getBodies(hidden).find((body) => body.id === "geometry").visible, true);
 });
 
 // Build is a stage of the same scene, so it is a detour that leaves the rest of

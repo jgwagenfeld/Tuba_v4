@@ -334,21 +334,19 @@ class Support:
     normal_stiffness: Optional[float] = None
     tangential_stiffness: Optional[float] = None
     attached_to: Optional[str] = None  # the node the restraint acts against; None means ground
+    attachment_mode: str = "rigid_offset"  # rigid lever arm, or global component equality
     source_line: Optional[int] = None  # user script lines, not serialized (see Element)
     source_call_line: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """The canonical payload: optional fields stay absent.
-
-        Pinned: ``imposed_displacement`` is carried by the record and consumed by
-        reporting and contact code but is not encoded; making this encoding
-        canonical must not silently change that.
-        """
+        """The canonical payload: preserve prescribed motion across model saves."""
         data: Dict[str, Any] = {"node": self.node, "type": self.type}
         if self.id is not None:
             data["id"] = self.id
         if self.direction:
             data["direction"] = self.direction
+        if self.imposed_displacement is not None:
+            data["imposed_displacement"] = [float(value) for value in self.imposed_displacement]
         if self.stiffness is not None:
             data["stiffness"] = self.stiffness
         if self.stiffness_matrix is not None:
@@ -367,11 +365,26 @@ class Support:
             data["tangential_stiffness"] = self.tangential_stiffness
         if self.attached_to is not None:
             data["attached_to"] = self.attached_to
+        if self.attachment_mode != "rigid_offset":
+            data["attachment_mode"] = self.attachment_mode
         return data
 
     def __post_init__(self):
         if self.type not in SUPPORT_TYPES:
             raise ValueError(f"Unknown support type {self.type!r}; use one of {', '.join(SUPPORT_TYPES)}.")
+        if self.attachment_mode not in ("rigid_offset", "dof_equality"):
+            raise ValueError("Support attachment_mode must be 'rigid_offset' or 'dof_equality'.")
+        if self.attachment_mode == "dof_equality" and (
+            self.attached_to is None or self.type in ("rest", "spring", "hanger")
+            or self.stiffness is not None or self.stiffness_matrix is not None
+            or self.mass != 0.0 or self.imposed_displacement is not None
+            or self.friction_coefficient != 0.0 or self.gap != 0.0
+            or self.normal_stiffness is not None or self.tangential_stiffness is not None
+        ):
+            raise ValueError(
+                "DOF equality requires an attached bilateral support without contact, "
+                "springs, mass or imposed displacement."
+            )
         for name in ('friction_coefficient', 'gap'):
             value = getattr(self, name)
             if not np.isfinite(value) or value < 0:
@@ -812,6 +825,8 @@ class TubaModel:
         self.ports: Dict[str, Port] = {}
         self.mesh_groups: Dict[str, MeshGroup] = {}
         self.couplings: Dict[str, CouplingSpec] = {}
+        self.mesh_settings: Dict[str, Any] = {}
+        self.mesh_refinements: Dict[str, Dict[str, Any]] = {}
 
         # Pipe runs built through pipe() or PipeRunRecipe.build, in the order they finished.
         # Runtime only, like source lines: never serialized, so a generated model script can
@@ -925,6 +940,62 @@ class TubaModel:
         self.cad_assets[asset.id] = asset
         return asset
 
+    def import_step(self, file_path, *, id: str, unit_scale_to_m: float = 0.001, **options) -> ImportedComponent:
+        """Import STEP geometry, with named interfaces in source-local coordinates.
+
+        CAD is normalized to millimetres; the default scale converts to metres.
+        Set ``placement`` and ``material`` for analysis.
+        ``mesh_size='auto'`` chooses a starting mesh; ``interface_mesh_sizes``
+        refines named faces in metres. Interface selectors use normalized
+        millimetres; recorded ports and mesh size use global metres.
+        """
+        from tuba.geometry.step_analysis_importer import StepAnalysisImporter
+
+        return StepAnalysisImporter().import_component(self, file_path, id=id, unit_scale_to_m=unit_scale_to_m, **options)
+
+    def set_mesh_size_factor(self, factor):
+        """Scale resolved requested sizes; leave geometry and transition extents fixed."""
+        from tuba.meshing.policy import set_mesh_size_factor
+        set_mesh_size_factor(self, factor)
+
+    def set_mesh_size(self, size_m, *, region=None):
+        """Set the global or analysis-region base size, explicitly in metres."""
+        from tuba.meshing.policy import set_mesh_size
+        set_mesh_size(self, size_m, region=region)
+
+    def add_mesh_refinement(self, id, *, target, size_m, influence_distance_m=0.0, transition_distance_m=None):
+        """Add a named local fine plateau and linear transition in metres."""
+        from tuba.meshing.policy import add_mesh_refinement
+        add_mesh_refinement(self, id, target=target, size_m=size_m,
+                            influence_distance_m=influence_distance_m, transition_distance_m=transition_distance_m)
+
+    def remove_mesh_refinement(self, id):
+        from tuba.meshing.policy import remove_mesh_refinement
+        remove_mesh_refinement(self, id)
+
+    def mesh(self, output_path, *, max_element_size=None, line_segments=None):
+        """Mesh STEP solids, shell panels and native members to one MED study.
+
+        Uses the imported component's automatic/explicit sizing and named face
+        refinements. Returns an AnalysisMesh without solver results or a solved
+        input identity. A sibling .mesh.json records the actual mesh settings.
+        Optional line_segments sizes native 1D spans independently of solids.
+        """
+        from tuba.meshing.step_component import mesh_step_model
+
+        return mesh_step_model(self, output_path, max_element_size=max_element_size, line_segments=line_segments)
+
+    def import_stl(self, file_path, *, id: str, unit_scale_to_m: float, placement=None) -> ImportedComponent:
+        """Import an STL surface for inspection and clearance, without stiffness.
+
+        Scale converts source coordinates to metres; placement uses metres and
+        a wxyz quaternion. Structural analysis requires STEP or authored panels.
+        """
+        from tuba.geometry.stl_reference import import_stl_reference
+
+        return import_stl_reference(self, file_path, id=id,
+                                    unit_scale_to_m=unit_scale_to_m, placement=placement)
+
     def add_imported_component(self, **kwargs) -> ImportedComponent:
         component = ImportedComponent(**kwargs)
         self.imported_components[component.id] = component
@@ -950,6 +1021,30 @@ class TubaModel:
         self.couplings[coupling.id] = coupling
         return coupling
 
+    def add_shell_panel(self, id: str, *, polygon, thickness: float, material: str, mesh_size="auto") -> AnalysisRegion:
+        """Author a planar polygon in metres, with a DKT thickness and material."""
+        from tuba.mixed import add_shell_panel
+        return add_shell_panel(self, id=id, polygon=polygon, thickness=thickness, material=material, mesh_size=mesh_size)
+
+    def add_reference_point(self, id: str, *, position, material: str = "") -> str:
+        """Create a massless DIS_TR reference carrier; return its native node id."""
+        from tuba.mixed import add_reference_point
+        return add_reference_point(self, id=id, position=position, material=material)
+
+    def add_rigid_patch(self, id: str, *, reference, component=None, faces=None, node_filter=None, shell=None, vertices=None, edges=None, nodes=None) -> CouplingSpec:
+        """Tie named physical CAD, shell or native nodes to a reference carrier.
+
+        CAD ``faces`` use source-local normalized millimetre selectors. An optional
+        ``node_filter`` selects a coordinate half-space within those faces,
+        including quadratic midside nodes, in the same source-local frame. Shell
+        ``vertices`` select polygon corners; ``edges`` select every mesh node
+        along polygon edges (edge i joins vertex i to i+1). Node links with
+        released DOFs use ``add_support(attached_to=..., blocked_dof=...)``.
+        """
+        from tuba.mixed import add_rigid_patch
+        return add_rigid_patch(self, id=id, reference=reference, component=component,
+                               faces=faces, node_filter=node_filter, shell=shell, vertices=vertices, edges=edges, nodes=nodes)
+
     def connect_pipe_to_port(
         self,
         *,
@@ -963,6 +1058,15 @@ class TubaModel:
         from tuba.mixed import connect_pipe_to_port as _connect
 
         return _connect(self, pipe=pipe, node=node, port=port, method=method, id=id)
+
+    def connect_beam_to_port(
+        self, *, beam: str | EntityRef, node: str | EntityRef,
+        port: str | EntityRef, id: str | None = None,
+    ) -> CouplingSpec:
+        """Connect a beam endpoint to a confirmed solid face with ``3D_POU``."""
+        from tuba.mixed import connect_beam_to_port
+
+        return connect_beam_to_port(self, beam=beam, node=node, port=port, id=id)
 
     # -- Nodes ---------------------------------------------------------------
 
@@ -1085,7 +1189,16 @@ class TubaModel:
         normal_stiffness: Optional[float] = None,
         tangential_stiffness: Optional[float] = None,
         attached_to: Optional[str] = None,
+        attachment_mode: str = "rigid_offset",
     ) -> Support:
+        """Add a restraint, using a rigid offset for attached nodes by default.
+
+        V3-compatible global node equalities, with DZ free and no lever terms::
+
+            model.add_support(node, 'custom', attached_to=frame_node,
+                              blocked_dof=[1, 1, 0, 1, 1, 1],
+                              attachment_mode='dof_equality')
+        """
         support_id = id or self.next_support_id()
         sup = Support(
             node=node,
@@ -1102,6 +1215,7 @@ class TubaModel:
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
             attached_to=attached_to,
+            attachment_mode=attachment_mode,
         )
         sup.source_line, sup.source_call_line = script_lines()
         self.supports.append(sup)
@@ -1320,15 +1434,15 @@ class TubaModel:
         whole_elements = load_quantities | {"fluid_density"}
         allowed_types = (
             {"beam", "pipe_straight", "pipe_bend"}
-            if field_record.quantity in load_quantities
+            if field_record.quantity in load_quantities | {"temperature"}
             else {"pipe_straight", "pipe_bend"}
         )
         if field_record.scope == "all":
             covered = self.elements
         elif field_record.scope == "group":
-            if not field_record.group or field_record.group not in self.groups:
+            if not field_record.group or (field_record.group not in self.groups and not self.resolve_operation_field_regions(field_record)):
                 raise ValueError(f"Operation field references missing group {field_record.group!r}.")
-            ids = set(self.groups[field_record.group].get("elements", []))
+            ids = set(self.groups.get(field_record.group, {}).get("elements", []))
             covered = [e for e in self.elements if e.id in ids]
         elif field_record.scope == "route":
             if not field_record.route_id:
@@ -1382,6 +1496,15 @@ class TubaModel:
                     f"{field_record.quantity!r}: {refused!r}.{remedy}"
                 )
         return selected
+
+    def resolve_operation_field_regions(self, field_record: OperationField) -> List[AnalysisRegion]:
+        """Resolve uniform region temperatures using the existing field scope."""
+        if field_record.quantity != "temperature" or field_record.profile != "uniform" or field_record.scope not in {"all", "group"}:
+            return []
+        regions = [r for r in self.analysis_regions.values() if r.role in {"solid_3d", "shell_2d"}]
+        if field_record.scope == "all":
+            return regions
+        return [r for r in regions if field_record.group in {r.owner.id, r.id, r.mesh_group}]
 
     # -- Tees and Obstacles --------------------------------------------------
 
@@ -1503,6 +1626,8 @@ class TubaModel:
         pipe_modelization : str, optional
             TUYAU_3M (unchanged default), POU_D_T for beam piping, or 3D.
             POU_D_T currently rejects pressure and tees/branches.
+            Imported STEP solid regions select the mixed compiler automatically;
+            their connected line elements determine TUYAU_3M or POU_D_T.
         load_path : sequence of str, optional
             Ordered absolute load-case endpoints for native POU_D_T shoes.
             Mutually exclusive with load_case and operation. Repeated names
@@ -1681,6 +1806,8 @@ class TubaModel:
                 coupling_id: coupling.to_dict()
                 for coupling_id, coupling in self.couplings.items()
             },
+            **({"mesh_settings": copy.deepcopy(self.mesh_settings)} if self.mesh_settings else {}),
+            **({"mesh_refinements": copy.deepcopy(self.mesh_refinements)} if self.mesh_refinements else {}),
         }
 
     def to_json(self, path: Optional[str] = None, indent: int = 2) -> str:
@@ -1837,6 +1964,12 @@ class TubaModel:
             coupling_id: CouplingSpec.from_dict(coupling)
             for coupling_id, coupling in data.get("couplings", {}).items()
         }
+
+        model.mesh_settings = json.loads(json.dumps(data.get("mesh_settings", {})))
+        model.mesh_refinements = json.loads(json.dumps(data.get("mesh_refinements", {})))
+        if model.mesh_settings or model.mesh_refinements:
+            from tuba.meshing.policy import resolve_mesh_policy
+            resolve_mesh_policy(model)
 
         return model
 

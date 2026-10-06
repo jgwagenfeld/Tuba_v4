@@ -385,6 +385,7 @@ class PipingBuilder:
         normal_stiffness: Optional[float] = None,
         tangential_stiffness: Optional[float] = None,
         attached_to: Optional[str] = None,
+        attachment_mode: str = "rigid_offset",
     ) -> "PipingBuilder":
         """Attach a support to the last created node."""
         if type == "spring" and stiffness is not None and stiffness_matrix is None and direction is None:
@@ -407,6 +408,7 @@ class PipingBuilder:
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
             attached_to=attached_to,
+            **({"attachment_mode": attachment_mode} if attachment_mode != "rigid_offset" else {}),
         )
         self._add_support(
             self.last_node_id,
@@ -421,6 +423,7 @@ class PipingBuilder:
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
             attached_to=attached_to,
+            attachment_mode=attachment_mode,
         )
         return self
 

@@ -32,8 +32,21 @@ export/solve, so mutation after construction does not bypass these checks.
       members_order: source
       members:
         - pipe
+        - add_support
         - define_load_case
         - define_operation
+        - import_step
+        - import_stl
+        - mesh
+        - set_mesh_size
+        - set_mesh_size_factor
+        - add_mesh_refinement
+        - remove_mesh_refinement
+        - connect_pipe_to_port
+        - connect_beam_to_port
+        - add_shell_panel
+        - add_reference_point
+        - add_rigid_patch
         - solve
         - to_dict
         - to_json
@@ -42,6 +55,38 @@ export/solve, so mutation after construction does not bypass these checks.
 
 The pipe context returns the current fluent builder.
 
+Reusable frames, piping routes and imported fittings belong in parameterized
+construction units in `model.py` or `units/`. Apply them with
+`assemble(model, "units.frame:build", ...)`; the model records their parameters
+and created groups for inspection. Give groups named `attachment_points` so
+other units can connect to `lug_left` or `level_1_mid_left` rather than repeat
+coordinates. Keep geometry, connection assumptions and operating loads explicit.
+Agents edit authored Python and use `inspect_model` and `check_clashes` to verify
+it. Generated-script editing tools preserve authored files and cannot rewrite
+their unit calls; edit those calls in the source and reload the model.
+
+For a V3-style node connection, use the existing attached support:
+
+```python
+model.add_support(
+    lug_reference, "custom", attached_to=frame_node,
+    blocked_dof=[1, 1, 0, 1, 1, 1],
+    attachment_mode="dof_equality", id="lug_left_slide",
+)
+```
+
+This equates global DX, DY, DRX, DRY and DRZ between the two nodes and leaves DZ
+free, using Code_Aster `LIAISON_DDL`. It preserves the V3 equations even when
+the nodes are separated. The default `attachment_mode="rigid_offset"` includes
+the rotation lever arm. Direct DOF equality at separated points is an explicit
+model assumption; it does not have the rigid-motion behaviour of an offset arm.
+Both nodes need an actual structural or discrete modelization. A solid lug also
+needs its physical face patch tied to the reference node; creating this support
+alone does not attach STEP geometry. Use `add_reference_point` and
+`add_rigid_patch` for that attachment. See the
+[mixed structure authoring contract](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/step-mixed-code-aster.md)
+for explicit shell outlines, patch selectors and construction units.
+
 ::: tuba.builder.PipingBuilder
     options:
       show_source: false
@@ -49,7 +94,49 @@ The pipe context returns the current fluent builder.
 
 ## Solver and artifact workflow
 
+The [STEP and mesh guide](../step-meshing.md) gives a complete authoring example,
+unit/selection conventions, diagnostic CLI/MCP jobs and Code_Aster convergence.
+
+`model.import_step(path, id="tee", material="Steel", mesh_size="auto", ...)`
+imports real CAD and records named engineering interfaces. CAD coordinates and
+interface selectors are normalized to millimetres; the default scale converts
+them to model metres. Placement uses global metres and a unit quaternion.
+`model.mesh("tee.med")` generates quadratic tetrahedra, validates their quality,
+connectivity and complete boundary, and records settings in `tee.mesh.json`.
+It requires no load case and produces no solver results.
+
+Solid and shell regions select the mixed compiler automatically in model and
+project/Studio solving. The native mesh combines quadratic STEP solids,
+straight `TUYAU_3M` pipes, `POU_D_T` frame members, planar `DKT` panels and
+massless `DIS_TR` reference carriers. Materials and line sections can differ.
+Rigid patches, support DOF masks, held prescribed translations, uniform region
+temperatures and pipe contents fields retain their authored meaning. Unsupported
+contact, buckling, curved shells and temperature-dependent elastic laws fail
+explicitly. The supported mixed path solves without a developer opt-in using an
+available Code_Aster runtime. Code_Aster 18.0.12 passed eleven reference checks
+covering seventeen solves, including STEP response, combined stiffness and
+equilibrium, released DOFs, rigid patches, shell refinement and outer-layer
+stress, imposed translation, fluid weight and uniform thermal expansion.
+Reference-carrier studies use `MULT_FRONT` with `NPREC=8` and
+`STOP_SINGULIER='OUI'`, retaining zero-stiffness, massless `DIS_TR` carriers.
+This scope covers straight collinear pipe chains, planar DKT panels and scalar
+elastic materials; unsupported requests retain their validation errors.
+`TUBA_RUN_CODE_ASTER_INTEGRATION=1` selects native reference tests and is not
+required by normal `Model.solve()` calls.
+
 `Model.solve()` runs the Code_Aster-backed solve path and returns an `AnalysisRun`. Use the artifact importer when Code_Aster has already produced the study result directory; it returns the same type.
+
+::: tuba.project.mesh.run_project_mesh
+    options:
+      show_source: false
+
+::: tuba.analysis.mesh_convergence.run_mesh_convergence
+    options:
+      show_source: false
+
+::: tuba.analysis.mesh_convergence.reopen_mesh_convergence
+    options:
+      show_source: false
 
 Rest friction works in single-operation studies on `TUYAU_3M` and `POU_D_T`; only load-path histories, such as `load_path=["Cold", "Hot", "Cold"]` with existing absolute load cases, require `pipe_modelization="POU_D_T"`. `run.result_states` retains every converged increment; `run.result_state` and `run.results` refer to the final state. A stage index and pseudo-time distinguish repeated case names.
 
@@ -115,6 +202,20 @@ Autorouting produces candidates for review. Engineering acceptance still require
     options:
       show_source: false
       members_order: source
+
+## Portable editable projects
+
+Studio, CLI and MCP share the same ZIP/TGZ package implementation. See
+[Share and open a project](../project-sharing.md) for user commands and limits.
+
+::: tuba.project.package
+    options:
+      show_source: false
+      members:
+        - plan_project_package
+        - export_project_package
+        - inspect_project_package
+        - unpack_project_package
 
 ## PyVista quick-look and export
 

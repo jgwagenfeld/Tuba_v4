@@ -19,10 +19,6 @@ class ThermalRouteRequirement:
     preferred_loop_families: tuple[LoopFamily, ...] = ("u_loop", "z_loop")
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    @property
-    def delta_t_c(self) -> float:
-        return float(self.design_temperature_c - self.reference_temperature_c)
-
 
 @dataclass(frozen=True)
 class ExpansionLoopSpec:

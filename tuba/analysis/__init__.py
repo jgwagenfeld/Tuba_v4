@@ -17,6 +17,12 @@ from tuba.analysis.states import (
 )
 from tuba.analysis.study import AnalysisStudy
 
+
+def run_mesh_convergence(*args, **kwargs):
+    """Compare authentic Code_Aster runs at Python-configured mesh scales."""
+    from tuba.analysis.mesh_convergence import run_mesh_convergence as run
+    return run(*args, **kwargs)
+
 __all__ = [
     "AnalysisMesh",
     "AnalysisRun",
@@ -33,4 +39,5 @@ __all__ = [
     "create_visual_deformed_geometry_state",
     "project_deformed_centerline",
     "validate_solver_input_identity",
+    "run_mesh_convergence",
 ]

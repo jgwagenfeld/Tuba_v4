@@ -263,7 +263,8 @@ test("fitSelection uses the selected object's geometry asset when object_ids are
   assert.deepEqual(fitted.camera.target, [1, 0, 0]);
   assert.deepEqual(fitted.camera.fitRequest, {
     id: 1,
-    bounds: [0, -0.1, -0.1, 2, 0.1, 0.1]
+    bounds: [0, -0.1, -0.1, 2, 0.1, 0.1],
+    objectIds: ["object:element:pipe_0"]
   });
   assert.notEqual(fitted.camera.distance, selected.camera.distance);
 
@@ -329,10 +330,10 @@ test("the probe stays silent when nothing colours the scene", () => {
 });
 
 
-test("a prescribed displacement is reported with the penalty that governs it", () => {
-  // A prescribed movement compiles to a penalty spring, so the displacement on
-  // its own would read as though the solver held the value exactly - which is
-  // the one thing a penalty method does not do.
+test("a prescribed displacement names its components and claims no penalty spring", () => {
+  // No backend compiles a prescribed movement as a penalty spring - volume and
+  // mixed studies impose it exactly (DDL_IMPO) - so the support's own spring
+  // stiffness must not be presented as one.
   const state = fixtureState();
   const config = {
     support_id: "driven",
@@ -340,7 +341,7 @@ test("a prescribed displacement is reported with the penalty that governs it", (
     node: "N3",
     direction: [0, 0, 1],
     dof_states: ["free", "fixed", "spring", "free", "free", "free"],
-    imposed_displacement: [0, 0, 0.004],
+    imposed_displacement: [0, 0, 0.004, 0, 0, 0.01],
     spring_stiffness: [1e6]
   };
   state.objects.push({
@@ -361,10 +362,9 @@ test("a prescribed displacement is reported with the penalty that governs it", (
   const summary = getSelectionSummary(state, "object:support:driven");
   const definition = summary.sections.find((section) => section.title === "Definition");
   const rows = Object.fromEntries(definition.lines.map((row) => [row.label, row.value]));
-  assert.match(rows["Imposed displacement"], /4 mm/);
-  // 1e6 N per metre of prescribed travel, which is 1 kN per mm in the
-  // engineering system - not the 1000 kN a raw SI figure would print.
-  assert.match(rows["Prescribed by penalty spring"], /^1 kN \/ mm$/);
+  // Six components, the rotation in rad, not in metres and not dropped.
+  assert.equal(rows["Imposed displacement"], "ΔZ = 4 mm · ΔRZ = 0.01 rad");
+  assert.equal(Object.keys(rows).some((label) => /penalty/i.test(label)), false);
 });
 
 test("a support with no prescribed movement is given no penalty row", () => {

@@ -20,6 +20,8 @@
 // It lives in its own module because resultReview.js imports coloring.js and so
 // coloring.js cannot import resultReview.js back. Both import this.
 
+import { formatNumberSeries } from "./units.js";
+
 export const ENVELOPE_FIELD_ID = "field:envelope";
 
 // Result states the envelope spans for one load case. Deliberately every state
@@ -30,9 +32,12 @@ export function envelopeResultStates(state) {
     const loadCase = overlay.data?.load_case;
     return !state.activeLoadCase || !loadCase || loadCase === state.activeLoadCase;
   });
-  return states.map((overlay) => ({
+  const times = formatNumberSeries(states.map(overlay => overlay.data?.metadata?.pseudo_time ?? NaN));
+  return states.map((overlay, index) => ({
     id: overlay.data?.id ?? overlay.id,
-    label: overlay.name ?? overlay.data?.load_case ?? overlay.id
+    label: overlay.data?.metadata?.stage_label
+      ? `${overlay.data.metadata.stage_label} / ${times[index] || "unavailable"}`
+      : overlay.name ?? overlay.data?.load_case ?? overlay.id
   }));
 }
 
@@ -93,11 +98,15 @@ export function buildEnvelope(state, field, component = "magnitude", readScalar 
       }
     }
   }
-  const numbers = Object.values(values).filter(Number.isFinite);
+  let min = Infinity, max = -Infinity;
+  for (const value of Object.values(values)) {
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
   return {
     values,
     winners,
-    range: numbers.length > 0 ? { min: Math.min(...numbers), max: Math.max(...numbers) } : null,
+    range: min === Infinity ? null : { min, max },
     resultStateIds: [...contributing].filter(Boolean),
     component,
     // Measured in result steps that actually contributed, not in overlays

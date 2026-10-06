@@ -103,7 +103,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
 
     write_bundle_catalog(tmp_path, bundle_ids)
 
-    assert bundle_ids == PAGES_BUNDLES
+    assert list(bundle_ids) == list(PAGES_BUNDLES)
     catalog = json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
     assert [entry["id"] for entry in catalog] == list(bundle_ids)
     # The narrative a card renders is guarded at construction now -
@@ -111,7 +111,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     # be checking that a value which cannot exist does not exist.
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
-    # Six required plus two genuinely optional. The ratio (ADR 0007) is present
+    # This pipe fixture includes endpoint forces. The ratio (ADR 0007) is present
     # here because this example's materials carry an allowable schedule; a
     # review whose materials do not carries six, not seven, and both are valid.
     result_types = {
@@ -130,8 +130,8 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     for bundle_id in ("autorouted-expansion-loop", "support-rack-review"):
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
-        # Six required, plus the ratio where the materials carry a schedule.
-        assert len(scene["result_fields"]) in {6, 7}
+        # Both fixtures publish a ratio; the rack also publishes beam stress.
+        assert len(scene["result_fields"]) == (8 if bundle_id == "support-rack-review" else 7)
         assert review["analysis_status"] == "solved"
         assert "code_compliance" not in review["tables"]
 
@@ -157,7 +157,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         next(overlay for overlay in tee["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
         for field in tee["result_fields"]
     }
-    assert tee_fields == {"stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
+    assert tee_fields == {"stress", "internal_forces", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
     assert any(obj["kind"] == "analysis_mesh_surface" for obj in tee["objects"])
     assert any(obj["kind"] == "volume_stress_field" for obj in tee["objects"])
     assert "visualization_only_not_asme_code_stress" in json.dumps(tee)

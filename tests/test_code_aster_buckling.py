@@ -17,10 +17,11 @@ from tempfile import TemporaryDirectory
 from tuba import Model
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.buckling import BucklingMode, BucklingResult
-from tuba.analysis.provenance import build_solver_input_identity
+from tuba.analysis.provenance import VOLUME_CODE_ASTER_COMPILER_ID, build_solver_input_identity
 from tuba.analysis.results import ResultState
 from tuba.model import BucklingOptions
 from tuba.solver.aster import CodeAsterSolver
+from tuba.solver.aster_buckling import BUCKLING_MODES_UNIT
 from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
 from tuba.solver.parse_buckling import parse_buckling
 
@@ -207,7 +208,9 @@ class TestBucklingCommEmission(unittest.TestCase):
             export = (root / "study.export").read_text(encoding="utf-8")
             # run_aster copies a result out only for a unit the export names, so an
             # undeclared unit is silently lost with the temporary directory.
-            self.assertIn("R 43", export)
+            self.assertIn(f"F modes study_buckling_modes.csv R {BUCKLING_MODES_UNIT}", export)
+            # A beam model also writes its SIPO table; one unit, one file.
+            self.assertIn("F sipo study_sipo.csv R 43", export)
             self.assertIn("R 44", export)
             self.assertIn("study_buckling.json", export)
 
@@ -291,7 +294,7 @@ class TestBucklingArtifactInventory(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "1D beam-study capability"):
             expected_code_aster_artifact_files(
                 {"volume_analysis": True, "compiler_inputs": {"buckling": {"n_modes": 2}}},
-                compiler_id="tuba.code_aster.volume.v2",
+                compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
             )
 
 

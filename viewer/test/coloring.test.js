@@ -12,12 +12,10 @@ import {
   getComplianceNotice,
   getFieldOptions,
   fieldLabel,
-  getLoadCaseOptionsFromFields,
   scalarFor,
   setColoringComponent,
   setColoringField,
   setColoringLoadCase,
-  shouldShowComplianceNotice,
   withCoherentColoring
 } from "../src/coloring.js";
 import { getAveragingBasis } from "../src/trustFacts.js";
@@ -28,6 +26,7 @@ test("readable field names preserve the sampling distinction and unknown quantit
   assert.equal(fieldLabel({ label: "FE VMIS (not code stress)", support: "cell" }), "Von Mises stress (elements)");
   assert.equal(fieldLabel({ label: "FE VMIS (not code stress)", support: "subpoint" }), "Von Mises stress (wall points)");
   assert.equal(fieldLabel({ label: "displacement", support: "node" }), "Displacement");
+  assert.equal(fieldLabel({ label: "Section Forces (EFGE_ELNO)", support: "cell" }), "Section forces (elements)");
   assert.equal(fieldLabel({ label: "custom_stress", support: "integration_point" }), "Custom stress (integration_point)");
   const state = baseState();
   state.resultFields[0].label = "FE VMIS (not code stress)";
@@ -108,13 +107,6 @@ test("coloring initialises onto the first available field", () => {
   assert.equal(state.coloring.component, "magnitude");
 });
 
-test("load case options come from the field catalogue", () => {
-  assert.deepEqual(
-    getLoadCaseOptionsFromFields(baseState()).map((option) => option.id),
-    ["Operating", "Cold"]
-  );
-});
-
 test("field options are scoped to the active load case", () => {
   const state = baseState();
   assert.deepEqual(
@@ -160,6 +152,32 @@ test("a component the new field lacks falls back to its first", () => {
   assert.equal(getActiveComponent(state), "magnitude");
 });
 
+test("a vector field opens on magnitude even when the solver listed DX first", () => {
+  // Coming from section forces on N: the displacement field has no N, and its
+  // first listed component is DX - one axis of a riser that moves in Z.
+  const state = {
+    resultFields: [{ id: "f", overlay_id: "o", load_case: "Hot", components: ["DX", "DY", "DZ", "magnitude"] }],
+    overlays: [{ id: "o", kind: "solver_result", data: {} }],
+    coloring: { loadCase: "Hot", fieldId: "f", component: "N" }
+  };
+  assert.equal(getActiveComponent(state), "magnitude");
+  const forces = { ...state, resultFields: [{ ...state.resultFields[0], components: ["N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"] }],
+    coloring: { ...state.coloring, component: "DX" } };
+  assert.equal(getActiveComponent(forces), "N", "section forces open on the signed axial force");
+});
+
+test("a scalar field's lone magnitude is not carried into section forces", () => {
+  const state = {
+    resultFields: [
+      { id: "stress", overlay_id: "o:stress", load_case: "Hot", components: ["magnitude"] },
+      { id: "forces", overlay_id: "o:forces", load_case: "Hot", components: ["N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"] }
+    ],
+    overlays: [{ id: "o:stress", kind: "solver_result", data: {} }, { id: "o:forces", kind: "solver_result", data: {} }],
+    coloring: { loadCase: "Hot", fieldId: "stress", component: "magnitude" }
+  };
+  assert.equal(getActiveComponent(setColoringField(state, "forces")), "N");
+});
+
 test("an unavailable component snaps back to a real one", () => {
   const state = setColoringComponent(baseState(), "DZ");
   // The active field is scalar, so DZ does not exist on it.
@@ -193,41 +211,6 @@ test("compliance role surfaces as a notice", () => {
   });
   assert.equal(getComplianceNotice(state), "FE stress - not ASME code stress");
   assert.equal(getComplianceNotice(baseState()), null);
-});
-
-test("compliance notice follows the coloured scene, not the open task", () => {
-  // Regression: the notice used to sit beside the legend, which the cockpit
-  // detaches under Review/Model/Issues while the scene stays colour-mapped -
-  // producing an FE-stress view with the caveat missing.
-  const state = {
-    ...baseState({
-      overlays: [TUYAU_OVERLAY],
-      resultFields: [field("field:tuyau:Operating", TUYAU_OVERLAY, { support: "subpoint" })]
-    }),
-    layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: true } }
-  };
-  const categories = [{ id: "results", layerIds: ["overlay:solver_result"] }];
-  assert.equal(shouldShowComplianceNotice(state, categories), true);
-
-  const hidden = { ...state, layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: false } } };
-  assert.equal(shouldShowComplianceNotice(hidden, categories), false);
-});
-
-test("compliance notice stays away when the field declares no role", () => {
-  const state = { ...baseState(), layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: true } } };
-  assert.equal(shouldShowComplianceNotice(state, [{ id: "results", layerIds: ["overlay:solver_result"] }]), false);
-});
-
-test("compliance notice needs a results category to attach to", () => {
-  const state = {
-    ...baseState({
-      overlays: [TUYAU_OVERLAY],
-      resultFields: [field("field:tuyau:Operating", TUYAU_OVERLAY, { support: "subpoint" })]
-    }),
-    layers: {}
-  };
-  assert.equal(shouldShowComplianceNotice(state, []), false);
-  assert.equal(shouldShowComplianceNotice(state, undefined), false);
 });
 
 test("reload keeps the selection when the field survives", () => {

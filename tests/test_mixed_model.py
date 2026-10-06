@@ -1,9 +1,11 @@
 import unittest
+from dataclasses import replace
 
 from tuba import Model
 from tuba.refs import EntityRef, resolve_entity_ref
 from tuba.schema import SchemaValidationError, validate_model_dict
 from tuba.validation import ModelValidationError
+from tuba.mixed import connect_beam_to_port
 
 
 class TestMixedModelRecords(unittest.TestCase):
@@ -126,6 +128,26 @@ class TestMixedModelRecords(unittest.TestCase):
                 method="3D_TUYAU",
                 id="coupling_pipe_to_pump_a",
             )
+
+    def test_beam_connects_to_planar_solid_interface_with_3d_pou(self):
+        model = self._build_pipe_to_port_model()
+        model.elements[0].type = "beam"
+        model.ports["port_pump_nozzle_a"] = replace(model.ports["port_pump_nozzle_a"], kind="planar_face", radius=0.5)
+        coupling = connect_beam_to_port(model, beam="element:pipe_0", node="node:N1", port="port:port_pump_nozzle_a")
+        self.assertEqual(coupling.code_aster_option, "3D_POU")
+
+    def test_noncoincident_and_misaligned_endpoints_are_rejected(self):
+        for position, axis, message in [([1.1, 0, 0], [1, 0, 0], "coincide"), ([1, 0, 0], [0, 1, 0], "align")]:
+            with self.subTest(message=message):
+                model = self._build_pipe_to_port_model()
+                model.ports["port_pump_nozzle_a"] = replace(model.ports["port_pump_nozzle_a"], position=position, axis=axis)
+                with self.assertRaisesRegex(ValueError, message):
+                    model.connect_pipe_to_port(pipe="element:pipe_0", node="node:N1", port="port:port_pump_nozzle_a")
+
+    def test_pipe_cannot_use_beam_connection_option(self):
+        model = self._build_pipe_to_port_model()
+        with self.assertRaisesRegex(ValueError, "expected 3D_TUYAU"):
+            model.connect_pipe_to_port(pipe="element:pipe_0", node="node:N1", port="port:port_pump_nozzle_a", method="3D_POU")
 
     def test_invalid_imported_coupling_option_blocks_validation(self):
         model = self._build_pipe_to_port_model()

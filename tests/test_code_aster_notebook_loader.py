@@ -212,6 +212,50 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         self.assertFalse(loaded.ran_solver)
         self.assertEqual(loaded.artifact.result_state.node_displacements["N1"][:3], (0.0, 0.0, -0.012))
         self.assertNotIn("sieq", loaded.artifact.result_state.files)
+        # A rectangle's extreme fibre takes both bending parts at its corner.
+        self.assertEqual(loaded.artifact.result_state.element_results["beam_0"]["max_normal_stress"], 5.1e6)
+
+    def test_a_round_beam_combines_its_bending_parts_as_a_vector(self):
+        model = Model(project_name="NotebookRoundBeam")
+        model.add_material("Steel", E=2.0e11, nu=0.3, rho=7850.0)
+        model.add_pipe_section("Tube", OD=0.1143, WT=0.006)
+        with model.pipe(section="Tube", material="Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.beam(2.0)
+            pipe.end()
+        model.define_load_case("PointLoad", gravity=False).add_nodal_force("N1", force=[0.0, 0.0, -100.0])
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            CodeAsterSolver(work_dir=root).export_analysis_study(model, "PointLoad", root)
+            _write_beam_solver_tables(root, n0="N0", n1="N1")
+            (root / "study_sipo.csv").write_text(
+                "MAILLE,NOEUD,SN,SMFY,SMFZ\nbeam_0,N0,1.0e5,3.0e6,4.0e6\nbeam_0,N1,0.0,0.0,0.0", encoding="utf-8")
+            loaded = load_or_run_code_aster_results(model, "PointLoad", root, run_solver=False, allow_unverified=True)
+
+        # SIPM_ELNO's circle rule: the bending parts add as a vector, 0.1 + 5 MPa, not 0.1 + 3 + 4.
+        self.assertAlmostEqual(loaded.artifact.result_state.element_results["beam_0"]["max_normal_stress"], 5.1e6)
+
+    def test_a_general_section_without_fibre_distances_has_no_beam_stress(self):
+        # Without RY and RZ, Code_Aster's SIPO bending parts are zero: the beam
+        # gets no value rather than a false small one.
+        model = Model(project_name="NotebookNoFibres")
+        model.add_material("Steel", E=2.0e11, nu=0.3, rho=7850.0)
+        section = model.add_ibeam_section("Ibeam", "IPE100")
+        section.properties = {key: value for key, value in section.properties.items() if key not in {"RY", "RZ"}}
+        with model.pipe(section="Ibeam", material="Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.beam(2.0)
+            pipe.end()
+        model.define_load_case("PointLoad", gravity=False).add_nodal_force("N1", force=[0.0, 0.0, -100.0])
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            CodeAsterSolver(work_dir=root).export_analysis_study(model, "PointLoad", root)
+            _write_beam_solver_tables(root, n0="N0", n1="N1")
+            loaded = load_or_run_code_aster_results(model, "PointLoad", root, run_solver=False, allow_unverified=True)
+
+        self.assertNotIn("max_normal_stress", loaded.artifact.result_state.element_results["beam_0"])
 
     def test_run_solver_false_keeps_export_only_mode_explicit(self):
         model, _n0, _n1 = self._model()
@@ -422,12 +466,24 @@ def _write_beam_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
         ),
         encoding="utf-8",
     )
+    # A frame member's normal stress parts (SIPO_ELNO): at n0 |SN| + |SMFY| + |SMFZ| = 5.1 MPa.
+    (work_dir / "study_sipo.csv").write_text(
+        "\n".join(
+            [
+                "MAILLE,NOEUD,SN,SMFY,SMFZ",
+                f"beam_0,{n0},1.0e5,-2.0e6,3.0e6",
+                f"beam_0,{n1},1.0e5,0.0,0.0",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_sentinel_artifacts(work_dir: Path, *, model: Model, n0: str, n1: str, n1_dy: float) -> dict[str, str]:
     CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
     (work_dir / "study.mail").write_text("sentinel mail must survive\n", encoding="utf-8")
-    (work_dir / "study.comm").write_text("sentinel comm must survive\n", encoding="utf-8")
+    comm_path = work_dir / "study.comm"
+    comm_path.write_text(comm_path.read_text(encoding="utf-8") + "\n# sentinel comm must survive\n", encoding="utf-8")
     (work_dir / "study.export").write_text("sentinel export must survive\n", encoding="utf-8")
     manifest_path = work_dir / "study_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

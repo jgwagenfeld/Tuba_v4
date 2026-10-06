@@ -154,6 +154,9 @@ export function rampRatio(value, legend) {
     return 0;
   }
   const bands = bandCountFor(legend);
+  if (isSignedRange(legend)) {
+    return signedRampRatio(value, legend, { min, max }, bands);
+  }
   if (bands === CONTINUOUS) {
     return clamp((value - min) / Math.max(max - min, 1e-12), 0, 1);
   }
@@ -164,6 +167,34 @@ export function rampRatio(value, legend) {
   const position = clamp((value - min) / Math.max(max - min, 1e-12), 0, 1);
   const index = Math.min(Math.floor(position * bandCount), bandCount - 1);
   return index / (bandCount - 1);
+}
+
+// A signed quantity - DX, an axial force - is one whose sign is the reading:
+// tension against compression, +X against -X. It is read on a diverging ramp
+// centred on zero rather than from its minimum, so zero is always the neutral
+// middle and equal magnitudes of either sign get equally strong colours. On a
+// sequential ramp zero landed wherever the range put it, and -30 kN looked "low"
+// rather than "30 kN of compression". Any named component but magnitude is
+// signed, even when every value happens to share one sign - an all-compression
+// member is all blue - and a legend naming no component is signed when its
+// range crosses zero.
+export function isSignedRange(legend) {
+  const component = legend?.component;
+  if (component && component !== "magnitude") return true;
+  const { min, max } = effectiveRange(legend);
+  return min < 0 && max > 0;
+}
+
+// 0.5 at zero, 0 and 1 at the larger magnitude of the two ends. Banded, every
+// value reads as its band's midpoint, so a band is one flat colour as before.
+function signedRampRatio(value, legend, { min, max }, bands) {
+  let reading = value;
+  if (bands !== CONTINUOUS) {
+    const edges = bandEdges(legend);
+    const index = Math.min(Math.max(edges.findIndex((edge) => edge > value) - 1, 0), edges.length - 2);
+    reading = value < edges[0] ? edges[0] : (edges[index] + edges[index + 1]) / 2;
+  }
+  return clamp(0.5 + 0.5 * reading / Math.max(-min, max), 0, 1);
 }
 
 export function isRangeOverridden(legend) {

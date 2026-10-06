@@ -55,6 +55,7 @@ class AddSupport:
     normal_stiffness: float | None = None
     tangential_stiffness: float | None = None
     attached_to: str | None = None
+    attachment_mode: str = "rigid_offset"
 
 
 @dataclass(frozen=True)

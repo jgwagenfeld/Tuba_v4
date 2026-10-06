@@ -22,6 +22,7 @@ class TestVisualizationBuilders(unittest.TestCase):
             n2=n1,
             section="PipeSec",
             material="Steel",
+            route_id="Header_A",
         )
         support = model.add_support(n0, "anchor")
         obstacle = model.add_obstacle(
@@ -50,6 +51,7 @@ class TestVisualizationBuilders(unittest.TestCase):
         self.assertEqual(pipe.kind, "pipe")
         self.assertEqual(pipe.metadata["section"], "PipeSec")
         self.assertEqual(pipe.metadata["material"], "Steel")
+        self.assertEqual(pipe.metadata["route_id"], "Header_A")
         self.assertEqual(pipe.metadata["profile"]["kind"], "pipe")
         self.assertAlmostEqual(pipe.metadata["profile"]["outer_diameter_m"], 0.1)
         self.assertAlmostEqual(pipe.metadata["profile"]["wall_thickness_m"], 0.01)
@@ -101,6 +103,7 @@ class TestVisualizationBuilders(unittest.TestCase):
             # and contact review read this), so the id is part of the contract.
             "support_id": support.id,
             "support_type": "custom",
+            "attachment_mode": "rigid_offset",
             "direction": [0.0, 0.0, 1.0],
             "stiffness": 125000.0,
             "imposed_displacement": [0.001, 0.0, 0.0],
@@ -128,6 +131,28 @@ class TestVisualizationBuilders(unittest.TestCase):
                 **expected,
             },
         )
+
+    def test_prescribed_supports_get_their_own_layer(self):
+        model, _elem, ordinary, _obstacle = self._model()
+        driven = model.add_support(
+            "N1", "custom", id="driven", blocked_dof=[1] * 6, imposed_displacement=[0.0, 0.0, 0.080]
+        )
+        zero = model.add_support("N1", "custom", id="zero_motion", imposed_displacement=[0.0, 0.0, 0.0])
+
+        scene = build_visualization_scene(SceneRequest(model))
+        by_id = {obj.entity_ref: obj for obj in scene.objects}
+        layers = {layer.id: layer for layer in scene.layers}
+
+        # Still a support: it counts under Supports & BCs as well as its own row.
+        self.assertEqual(by_id[EntityRef("support", driven.id)].layer_ids, ["support", "support:imposed_displacement"])
+        # Ordinary supports, and a support whose prescribed motion is all zero,
+        # keep the kind fallback: no layer_ids, so their scene output is unchanged.
+        self.assertEqual(by_id[EntityRef("support", ordinary.id)].layer_ids, [])
+        self.assertEqual(by_id[EntityRef("support", zero.id)].layer_ids, [])
+        self.assertEqual(layers["support:imposed_displacement"].category, "design")
+        self.assertEqual(layers["support:imposed_displacement"].label, "Imposed displacement")
+        self.assertTrue(layers["support:imposed_displacement"].default_visible)
+        self.assertIn("support", layers)
 
     def test_pipe_geometry_carries_inner_radius_for_hollow_rendering(self):
         model, elem, _support, _obstacle = self._model()

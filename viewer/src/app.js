@@ -7,11 +7,13 @@ import {
   scriptLine,
   withRunLength
 } from "./codeLink.js";
-import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
+import { relatedSelectionIds, selectionRepresentative, resolveEntityObjectId } from "./reviewSelection.js";
+import { meshToggleViewModel, renderMeshReview } from "./meshReview.js";
+import { createStudioMeshClient } from "./studioMesh.js";
 import { deriveBundleSource } from "./bundleSource.js";
 import { elementInputSection, loadCaseDefinitions, renderLoadCaseInputs } from "./loadCaseInputs.js";
 import { contactObjectId, contactStageNav, renderContactReview } from "./contactReview.js";
-import { SUPPORT_PART_COLORS, SUPPORT_PART_LABELS, visibleSupportParts } from "./supportGlyphs.js";
+import { SUPPORT_PART_LABELS, supportPartColors, visibleSupportParts } from "./supportGlyphs.js";
 import {
   buildObjectTree,
   getIssueSummary,
@@ -20,19 +22,25 @@ import {
   issueSeverityMetres,
   triageIssues,
   saveViewState,
+  cutViewMode,
+  sectionBoxAroundSelection,
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
 import { bundleIdsOf, bundleKey, normalizeCatalog } from "./gallery.js";
 import {
   WEBGL2_UNAVAILABLE,
+  applySelectionHighlight,
   applyHoverHighlight,
   createThreeCanvasRenderer,
+  getViewportInsets,
   pickRenderedObject,
-  pickRenderedPoint
+  pickRenderedPoint,
+  pickRenderedPoints
 } from "./renderer.js";
 import {
   OPACITY_STEPS,
+  bodyLegendText,
   SUBPOINT_MODES,
   SUBPOINT_NODE_ANY,
   SUBPOINT_THRESHOLD_STEPS,
@@ -53,6 +61,7 @@ import {
   subpointNodeId,
   subpointNodeLabel,
   subpointThreshold,
+  subpointThresholdLabel,
   withDefaultBodyOpacity
 } from "./bodies.js";
 
@@ -69,10 +78,9 @@ import {
   getActiveField,
   getComplianceNotice,
   getEnvelopeWinners,
-  getFieldOptions,
-  shouldShowComplianceNotice
+  getFieldOptions
 } from "./coloring.js";
-import { MODEL_COLOR_MODES, getModelColoring } from "./modelColoring.js";
+import { MODEL_COLOR_MODES, getModelColoring, isModelColorable } from "./modelColoring.js";
 import {
   colorForScalarValue,
   getActiveLoadCase,
@@ -119,7 +127,7 @@ import {
   formatPropertyValue,
   formatQuantity,
   formatUtilization,
-  formatValueSeries,
+  formatScaleSeries,
   getUnitSystem,
   isConvertible,
   nextUnitSystem,
@@ -128,17 +136,22 @@ import {
 } from "./units.js";
 import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
-import { distance, getPropertySections } from "./selection.js";
+import { cutViewRanges } from "./cutView.js";
+import { distance, getPropertySections, getGeometryRelations } from "./selection.js";
 import { formatProfileQuantity, profileDiagram, profilePropertyRows } from "./profileDiagram.js";
 import { initProfileLibrary, loadProfileCatalog, profileInsertion } from "./profileLibrary.js";
 import { browserSceneBundle, runBrowserModel } from "./browserPreview.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { download, initExchange, renderPublishedDownloads } from "./exchange.js";
+import { initGeometryImport, pythonLiteral } from "./geometryImport.js";
+import { editorSource, saveStudioSource } from "./studioSource.js";
+import { initPaneResizing } from "./paneResize.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   colorChannelOf,
   createWorkflowState,
   openingStage,
+  sceneStage,
   workspaceView
 } from "./workflowState.js";
 
@@ -152,6 +165,9 @@ const dom = {
   viewerIdentity: document.querySelector("[data-viewer-identity]"),
   exchangeOpen: document.querySelector("[data-exchange-open]"),
   exchangeDialog: document.querySelector("[data-exchange-dialog]"),
+  geometryOpen: document.querySelector("[data-geometry-open]"),
+  geometryDialog: document.querySelector("[data-geometry-dialog]"),
+  projectsLink: document.querySelector("[data-projects-link]"),
   reportLink: document.querySelector("[data-report-link]"),
   statusChip: document.querySelector("[data-status-chip]"),
   statusStrip: document.querySelector("[data-status-strip]"),
@@ -177,7 +193,13 @@ const dom = {
   railPopover: document.querySelector("[data-rail-popover]"),
   displayStrip: document.querySelector("[data-display-strip]"),
   displayPalette: document.querySelector("[data-display-palette]"),
-  sectionBoxControls: document.querySelector("[data-section-box-controls]"),
+  buildDisplay: document.querySelector("[data-build-display]"),
+  selectionTools: document.querySelector("[data-selection-tools]"),
+  selectOther: document.querySelector("[data-select-other]"),
+  pickOpen: document.querySelector("[data-pick-open]"),
+  pickList: document.querySelector("[data-pick-list]"),
+  cutViewControls: document.querySelector("[data-cut-view]"),
+  valueLabelsToggle: document.querySelector("[data-value-labels]"),
   bodyList: document.querySelector("[data-body-list]"),
   projectionNote: document.querySelector("[data-projection-note]"),
   sectionProfile: document.querySelector("[data-section-profile]"),
@@ -197,7 +219,9 @@ const dom = {
   referenceNote: document.querySelector("[data-reference-note]"),
   envelopeNote: document.querySelector("[data-envelope-note]"),
   analysisDetails: document.querySelector("[data-analysis-details]"),
+  meshReview: document.querySelector("[data-mesh-review]"),
   analysisSummary: document.querySelector("[data-analysis-summary]"),
+  analysisClose: document.querySelector("[data-analysis-close]"),
   resultShape: document.querySelector("[data-result-shape]"),
   overlaysBlock: document.querySelector("[data-overlays-block]"),
   overlayList: document.querySelector("[data-overlay-list]"),
@@ -235,6 +259,7 @@ const dom = {
   commText: document.querySelector("[data-comm-text]"),
   codeState: document.querySelector("[data-code-state]"),
   codeMeshToggle: document.querySelector("[data-code-mesh-toggle]"),
+  codeMeshLabel: document.querySelector("[data-code-mesh-label]"),
   codeRun: document.querySelector("[data-code-run]"),
   codeDownload: document.querySelector("[data-code-download]"),
   codeReset: document.querySelector("[data-code-reset]"),
@@ -244,7 +269,6 @@ const dom = {
   codeErrorMark: document.querySelector('[data-code-mark="error"]'),
   codeProblem: document.querySelector("[data-code-problem]"),
   codeFoot: document.querySelector("[data-code-foot]"),
-  codeResize: document.querySelector("[data-code-resize]"),
   codeCallMark: document.querySelector('[data-code-mark="call"]'),
   codeRevealMark: document.querySelector('[data-code-mark="reveal"]'),
   solveButton: document.querySelector("[data-solve]"),
@@ -269,12 +293,13 @@ let reviewOpened = false;
 let refreshExchange = null;
 
 function dispatch(action) {
+  closeSelectOther();
   if (["setModelColorBy", "setColorChannel", "setColoringField", "setColoringComponent",
     "setActiveLoadCase", "setActiveResultState", "setActiveGeometryState"].includes(action.type)) {
     userChoseColor = true;
   }
   if (["setActiveGeometryState", "setActiveResultState", "setActiveLoadCase", "setVisualDeformationScale", "setLayerVisibility",
-    "setBodyVisibility", "setOverlayVisibility", "applySectionBox", "restoreVisibility",
+    "setBodyVisibility", "toggleFeMesh", "setOverlayVisibility", "applySectionBox", "restoreVisibility",
     "hideSelected", "isolateSelection", "resetLayerVisibility", "restoreViewState"].includes(action.type)) {
     measurementPoints = [];
     measuring = false;
@@ -290,12 +315,18 @@ function dispatch(action) {
 }
 
 let selectedObjectId = null;
+let connectionHighlightObjectId = null;
 // The finding whose disposition the inspector is showing, set from the hotspot
 // list. Module state rather than viewer state because it is a viewer's cursor
 // into the record, not part of the review: it is not saved, not exported and not
 // restored with a saved view.
 let selectedFindingSubject = null;
 let currentSearch = "";
+let lastPickPosition = null;
+const objectsHome = dom.objectsSection.parentElement;
+const colorBlock = dom.colorBy.closest("[data-color-block]");
+const colorHome = colorBlock.parentElement;
+const colorNext = colorBlock.nextSibling;
 let issueFilters = { operatingOnly: false };
 let railExpanded = true;
 const savedViews = [];
@@ -321,6 +352,9 @@ const studio = {
   available: false,
   // The script as last run. Line numbers in scene metadata refer to this text.
   ranCode: "",
+  diskCode: "",
+  sourceRevision: null,
+  saveConflict: false,
   running: false,
   error: null,
   selectionLine: null,
@@ -345,6 +379,47 @@ const studio = {
   codeTab: null,
   commRequest: 0
 };
+
+// Set when the Mesh button starts a job: the mesh it asked for is shown as
+// soon as the rebuilt Build scene carries it.
+let showMeshWhenReady = false;
+const meshClient = createStudioMeshClient({ onChange: ({ job }) => {
+  if (["failed", "cancelled"].includes(job?.state)) showMeshWhenReady = false;
+  if (currentState) { showGeneratedMesh(); render(); }
+} });
+function meshNative() {
+  return { ...meshClient.snapshot(), available: studio.available,
+    sourceCurrent: dom.codeText.value === studio.ranCode && !studio.error, solving: studio.solving || studio.preparing };
+}
+function showGeneratedMesh() {
+  if (!showMeshWhenReady || !isBuildMode() || !meshClient.snapshot().job?.mesh_current) return;
+  if (!getBodies(currentState).some((body) => body.id === "analysis_mesh")) return;
+  showMeshWhenReady = false;
+  dispatch({ type: "showAnalysisMesh" });
+}
+function renderMeshPanel() {
+  if (!currentState || currentState.embed) return;
+  renderMeshReview(dom.meshReview, currentState, meshNative(), {
+    generate: force => void meshClient.generate(force),
+    converge: () => void meshClient.converge(),
+    cancel: id => void meshClient.cancel(id),
+    toggleLayer: (layerId, visible) => { dispatch({ type: "setLayerVisibility", layerId, visible }); render(); },
+    selectTarget: rule => {
+      const sources = (rule.source_refs ?? []).map(ref => resolveEntityObjectId(currentState, ref)).filter(Boolean);
+      const ids = rule.objectIds.length ? rule.objectIds : sources;
+      dispatch({ type: "setLayerVisibility", layerId: "analysis_mesh:review:targets", visible: true });
+      dispatch({ type: "selectObjects", objectIds: ids });
+      selectedObjectId = ids[0] ?? null;
+      render();
+    },
+    focusProblem: objectId => {
+      dispatch({ type: "setLayerVisibility", layerId: "analysis_mesh:review:problems", visible: true });
+      dispatch({ type: "focusFinding", objectId });
+      selectedObjectId = objectId;
+      render();
+    }
+  });
+}
 
 // A published bundle ships the model script that built it and the .comm each
 // load case produced. The viewer shows them in the same Build workspace a
@@ -410,6 +485,8 @@ async function main() {
     await initStudio(catalog);
     refreshExchange = initExchange(dom.exchangeDialog, {
       project: studio.project,
+      trigger: dom.exchangeOpen,
+      hasUnsavedChanges: () => studio.available && dom.codeText.value !== studio.diskCode,
       catalogEntry: normalizeCatalog(catalog).find(entry => bundleKey(entry.id) === bundleKey(currentBundleUrl)),
       reload: async () => { await loadBundle(currentBundleUrl, { preserve: true }); render(); }
     });
@@ -417,6 +494,27 @@ async function main() {
       dom.exchangeDialog.showModal();
       void refreshExchange?.();
     });
+    if (studio.available && studio.project && !startupConfig.embed) {
+      let geometryRenderer = null;
+      const refreshGeometry = initGeometryImport(dom.geometryDialog, {
+        project: studio.project,
+        previewSurface: (state, canvas) => {
+          geometryRenderer ??= createThreeCanvasRenderer(canvas);
+          geometryRenderer.render(state);
+          geometryRenderer.resetView();
+        },
+        openEditor: async () => {
+          await setMode("build");
+          showCodeTab(null);
+          dom.codeText.focus();
+        }
+      });
+      dom.geometryOpen.hidden = false;
+      dom.geometryOpen.addEventListener("click", () => {
+        dom.geometryDialog.showModal();
+        void refreshGeometry();
+      });
+    }
     const identity = studio.available
       ? await sourceIdentity(studio.ranCode)
       : (normalizeCatalog(catalog).find(entry => bundleKey(entry.id) === bundleKey(currentBundleUrl))?.build_identity
@@ -616,6 +714,7 @@ function render() {
   renderHeader();
   renderStatusStrip();
   renderRailChrome();
+  renderSelectionTools();
   renderDisplayStrip();
   renderViewportLegend();
   renderResultControls();
@@ -626,6 +725,7 @@ function render() {
   renderScriptSelection();
   renderCaseInputs();
   renderCanvas();
+  paneResizing.sync();
   restoreFocus(focus);
 }
 
@@ -674,7 +774,7 @@ function restoreFocus(focus) {
 function renderRailChrome() {
   const view = currentWorkspace();
   dom.taskRail.hidden = !view.railVisible;
-  dom.displayPalette.hidden = isBuildMode() || currentState.embed;
+  dom.displayPalette.hidden = currentState.embed;
   if (dom.displayPalette.hidden) dom.displayPalette.open = false;
   dom.reviewDrawer.hidden = isBuildMode() || currentState.embed;
   dom.railToggle.hidden = !view.railToggleVisible;
@@ -684,7 +784,46 @@ function renderRailChrome() {
   dom.railToggle.setAttribute("aria-label", dom.railToggle.title);
   document.body.dataset.railOpen = String(railExpanded);
   dom.appHeader.hidden = !view.headerVisible;
+  dom.buildDisplay.hidden = !isBuildMode();
+  if (isBuildMode()) {
+    if (colorBlock.parentElement !== dom.buildDisplay) dom.buildDisplay.append(colorBlock, dom.objectsSection);
+  } else {
+    if (colorBlock.parentElement !== colorHome) colorHome.insertBefore(colorBlock, colorNext);
+    if (dom.objectsSection.parentElement !== objectsHome) objectsHome.append(dom.objectsSection);
+  }
 }
+
+function renderSelectionTools() {
+  dom.selectionTools.hidden = currentState.embed;
+  const selected = currentState.selectedObjectIds?.length > 0;
+  for (const button of dom.selectionTools.querySelectorAll("[data-selection-action]")) {
+    const action = button.dataset.selectionAction;
+    button.disabled = !selected && !["find", "restoreVisibility"].includes(action);
+    if (action === "focus") button.setAttribute("aria-checked", String(Boolean(currentState.focusSelection && selected)));
+  }
+  dom.canvas.dataset.focusSelection = String(Boolean(currentState.focusSelection && selected));
+}
+
+dom.selectionTools.addEventListener("click", event => {
+  const action = event.target.closest("[data-selection-action]")?.dataset.selectionAction;
+  if (!action) return;
+  if (action === "find") {
+    closeSelectOther();
+    openFind();
+    dom.searchInput.focus();
+    return;
+  }
+  if (action === "focus") dispatch({ type: "setFocusSelection", enabled: !currentState.focusSelection });
+  else if (action === "cut") {
+    const box = sectionBoxAroundSelection(currentState);
+    if (!box) return;
+    dispatch({ type: "applySectionBox", sectionBox: box });
+  } else dispatch({ type: action });
+  render();
+  dom.canvas.focus({ preventScroll: true });
+});
+dom.selectionTools.addEventListener("pointerover", closePickList);
+dom.selectionTools.addEventListener("focusin", closePickList);
 
 function renderSavedViews() {
   dom.savedViews.replaceChildren();
@@ -724,11 +863,13 @@ function renderStatusStrip() {
   renderApplicabilityFact();
   renderDiscretisationCheck();
   renderBalanceCheck();
-  // The disclosure is worth opening for the mesh check or for the balance, and
-  // for nothing else. Both describe how the numbers on screen were produced;
-  // neither is a verdict, so neither joins the permanent line, which is kept
-  // for facts about the session rather than diagnostics about the solve.
-  dom.analysisDetails.hidden = dom.discretisationCheck.hidden && dom.balanceCheck.hidden;
+  renderMeshPanel();
+  // The disclosure is worth opening for the mesh check, the balance or the mesh
+  // diagnostics, and for nothing else. All describe how the numbers on screen
+  // were produced; none is a verdict, so none joins the permanent line, which
+  // is kept for facts about the session rather than diagnostics about the solve.
+  dom.analysisSummary.hidden = currentState.embed || (dom.discretisationCheck.hidden && dom.balanceCheck.hidden && dom.meshReview.hidden);
+  syncAnalysisDock();
   renderSelectionFact();
   dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
 }
@@ -767,8 +908,8 @@ function renderApplicabilityFact() {
 // outside the 3D view that drew it.
 function renderSelectionFact() {
   const ids = currentState.selectedObjectIds ?? [];
-  dom.selectionFact.hidden = ids.length === 0;
-  if (ids.length === 0) return;
+  dom.selectionFact.hidden = ids.length < 2;
+  if (ids.length < 2) return;
   const primaryId = selectedObjectId ?? ids[0];
   const primary = currentState.objects.find((obj) => obj.id === primaryId);
   const name = primary?.name || primaryId;
@@ -916,7 +1057,8 @@ function renderColorBy() {
     label: mode.label,
     group: "Model"
   }));
-  const fieldOptions = getFieldOptions(currentState).map((field) => ({
+  // Build never tints by results (colorChannelOf), so it offers none to pick.
+  const fieldOptions = (isBuildMode() ? [] : getFieldOptions(currentState)).map((field) => ({
     id: field.id,
     label: field.label,
     group: "Results"
@@ -942,7 +1084,7 @@ function renderColorBy() {
     const field = getActiveField(currentState);
     dom.fieldDetails.hidden = !field && !legend;
     dom.fieldDescription.textContent = field
-      ? `Solver field: ${field.label || field.id}. Support: ${field.support || "unspecified"}.`
+      ? `${legend?.envelope ? "Derived" : "Solver"} field: ${field.label || field.id}. Support: ${field.support || "unspecified"}.`
       : (legend?.field ?? "");
     renderAveragingNote(legend);
     renderReferenceNote();
@@ -1092,6 +1234,10 @@ function renderResultControls() {
   dom.reviewTally.textContent = reviewTallyLabel();
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
+  // Case already navigates between solves. Step is only useful when that case
+  // has several increments (or the states have no case attribution).
+  const caseResultStates = resultStates.filter((entry) =>
+    !currentState.activeLoadCase || !entry.loadCase || entry.loadCase === currentState.activeLoadCase);
   const geometryStates = getGeometryStateOptions(currentState);
   const fieldOptions = getFieldOptions(currentState);
   if (
@@ -1154,11 +1300,11 @@ function renderResultControls() {
       dom.resultControls.append(nav.nav);
       dom.resultControls.append(nav.steps);
     }
-  } else if (resultStates.length > 1 || (fieldOptions.length === 0 && resultStates.length > 0)) {
+  } else if (caseResultStates.length > 1) {
     dom.resultControls.append(
       propertyRow(
         "Step",
-        plainSelect(currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
+        plainSelect(currentState.activeResultStateId ?? caseResultStates[0].id, caseResultStates, (value) => {
           dispatch({ type: "setActiveResultState", resultStateId: value });
           render();
         })
@@ -1166,12 +1312,11 @@ function renderResultControls() {
     );
   }
 
-  dom.resultShape.append(
-    railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
-  );
+  const hasDeformation = geometryStates.length > 0 || isContactReview(currentState);
+  if (hasDeformation) dom.resultShape.append(railGroup("Deformation"));
   // A contact review draws its own shape and offers no deformed state. A review
   // that merely lists its shoes keeps the control: the table is not the subject.
-  if (!isContactReview(currentState) && geometryStates.length > 0) {
+  if (!isContactReview(currentState) && geometryStates.length > 1) {
     dom.resultShape.append(
       propertyRow(
         "Deformed state",
@@ -1183,7 +1328,12 @@ function renderResultControls() {
       )
     );
   }
-  dom.resultShape.append(propertyRow("Deform", deformationControl()));
+  if (hasDeformation) {
+    const deformation = deformationControl();
+    deformation.title = geometryStates.find((entry) => entry.id === currentState.activeGeometryStateId)?.label
+      ?? geometryStates[0]?.label ?? "Visual deformation scale (display only)";
+    dom.resultShape.append(propertyRow("Scale", deformation));
+  }
   dom.resultShape.append(filtersDrawer());
 
   const hotspots = getHotspots(currentState);
@@ -1303,7 +1453,9 @@ function filtersDrawer() {
   const state = document.createElement("span");
   state.className = "drawer-state";
   state.textContent = vectorScaleSummary();
-  summary.append(state);
+  if (state.textContent) summary.append(state);
+  const hasUtilization = Number(currentState.utilizationThreshold) > 0
+    || getHotspots(currentState).some((finding) => finding.utilization !== null);
 
   // append() stringifies a null child into a literal "null" text node, and both
   // of these controls are absent whenever there is no scalar legend to scale or
@@ -1313,10 +1465,10 @@ function filtersDrawer() {
       summary,
       scaleControls(),
       thresholdControl(),
-      numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
+      hasUtilization ? numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
         dispatch({ type: "setUtilizationThreshold", threshold: value });
         render();
-      }),
+      }) : null,
       selectFindingsControl(),
       rangeControl(
       `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? 1)}x`,
@@ -1363,11 +1515,12 @@ function filtersDrawer() {
 
 function vectorScaleSummary() {
   const scales = [
-    currentState.resultVectorScales?.displacement ?? 1,
-    currentState.resultVectorScales?.moment ?? 1,
-    currentState.resultVectorScales?.reaction ?? 1
+    ["Displacement", currentState.resultVectorScales?.displacement ?? 1],
+    ["Moment", currentState.resultVectorScales?.moment ?? 1],
+    ["Reaction", currentState.resultVectorScales?.reaction ?? 1]
   ];
-  return scales.map((scale) => formatScale(scale)).join(" / ");
+  return scales.filter(([, scale]) => scale !== 1)
+    .map(([label, scale]) => `${label} \u00d7${formatScale(scale)}`).join(" \u00b7 ");
 }
 
 // The threshold filters the field that is currently colouring the scene, so it
@@ -1375,7 +1528,9 @@ function vectorScaleSummary() {
 // showing. The value reaching state is always the stored one: a threshold read
 // in MPa but compared against pascals would silently filter out everything.
 function thresholdControl() {
-  const unit = getScalarLegend(currentState)?.unit ?? "";
+  const legend = getScalarLegend(currentState);
+  if (!legend && !(Number(currentState.resultThreshold) > 0)) return null;
+  const unit = legend?.unit ?? "";
   const system = getUnitSystem(currentState);
   const suffix = isConvertible(unit) ? ` (${displayUnit(unit, system)})` : unit ? ` (${unit})` : "";
   const stored = currentState.resultThreshold;
@@ -1575,7 +1730,7 @@ function renderDisplayStrip() {
   renderSectionProfile();
   renderFindPane();
   renderLayerTree(categorizeLayers(currentState.layers));
-  renderSectionBoxControls();
+  renderCutViewControls();
   renderSavedViews();
   renderRailPopover();
 }
@@ -1889,21 +2044,30 @@ function bodyRow(body) {
   const name = document.createElement("span");
   name.className = "body-name";
   name.textContent = body.label;
-  toggle.append(input, name);
+  toggle.title = body.description;
+  const description = rowDescription(`body-description-${body.id}`, body.description);
+  toggle.append(input, name, description);
 
-  const badge = document.createElement("span");
-  badge.className = `body-badge body-badge-${body.badge.tone}`;
-  badge.textContent = body.badge.text;
-
-  head.append(toggle, badge);
-  if (body.id === "subpoints") {
-    for (const chip of [subpointModeChip(), subpointThresholdChip()]) {
-      if (chip) head.append(chip);
-    }
-  }
+  head.append(toggle);
   if (body.supportsOpacity) {
     head.append(opacityChip(body));
   }
+  // What the row cannot say with a checkbox: which part of a half-ticked body
+  // is hidden, and which state and scale the deformed shape is drawn at.
+  const status = body.status ? bodyStatusLine(body.status) : null;
+  if (status) status.id = `body-status-${body.id}`;
+  input.setAttribute("aria-describedby", [description.id, status?.id].filter(Boolean).join(" "));
+  // The sub-point draw controls get a line of their own under the name. Beside
+  // it they pushed the caret onto a second line at the panel's width.
+  let controls = null;
+  if (body.id === "subpoints") {
+    controls = document.createElement("div");
+    controls.className = "body-controls";
+    for (const chip of [subpointModeChip(), subpointThresholdChip()]) {
+      if (chip) controls.append(chip);
+    }
+  }
+  const lines = [status, controls].filter(Boolean);
 
   // The sublines are what a layer is made of - element counts, wall thickness,
   // sub-point grids. Useful when you ask, noise when you do not: four layers
@@ -1928,19 +2092,48 @@ function bodyRow(body) {
     caret.setAttribute("aria-expanded", String(!metrics.hidden));
     caret.setAttribute("aria-controls", metrics.id);
     caret.setAttribute("aria-label", `${body.label} details`);
-    caret.textContent = metrics.hidden ? "▸" : "▾";
+    // A drawn chevron, not a 9.6px "▸": CSS turns it down when expanded.
+    caret.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     caret.addEventListener("click", () => {
       if (expandedBodies.has(body.id)) expandedBodies.delete(body.id);
       else expandedBodies.add(body.id);
       render();
     });
     head.append(caret);
-    row.append(head, metrics);
+    row.append(head, ...lines, metrics);
     return row;
   }
 
-  row.append(head);
+  row.append(head, ...lines);
   return row;
+}
+
+// The row's description, for assistive tech: a title is only a hover tooltip,
+// and a screen reader does not reliably announce it.
+function rowDescription(id, text) {
+  const description = document.createElement("span");
+  description.className = "visually-hidden";
+  description.id = id;
+  description.textContent = text;
+  return description;
+}
+
+function bodyStatusLine(text) {
+  const line = document.createElement("p");
+  line.className = "body-status";
+  line.textContent = text;
+  // One line at the panel's width; the whole reason is still a hover away.
+  line.title = text;
+  return line;
+}
+
+// A cycle chip names its control and shows its value: "Opacity 60%" rather than
+// a bare "60%" that read as a reading, not as something to press.
+function chipLabel(button, key, value) {
+  const keySpan = document.createElement("span");
+  keySpan.className = "body-chip-key";
+  keySpan.textContent = key;
+  button.replaceChildren(keySpan, ` ${value}`);
 }
 
 // Overlays share the body-row grammar - same checkbox, same badge slot, same
@@ -1949,6 +2142,7 @@ function bodyRow(body) {
 function renderOverlayList() {
   const overlays = getOverlays(currentState);
   dom.overlaysBlock.hidden = overlays.length === 0;
+  dom.valueLabelsToggle.checked = currentState.valueLabelsVisible !== false;
   dom.overlayList.replaceChildren();
   for (const overlay of overlays) {
     dom.overlayList.append(overlayRow(overlay));
@@ -1984,7 +2178,9 @@ function overlayRow(overlay) {
   name.className = "body-name";
   name.textContent = overlay.label;
   name.title = overlay.description;
-  toggle.append(input, name);
+  const description = rowDescription(`overlay-description-${overlay.id}`, overlay.description);
+  input.setAttribute("aria-describedby", description.id);
+  toggle.append(input, name, description);
 
   head.append(toggle);
   // Chrome rows (the grid) gate no layer, so there is no count to state and an
@@ -1993,6 +2189,7 @@ function overlayRow(overlay) {
     const badge = document.createElement("span");
     badge.className = "body-badge body-badge-neutral";
     badge.textContent = String(overlay.count);
+    badge.title = `${overlay.count} in the scene`;
     head.append(badge);
   }
   if (overlay.vectorType) {
@@ -2011,7 +2208,7 @@ function scaleChip(overlay) {
   button.className = "body-scale";
   button.dataset.overlayScale = overlay.id;
   button.dataset.focusKey = `scale:${overlay.id}`;
-  button.textContent = `${formatScale(overlay.scale)}x`;
+  chipLabel(button, "Scale", `${formatScale(overlay.scale)}×`);
   button.setAttribute(
     "aria-label",
     `${overlay.label} scale ${formatScale(overlay.scale)}x, cycles through ${VECTOR_SCALE_STEPS.map((step) => `${formatScale(step)}x`).join(", ")}`
@@ -2033,7 +2230,7 @@ function opacityChip(body) {
   button.dataset.bodyOpacity = body.id;
   button.dataset.focusKey = `opacity:${body.id}`;
   const percent = Math.round(body.opacity * 100);
-  button.textContent = `${percent}%`;
+  chipLabel(button, "Opacity", `${percent}%`);
   button.setAttribute(
     "aria-label",
     `${body.label} opacity ${percent}%, cycles through ${OPACITY_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
@@ -2046,9 +2243,9 @@ function opacityChip(body) {
 }
 
 // Which of the two ways the sub-point field is drawn belongs on the row that
-// draws it, next to the checkbox that turns it on. Peak thins the field to the
-// top of the range and looks through the pipe; Measured is every sub-point at
-// the wall, complete and partly hidden.
+// draws it, next to the checkbox that turns it on. Hot spots thins the field to
+// the points at or above the cut and looks through the pipe; All points is
+// every sub-point at the wall, complete and partly hidden.
 function subpointModeChip() {
   const spec = subpointModeSpec(currentState);
   const button = document.createElement("button");
@@ -2072,8 +2269,8 @@ function subpointModeChip() {
   return button;
 }
 
-// The cut a peak mark has to clear. Absent in Measured mode, where nothing is
-// thinned and a threshold would describe nothing that happens on screen.
+// The cut a hot-spot mark has to clear. Absent in All points mode, where
+// nothing is thinned and a threshold would describe nothing on screen.
 function subpointThresholdChip() {
   if (!subpointModeSpec(currentState).xray) {
     return null;
@@ -2084,10 +2281,11 @@ function subpointThresholdChip() {
   button.className = "body-scale";
   button.dataset.subpointThreshold = String(percent);
   button.dataset.focusKey = `subpoint-threshold:${percent}`;
-  button.textContent = `top ${percent}%`;
+  button.textContent = subpointThresholdLabel(currentState);
+  button.title = `Draws points at or above ${percent}% of the colour range maximum`;
   button.setAttribute(
     "aria-label",
-    `Sub-point peak cut ${percent}%, cycles through ${SUBPOINT_THRESHOLD_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
+    `Sub-point cut: points at or above ${percent}% of the range maximum, cycles through ${SUBPOINT_THRESHOLD_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
   );
   button.addEventListener("click", () => {
     dispatch({ type: "cycleSubpointThreshold" });
@@ -2120,7 +2318,7 @@ function renderSectionProfile() {
 
   // Named with its own field: the rosette explains the sub-point grid whatever
   // is tinting the scene, so it must not read as the active legend.
-  // "Wall section", not "Section": the strip already has a Section box, and that
+  // "Wall section", not "Section": the palette has a Cut view, and that
   // one clips the scene rather than describing the pipe wall.
   // A 104px rosette plus four fact lines, permanently open, for a question
   // asked once per session: what the sub-point grid looks like.
@@ -2409,6 +2607,29 @@ function activeReactionOverlays() {
   };
 }
 
+// The dock stays put across renders and stage moves; only its toggle, Close and
+// Escape open or shut it, and it shuts itself when nothing is left to show.
+let analysisDockOpen = false;
+function syncAnalysisDock() {
+  dom.analysisDetails.hidden = !analysisDockOpen || dom.analysisSummary.hidden;
+  dom.analysisSummary.setAttribute("aria-expanded", String(!dom.analysisDetails.hidden));
+}
+function setAnalysisDock(open) {
+  const hadFocus = dom.analysisDetails.contains(document.activeElement);
+  analysisDockOpen = open;
+  syncAnalysisDock();
+  if (hadFocus) dom.analysisSummary.focus();
+}
+dom.analysisSummary.addEventListener("click", () => setAnalysisDock(!analysisDockOpen));
+dom.analysisClose.addEventListener("click", () => setAnalysisDock(false));
+for (const element of [dom.analysisDetails, dom.analysisSummary]) {
+  element.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !analysisDockOpen) return;
+    event.stopPropagation();
+    setAnalysisDock(false);
+  });
+}
+
 // The disclosure summary names whichever diagnostic the reviewer most needs to
 // open. Out of tolerance wins over the mesh check because a balance that does
 // not close is a question about the solve, whereas mesh detail is a question
@@ -2538,7 +2759,7 @@ function renderViewportLegend() {
     ramp.dataset.legendBands = String(legend.bands ?? 0);
     ramp.style.background = scalarRampGradient(legend);
 
-    dom.viewportLegend.append(heading, ramp, ...legendTicks(legend), ...scaleReadout(legend));
+    dom.viewportLegend.append(heading, ramp, ...legendTicks(legend), ...scaleReadout(legend), ...unstressedNote(legend));
     renderComplianceNotice();
   }
 
@@ -2591,12 +2812,13 @@ function renderViewportLegend() {
   // orange movement cone were marks with no name. Listed only when a support
   // carrying that part is visible, so the key never advertises a colour that is
   // not on screen.
+  const supportColors = supportPartColors(sceneStage(currentState));
   for (const part of visibleSupportParts(currentState, visibleIds)) {
-    appendViewportKeyRow(SUPPORT_PART_LABELS[part], SUPPORT_PART_COLORS[part]);
+    appendViewportKeyRow(SUPPORT_PART_LABELS[part], supportColors[part]);
   }
   for (const body of bodies) {
     appendViewportKeyRow(
-      `${body.label} — ${BODY_LEGEND_NOTE[body.id] ?? body.badge.text}`,
+      bodyLegendText(body),
       null,
       `body-legend-${body.id}`
     );
@@ -2617,7 +2839,7 @@ function legendTicks(legend) {
   const ticks = document.createElement("div");
   ticks.className = "legend-ticks";
   ticks.dataset.legendTicks = "";
-  const labels = formatValueSeries(values, legend.unit, system);
+  const labels = formatScaleSeries(values, legend.unit, system);
   for (const [index, value] of values.entries()) {
     const tick = document.createElement("span");
     tick.textContent = labels[index];
@@ -2625,6 +2847,32 @@ function legendTicks(legend) {
     ticks.append(tick);
   }
   return [ticks];
+}
+
+// A member the stress field has no value for is drawn grey - a beam, whose
+// Code_Aster stress is not imported - and a grey frame with no word on it read
+// as a colouring that had failed.
+function unstressedNote(legend) {
+  const values = legend.overlay?.data?.values;
+  if (legend.overlay?.data?.result_type !== "stress" || !values) return [];
+  const visible = new Set(currentState.visibleObjectIds ?? []);
+  const count = (currentState.objects ?? []).filter((object) =>
+    visible.has(object.id) && isModelColorable(object) && !(object.id in values)
+  ).length;
+  if (count === 0) return [];
+  // A frame member's stress is its own field: von Mises does not exist for it.
+  const has = (type) => (currentState.resultFields ?? []).some((field) => String(field.overlay_id).includes(`:${type}:`));
+  const pointer = has("beam_normal_stress") ? " — see Beam normal stress" : has("internal_forces") ? " — see Section forces" : "";
+  const note = document.createElement("div");
+  note.className = "legend-scale legend-no-result";
+  note.dataset.legendUnstressed = "";
+  // The same stripes the scene draws on these members (hatchNoResult): "grey"
+  // named a colour the scale itself passes through at mid-range.
+  const swatch = document.createElement("span");
+  swatch.className = "legend-no-result-swatch";
+  swatch.setAttribute("aria-hidden", "true");
+  note.append(swatch, `${count} member${count === 1 ? "" : "s"} without a von Mises result${pointer}`);
+  return [note];
 }
 
 // The scale the ramp is actually reading, stated even when it is the field's own
@@ -2645,7 +2893,7 @@ function scaleReadout(legend) {
   row.dataset.legendScale = "";
   const min = Number(legend.range?.min ?? 0);
   const max = Number(legend.range?.max ?? 0);
-  const [low, high] = formatValueSeries([min, max], legend.unit, system);
+  const [low, high] = formatScaleSeries([min, max], legend.unit, system);
   const parts = [`${low} – ${high}`];
   if (banded) {
     parts.push(`${legend.bands} bands`);
@@ -2671,15 +2919,6 @@ function appendViewportKeyRow(label, color = null, swatchClass = "") {
   row.append(text);
   dom.bodyLegend.append(row);
 }
-
-// What the mark in the viewport is actually reporting, which is not the same
-// question as what the body is.
-const BODY_LEGEND_NOTE = Object.freeze({
-  geometry: "surface, interpolated",
-  analysis_mesh: "cell values",
-  subpoints: "measured",
-  deformed: "display scale only"
-});
 
 // Sampled from the function that actually tints the scene, so the bar cannot
 // drift from the colours on screen.
@@ -2732,11 +2971,10 @@ function bandColorValue(legend, index) {
   return (low + high) / 2;
 }
 
-// Called only from renderViewportLegend, and unconditional there on purpose:
-// the caveat qualifies the legend it sits in, so the two must never appear
-// apart. The older gate on results-layer visibility was for the days when the
-// badge lived in the display strip and the legend did not.
+// The full Studio owns this notice in its persistent status strip. An embed
+// has no status strip, so its legend must carry the same qualification.
 function renderComplianceNotice() {
+  if (!currentState.embed) return;
   const notice = getComplianceNotice(currentState);
   if (!notice) {
     return;
@@ -2748,88 +2986,101 @@ function renderComplianceNotice() {
   dom.viewportLegend.append(badge);
 }
 
-function renderSectionBoxControls() {
-  dom.sectionBoxControls.replaceChildren();
-  const section = document.createElement("section");
-  section.className = "section-box-controls";
-  const heading = document.createElement("h3");
-  heading.textContent = "Section";
-  const enabled = document.createElement("input");
-  enabled.type = "checkbox";
-  enabled.checked = Boolean(currentState.sectionBox);
-  enabled.id = "section-enabled";
-  const enabledLabel = document.createElement("label");
-  enabledLabel.htmlFor = enabled.id;
-  enabledLabel.append(enabled, " Enable section");
-  const box = currentState.sectionBox ?? sectionBoxDefaults(currentState.bounds);
-  const fields = [];
-  const grid = document.createElement("div");
-  grid.className = "section-box-grid";
-  for (const [axis, index] of [["X", 0], ["Y", 1], ["Z", 2]]) {
-    for (const side of ["min", "max"]) {
-      const label = document.createElement("label");
-      label.textContent = `${axis} ${side}`;
-      const input = document.createElement("input");
-      input.type = "number";
-      input.step = "any";
-      input.value = String(box[side][index]);
-      input.disabled = !enabled.checked;
-      input.setAttribute("aria-label", `Section ${axis} ${side}`);
-      fields.push({ input, index, side });
-      label.append(input);
-      grid.append(label);
-    }
-  }
-  const update = () => {
-    const next = { min: [], max: [] };
-    let valid = true;
-    for (const field of fields) {
-      const value = Number(field.input.value);
-      const finite = field.input.value.trim() !== "" && Number.isFinite(value);
-      field.input.setCustomValidity(finite ? "" : "Enter a finite number.");
-      if (!finite) valid = false;
-      next[field.side][field.index] = value;
-    }
-    for (let index = 0; index < 3; index += 1) {
-      if (next.min[index] >= next.max[index]) {
-        fields.find((field) => field.index === index && field.side === "max").input.setCustomValidity("Maximum must be greater than minimum.");
-        valid = false;
-      }
-    }
-    if (!valid) return;
-    dispatch({ type: "applySectionBox", sectionBox: next });
-    updateSectionBoxControlValues(next, true);
-    renderCanvas();
-  };
-  enabled.addEventListener("change", () => {
-    if (enabled.checked) {
-      update();
-    } else {
-      dispatch({ type: "applySectionBox" });
-      updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
-      renderCanvas();
-    }
-  });
-  for (const { input } of fields) input.addEventListener("change", update);
-  const reset = document.createElement("button");
-  reset.type = "button";
-  reset.textContent = "Reset section";
-  reset.addEventListener("click", () => {
-    dispatch({ type: "applySectionBox" });
-    updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
-    renderCanvas();
-  });
-  section.append(heading, enabledLabel, grid, reset);
-  dom.sectionBoxControls.append(section);
+// Cut view: Off, a box around the selection, or a custom box. A box only - the
+// parts outside it are hidden, the parts crossing it are clipped. Off is the
+// reset, so there is no separate tick or reset button.
+const CUT_VIEW_MODES = [
+  { id: "off", label: "Off" },
+  { id: "selection", label: "Around selection" },
+  { id: "custom", label: "Custom" }
+];
 
-  function updateSectionBoxControlValues(nextBox, active) {
-    enabled.checked = active;
-    for (const field of fields) {
-      field.input.value = String(nextBox[field.side][field.index]);
-      field.input.disabled = !active;
-      field.input.setCustomValidity("");
+function renderCutViewControls() {
+  dom.cutViewControls.replaceChildren();
+  const mode = cutViewMode(currentState);
+  const hasSelection = (currentState.selectedObjectIds?.length ?? 0) > 0;
+  const section = document.createElement("section");
+  section.className = "cut-view";
+  section.setAttribute("aria-labelledby", "cut-view-heading");
+  const heading = document.createElement("h2");
+  heading.id = "cut-view-heading";
+  heading.textContent = "Cut view";
+
+  const hint = document.createElement("p");
+  hint.className = "cut-view-hint";
+  hint.id = "cut-view-hint";
+  hint.textContent = "Around selection: select something first";
+
+  const modes = document.createElement("div");
+  modes.className = "cut-view-modes";
+  modes.setAttribute("role", "radiogroup");
+  modes.setAttribute("aria-labelledby", heading.id);
+  for (const spec of CUT_VIEW_MODES) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "cut-view-mode";
+    input.value = spec.id;
+    input.checked = spec.id === mode;
+    input.dataset.focusKey = `cut-view:${spec.id}`;
+    if (spec.id === "selection" && !hasSelection && mode !== "selection") {
+      input.disabled = true;
+      input.setAttribute("aria-describedby", hint.id);
+      label.title = "Select something first";
     }
+    input.addEventListener("change", () => {
+      if (input.checked) setCutViewMode(spec.id);
+    });
+    label.append(input, spec.label);
+    modes.append(label);
   }
+  // Right under the segments, whatever the mode: the hint answers the disabled
+  // "Around selection" (or the disabled Refit), and in Custom it used to be
+  // hidden while the segment it explains stayed disabled.
+  hint.hidden = hasSelection;
+  section.append(heading, modes, hint);
+
+  if (mode === "selection") {
+    const row = document.createElement("div");
+    row.className = "cut-view-selection";
+    const note = document.createElement("span");
+    note.textContent = "Box = selection + 10 %";
+    const refit = document.createElement("button");
+    refit.type = "button";
+    refit.textContent = "Refit";
+    refit.dataset.focusKey = "cut-view:refit";
+    refit.disabled = !hasSelection;
+    if (!hasSelection) refit.setAttribute("aria-describedby", hint.id);
+    refit.title = "Fit the box to the current selection again";
+    refit.addEventListener("click", () => setCutViewMode("selection"));
+    row.append(note, refit);
+    section.append(row);
+  } else if (mode === "custom") {
+    section.append(cutViewRanges(currentState, {
+      onPreview: (box) => viewportRenderer?.previewSectionBox(box),
+      onCommit: (sectionBox) => {
+        dispatch({ type: "applySectionBox", sectionBox });
+        render();
+      }
+    }));
+  }
+  dom.cutViewControls.append(section);
+}
+
+function setCutViewMode(mode) {
+  let sectionBox;
+  if (mode === "selection") {
+    sectionBox = sectionBoxAroundSelection(currentState);
+    // A selection with no bounds to fit: put the radios back as they were.
+    if (!sectionBox) return void render();
+  } else if (mode === "custom") {
+    // From Off the box starts at the whole model; from Around selection it
+    // keeps the box you were already looking at.
+    const start = currentState.sectionBox ?? sectionBoxDefaults(currentState.bounds);
+    sectionBox = { mode: "custom", min: [...start.min], max: [...start.max] };
+  }
+  dispatch({ type: "applySectionBox", sectionBox });
+  render();
 }
 
 // A short column, not a row of nine. The view gizmo in the corner already
@@ -2953,7 +3204,7 @@ function reviewTallyLabel() {
     warnings > 0 ? `${warnings} warning${warnings === 1 ? "" : "s"}` : null,
     issues > 0 ? `${issues} issue${issues === 1 ? "" : "s"}` : null
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join("  ·  ") : "0 issues";
+  return parts.join("  ·  ");
 }
 
 function renderDiagnostics() {
@@ -3053,7 +3304,7 @@ const FIND_SCOPES = [
 
 const BODY_GROUP_LABELS = {
   geometry: "Geometry",
-  analysis_mesh: "Analysis mesh",
+  analysis_mesh: "FE mesh",
   subpoints: "Sub-points",
   deformed: "Deformed mesh",
   other: "Other (not a body)"
@@ -3062,6 +3313,8 @@ const BODY_GROUP_LABELS = {
 let findGroupBy = "engineering";
 
 function openFind() {
+  if (isBuildMode()) dom.displayPalette.open = true;
+  else railExpanded = true;
   dom.objectsSection.open = true;
   render();
 }
@@ -3075,21 +3328,12 @@ dom.objectList.addEventListener("keydown", onObjectListKeydown);
 function renderFindPane() {
   dom.findDismiss.hidden = currentSearch.trim() === "";
 
-  dom.findScope.replaceChildren();
-  for (const scope of FIND_SCOPES) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "scope-chip";
-    button.dataset.findScopeId = scope.id;
-    button.dataset.focusKey = `scope:${scope.id}`;
-    button.setAttribute("aria-pressed", String(scope.id === findGroupBy));
-    button.textContent = scope.label;
-    button.addEventListener("click", () => {
-      findGroupBy = scope.id;
-      render();
-    });
-    dom.findScope.append(button);
-  }
+  const grouping = plainSelect(findGroupBy, FIND_SCOPES, (value) => {
+    findGroupBy = value;
+    render();
+  });
+  grouping.dataset.focusKey = "scope:grouping";
+  dom.findScope.replaceChildren(propertyRow("Group by", grouping));
   renderObjects();
 }
 
@@ -3136,7 +3380,9 @@ function renderObjects() {
         if (derived.length) {
           const details = document.createElement("details");
           details.className = "representation-list";
-          details.open = Boolean(currentSearch.trim());
+          // A matching authored pipe is already the answer. Expand its solver
+          // representations only when the query specifically found those.
+          details.open = Boolean(currentSearch.trim()) && !parent;
           const summary = document.createElement("summary");
           summary.textContent = `${derived.length} representation${derived.length === 1 ? "" : "s"}`;
           details.append(summary);
@@ -3369,15 +3615,8 @@ function refLabel(ref) {
 // View utilities stay available while searching for objects.
 function renderRailUtility(shown = 0, hidden = 0) {
   dom.railUtility.replaceChildren();
-  for (const [label, action] of [["Fit selected", "fitSelection"], ["Hide selected", "hideSelected"], ["Isolate selected", "isolateSelection"]]) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "utility-button";
-    button.textContent = label;
-    button.disabled = !currentState.selectedObjectIds?.length;
-    button.addEventListener("click", () => { dispatch({ type: action }); render(); });
-    dom.railUtility.append(button);
-  }
+  // Selection actions belong to the selected object's inspector. Repeating
+  // them here added three disabled buttons before anything was selected.
   const measure = document.createElement("button");
   measure.type = "button";
   measure.className = "utility-button";
@@ -3403,7 +3642,8 @@ function renderRailUtility(shown = 0, hidden = 0) {
   {
     // "All layers" is not here any more - the tree moved into the Display
     // strip, as the last row of the list whose curated rows it backs up.
-    for (const [id, label] of [["section", "Section box"], ["views", "Saved views"]]) {
+    // Cut view lives in the Display palette; this row keeps the saved views.
+    for (const [id, label] of [["views", "Saved views"]]) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "utility-button";
@@ -3432,12 +3672,7 @@ let bodyLegendOpen = false;
 function renderRailPopover() {
   dom.railPopover.hidden = openPopoverId === null;
   if (dom.railPopover.hidden) return;
-  for (const [id, node] of [
-    ["section", dom.sectionBoxControls],
-    ["views", dom.savedViews]
-  ]) {
-    if (node) node.hidden = id !== openPopoverId;
-  }
+  dom.savedViews.hidden = openPopoverId !== "views";
 }
 
 // One issue row with one focus behaviour. The review rail and the build pane
@@ -3696,6 +3931,9 @@ function renderBuildIssues() {
 
 
 function renderProperties() {
+  const detailsOpen = dom.properties.querySelector("[data-selection-details]")?.open ?? false;
+  const mappingDetailsOpen = new Set([...dom.properties.querySelectorAll("[data-mapping-details][open]")]
+    .map(details => details.dataset.mappingDetails));
   // The script links below are drawn against this; model.py's input listener redraws when it flips.
   studio.linesMoved = scriptLinesMoved();
   const summary = getSelectionSummary(currentState, selectedObjectId);
@@ -3705,7 +3943,8 @@ function renderProperties() {
   dom.inspector.hidden = !summary && !issueSummary;
   if (!summary) {
     if (issueSummary) {
-      dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
+      dom.properties.append(renderEvidenceHead({ title: "Issue" }));
+      dom.properties.append(renderPropertySection({ title: "Details", rows: issueSummary }));
     } else {
       const empty = document.createElement("div");
       empty.className = "meta";
@@ -3793,17 +4032,81 @@ function renderProperties() {
   }
   dom.properties.append(renderEvidenceHead(summary));
   // A load arrow's entity ref names its node, so it is recognised by kind.
-  if (isBuildMode() && (/^(element|support):/.test(selectedObject?.entity_ref ?? "") || selectedObject?.kind === "applied_load")) {
+  if (isBuildMode() && (/^(element|support|component|port|coupling):/.test(selectedObject?.entity_ref ?? "") || selectedObject?.kind === "applied_load")) {
     dom.properties.append(renderScriptLink(selectedObject));
   }
   if (summary.dofs) {
     dom.properties.append(renderRestraintStrip(summary.dofs, summary.restraintLine));
   }
-  for (const section of sections) {
-    dom.properties.append(renderEvidenceSection(section));
+  if (isBuildMode() && sections.some(section => section.id?.startsWith("interface_mapping:"))) {
+    const section = document.createElement("section");
+    section.className = "property-section";
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = currentState.interfaceMappingsVisible !== false;
+    toggle.dataset.focusKey = "interface-mapping-visibility";
+    toggle.addEventListener("change", () => {
+      dispatch({ type: "setInterfaceMappingsVisible", visible: toggle.checked });
+      render();
+    });
+    label.append(toggle, " Show interface mapping");
+    const legend = document.createElement("p");
+    legend.className = "evidence-note";
+    legend.textContent = "Amber: source point. Cyan: selected boundary. Spokes show membership, not individual constraint equations.";
+    section.append(label, legend);
+    dom.properties.append(section);
   }
+  const details = document.createElement("details");
+  details.className = "evidence-reference";
+  details.dataset.selectionDetails = "";
+  details.open = detailsOpen;
+  const detailsTitle = document.createElement("summary");
+  detailsTitle.textContent = "Detailed properties";
+  detailsTitle.dataset.focusKey = "selection:details";
+  details.append(detailsTitle);
+  for (const section of sections) {
+    const rendered = renderEvidenceSection(section, mappingDetailsOpen.has(section.id));
+    if (section.id === "meshing" && selectedObject?.kind === "imported_component" &&
+        selectedObject.metadata?.geometry_representation !== "bounds_envelope" &&
+        currentState.geometryAssets.some(asset => asset.id === selectedObject.geometry_asset_id && asset.format === "mesh")) {
+      const label = document.createElement("label");
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = currentState.sourceMeshObjectIds?.includes(selectedObject.id) ?? false;
+      toggle.dataset.focusKey = `source-mesh:${selectedObject.id}`;
+      toggle.addEventListener("change", () => {
+        dispatch({ type: "setSourceMeshVisible", objectId: selectedObject.id, visible: toggle.checked });
+        render();
+      });
+      label.append(toggle, " Show surface triangles");
+      rendered.append(label);
+      if (isBuildMode() && selectedObject.metadata?.analysis_regions?.length && studio.hasReview && !studio.reviewStale) {
+        const solvedMesh = document.createElement("button");
+        solvedMesh.type = "button";
+        solvedMesh.textContent = "View solved FE mesh in Review";
+        solvedMesh.dataset.focusKey = `solver-mesh:${selectedObject.id}`;
+        solvedMesh.addEventListener("click", async () => {
+          await setMode("review");
+          if (bundleKey(currentBundleUrl) !== "review") return;
+          if (!currentState.geometryAssets.some(asset => asset.generation_config?.source === "tuba.analysis_mesh.volume_skin")) {
+            setStatus("No solved solid FE mesh is available in this review.", true);
+            return;
+          }
+          dispatch({ type: "showAnalysisMesh" });
+          render();
+        });
+        rendered.append(solvedMesh);
+      }
+    }
+    const host = ["physical", "quantities", "result_values"].includes(section.id) ? details : dom.properties;
+    host.append(rendered);
+  }
+  const relations = importedRelationButtons(selectedObject);
+  if (relations) dom.properties.append(relations);
   const inputs = currentState.selectedObjectIds.length === 1 ? elementInputSection(currentState, selectedObject) : null;
   if (inputs) dom.properties.append(renderEvidenceSection(inputs));
+  if (details.children.length > 1) dom.properties.append(details);
   if (issueSummary) {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     dom.properties.append(renderDispositionSection({ kind: "issue", subjectId: issueSummary.id }));
@@ -3840,7 +4143,7 @@ function renderEvidenceHead(summary) {
   head.className = "evidence-head";
   const titleRow = document.createElement("div");
   titleRow.className = "evidence-title-row";
-  const title = document.createElement("div");
+  const title = document.createElement("h2");
   title.className = "evidence-title";
   title.textContent = summary.title;
   titleRow.append(title);
@@ -3922,7 +4225,52 @@ function renderRestraintStrip(dofs, sourceLine) {
   return section;
 }
 
-function renderEvidenceSection(section) {
+function importedRelationButtons(object) {
+  const data = object?.metadata ?? {};
+  const links = getGeometryRelations(currentState, object?.id);
+  const selector = object?.kind === "imported_port" ? data.metadata?.face_selector : null;
+  if (!links.length && !selector) return null;
+  const section = document.createElement("section");
+  section.className = "property-section";
+  const heading = document.createElement("h3");
+  heading.textContent = links.length ? "Inspect connections" : "Geometric selector";
+  const buttons = document.createElement("div");
+  buttons.className = "geometry-relations";
+  if (links.length) {
+    const highlight = document.createElement("button");
+    highlight.type = "button";
+    highlight.textContent = "Highlight connections";
+    highlight.dataset.focusKey = `connections:${object.id}`;
+    highlight.setAttribute("aria-pressed", String(connectionHighlightObjectId === object.id));
+    highlight.addEventListener("click", () => {
+      connectionHighlightObjectId = connectionHighlightObjectId === object.id ? null : object.id;
+      render();
+    });
+    buttons.append(highlight);
+  }
+  for (const link of links) {
+    const button = document.createElement("button");
+    button.type = "button"; button.textContent = link.label;
+    button.dataset.focusKey = `geometry-relation:${link.id}`;
+    button.addEventListener("click", () => { dispatch({ type: "selectObject", objectId: link.id }); render(); });
+    buttons.append(button);
+  }
+  if (selector) {
+    const button = document.createElement("button");
+    button.type = "button"; button.textContent = "Copy selector for Python";
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(pythonLiteral(selector));
+        button.textContent = "Selector copied";
+      } catch { button.textContent = "Copy the source_local_selector row"; }
+    });
+    buttons.append(button);
+  }
+  section.append(heading, buttons);
+  return section;
+}
+
+function renderEvidenceSection(section, detailsOpen = false) {
   const wrapper = document.createElement("section");
   wrapper.className = "property-section";
   const heading = document.createElement("h3");
@@ -3948,7 +4296,7 @@ function renderEvidenceSection(section) {
       figure.className = "profile-figure";
       figure.append(diagram);
       const caption = document.createElement("figcaption");
-      caption.textContent = "Section A–A · derived from the section's dimensions, not a solver result";
+      caption.textContent = "Section A–A · from dimensions";
       figure.append(caption);
       wrapper.append(figure);
     }
@@ -3974,7 +4322,17 @@ function renderEvidenceSection(section) {
   const table = document.createElement("table");
   table.className = "property-table";
   const body = document.createElement("tbody");
-  for (const line of section.lines) {
+  // The drawing and derived table already carry the profile. Repeating its
+  // nested properties JSON and collision radius adds implementation data.
+  const mappingDetails = section.id?.startsWith("interface_mapping:")
+    ? section.lines.filter(line => ["Interface", "Method", "Face group", "Node group", "Mapped cells", "Mapped nodes"].includes(line.label))
+    : [];
+  const lines = section.id === "profile" && section.profile
+    ? section.lines.filter((line) => line.label.endsWith("_m") && line.label !== "collision_radius_m")
+      .map((line) => ({ ...line, label: line.label.replace(/_m$/, "").replaceAll("_", " "),
+        value: formatQuantity(line.value, "m", getUnitSystem(currentState)) }))
+    : section.lines.filter(line => !mappingDetails.includes(line));
+  for (const line of lines) {
     if (line.kind === "note") {
       continue;
     }
@@ -3991,12 +4349,23 @@ function renderEvidenceSection(section) {
     body.append(row);
   }
   table.append(body);
-  wrapper.append(table);
-  for (const line of section.lines.filter((entry) => entry.kind === "note")) {
+  if (body.children.length) wrapper.append(table);
+  for (const line of lines.filter((entry) => entry.kind === "note")) {
     const note = document.createElement("p");
     note.className = "evidence-note";
     note.textContent = line.label;
     wrapper.append(note);
+  }
+  if (mappingDetails.length) {
+    const details = document.createElement("details");
+    details.className = "evidence-reference";
+    details.dataset.mappingDetails = section.id;
+    details.open = detailsOpen;
+    const summary = document.createElement("summary");
+    summary.textContent = "Technical details";
+    summary.dataset.focusKey = `mapping-details:${section.id}`;
+    details.append(summary, renderPropertySection({ title: "", rows: Object.fromEntries(mappingDetails.map(line => [line.label, line.value])) }));
+    wrapper.append(details);
   }
   return wrapper;
 }
@@ -4168,6 +4537,8 @@ function appendRestoreViewAction() {
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
   restoreButton.dataset.focusKey = "issue-restore";
+  restoreButton.hidden = !(currentState.hiddenObjectIds?.length || currentState.isolatedObjectIds?.length
+    || currentState.sectionBox || currentState.focusSelection);
   restoreButton.addEventListener("click", () => {
     dispatch({ type: "restoreVisibility" });
     render();
@@ -4181,7 +4552,10 @@ function renderCanvas() {
     return;
   }
   try {
-    viewportRenderer ??= createThreeCanvasRenderer(dom.canvas);
+    viewportRenderer ??= createThreeCanvasRenderer(dom.canvas, {
+      viewportInsets: () => getViewportInsets(dom.canvas, { right: dom.inspector }),
+      resizeTargets: [dom.inspector]
+    });
   } catch (error) {
     if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
     viewportUnavailable = true;
@@ -4192,6 +4566,11 @@ function renderCanvas() {
   renderCameraControls();
   const graph = viewportRenderer.render(currentState);
   const result = graph;
+  if (connectionHighlightObjectId === selectedObjectId) {
+    applySelectionHighlight(graph, [...currentState.selectedObjectIds,
+      ...getGeometryRelations(currentState, selectedObjectId).map(link => link.id)]);
+    viewportRenderer.redraw();
+  }
   applyHoverHighlight(graph, hoveredObjectId);
   if (hoveredObjectId) viewportRenderer.redraw();
   lastRenderGraph = result;
@@ -4267,6 +4646,12 @@ const CANVAS_KEY_ACTIONS = {
 };
 
 dom.canvas.addEventListener("keydown", (event) => {
+  if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+    event.preventDefault();
+    const rect = dom.canvas.getBoundingClientRect();
+    openSelectOther(lastPickPosition ?? { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+    return;
+  }
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   const action = CANVAS_KEY_ACTIONS[event.key];
   if (!action) return;
@@ -4281,6 +4666,11 @@ dom.canvas.addEventListener("click", (event) => {
     return;
   }
   if (!currentState) {
+    return;
+  }
+  lastPickPosition = { clientX: event.clientX, clientY: event.clientY };
+  if (event.altKey) {
+    openSelectOther(event);
     return;
   }
   if (viewportRenderer?.handleGizmoClick(event)) {
@@ -4305,11 +4695,150 @@ dom.canvas.addEventListener("click", (event) => {
   }
 });
 
+function previewPick(objectId) {
+  hoveredObjectId = objectId;
+  dom.canvas.dataset.hoverObjectId = objectId ?? "";
+  if (lastRenderGraph) applyHoverHighlight(lastRenderGraph, objectId);
+  viewportRenderer?.redraw();
+}
+
+function closeSelectOther() {
+  closePickList();
+  if (dom.selectOther.matches(":popover-open")) {
+    dom.selectOther.hidePopover();
+    previewPick(null);
+  }
+}
+
+function openSelectOther(event) {
+  if (!lastRenderGraph || !currentState) return;
+  lastPickPosition = { clientX: event.clientX, clientY: event.clientY };
+  pendingHoverPoint = null;
+  closeSelectOther();
+  const rect = dom.canvas.getBoundingClientRect();
+  const hits = pickRenderedPoints(lastRenderGraph,
+    { x: event.clientX - rect.left, y: event.clientY - rect.top },
+    { width: rect.width, height: rect.height });
+  if (hits.length && !hits.some(hit => currentState.selectedObjectIds.includes(selectionRepresentative(currentState, hit.objectId)))) {
+    dispatch({ type: "selectObject", objectId: selectionRepresentative(currentState, hits[0].objectId) });
+    render();
+  }
+  dom.pickList.replaceChildren();
+  for (const hit of hits) {
+    const objectId = selectionRepresentative(currentState, hit.objectId);
+    const object = currentState.objects.find(candidate => candidate.id === objectId);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.pickObjectId = objectId;
+    button.setAttribute("role", "menuitemcheckbox");
+    button.setAttribute("aria-checked", String(currentState.selectedObjectIds.includes(objectId)));
+    const name = document.createElement("strong");
+    name.textContent = object?.name || object?.entity_ref || objectId;
+    const detail = document.createElement("span");
+    detail.textContent = object?.kind?.replaceAll("_", " ") ?? "";
+    button.title = [name.textContent, object?.metadata?.section, object?.entity_ref].filter(Boolean).join(" · ");
+    button.append(name, detail);
+    button.addEventListener("pointerenter", () => previewPick(objectId));
+    button.addEventListener("focus", () => previewPick(objectId));
+    button.addEventListener("click", click => {
+      dispatch({ type: "selectObject", objectId, additive: click.shiftKey });
+      render();
+      dom.canvas.focus({ preventScroll: true });
+    });
+    dom.pickList.append(button);
+  }
+  dom.pickOpen.disabled = !hits.length;
+  dom.pickOpen.textContent = `Select Other (${hits.length})`;
+  dom.selectOther.showPopover();
+  const popup = dom.selectOther.getBoundingClientRect();
+  dom.selectOther.style.left = `${Math.max(8, Math.min(event.clientX + 8, innerWidth - popup.width - 8))}px`;
+  dom.selectOther.style.top = `${Math.max(8, Math.min(event.clientY + 8, innerHeight - popup.height - 8))}px`;
+  const firstItem = !dom.pickOpen.disabled ? dom.pickOpen
+    : dom.selectionTools.hidden ? dom.selectOther : dom.selectionTools.querySelector("button:not(:disabled)") ?? dom.selectOther;
+  firstItem.focus({ preventScroll: true });
+}
+
+function closePickList() {
+  if (dom.pickList.matches(":popover-open")) dom.pickList.hidePopover();
+}
+
+function openPickList(focus = false) {
+  if (dom.pickOpen.disabled) return;
+  dom.pickList.showPopover();
+  const anchor = dom.pickOpen.getBoundingClientRect();
+  const menu = dom.selectOther.getBoundingClientRect();
+  const popup = dom.pickList.getBoundingClientRect();
+  const left = menu.right + popup.width + 4 <= innerWidth - 8 ? menu.right + 4 : menu.left - popup.width - 4;
+  dom.pickList.style.left = `${Math.max(8, Math.min(left, innerWidth - popup.width - 8))}px`;
+  dom.pickList.style.top = `${Math.max(8, Math.min(anchor.top, innerHeight - popup.height - 8))}px`;
+  if (focus) dom.pickList.querySelector("button")?.focus({ preventScroll: true });
+}
+
+dom.pickOpen.addEventListener("pointerenter", () => openPickList());
+dom.pickOpen.addEventListener("click", () => openPickList(true));
+dom.pickList.addEventListener("toggle", event => {
+  dom.pickOpen.setAttribute("aria-expanded", String(event.newState === "open"));
+  if (event.newState === "closed") previewPick(null);
+});
+
+dom.canvas.addEventListener("contextmenu", event => {
+  event.preventDefault();
+  if (!suppressNextCanvasClick) openSelectOther(event);
+});
+dom.selectOther.addEventListener("toggle", event => {
+  if (event.newState === "closed") previewPick(null);
+});
+dom.selectOther.addEventListener("keydown", event => {
+  const inPickList = dom.pickList.contains(event.target);
+  if (event.key === "ArrowRight" && event.target === dom.pickOpen) {
+    event.preventDefault();
+    openPickList(true);
+    return;
+  }
+  if (inPickList && ["Escape", "ArrowLeft"].includes(event.key)) {
+    event.preventDefault();
+    closePickList();
+    dom.pickOpen.focus({ preventScroll: true });
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSelectOther();
+    dom.canvas.focus({ preventScroll: true });
+    return;
+  }
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  const rows = (inPickList ? [...dom.pickList.querySelectorAll("button")]
+    : [dom.pickOpen, ...dom.selectionTools.querySelectorAll("button")]).filter(button => !button.disabled && !button.closest("[hidden]"));
+  if (!rows.length) return;
+  event.preventDefault();
+  const index = rows.indexOf(document.activeElement);
+  const next = event.key === "Home" ? 0 : event.key === "End" ? rows.length - 1
+    : (index + (event.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+  rows[next].focus({ preventScroll: true });
+  rows[next].scrollIntoView({ block: "nearest" });
+});
+
 dom.resetView.addEventListener("click", () => viewportRenderer?.resetView());
+dom.valueLabelsToggle.addEventListener("change", () => {
+  dispatch({ type: "setValueLabelsVisible", visible: dom.valueLabelsToggle.checked });
+  render();
+});
 dom.bodyLegendToggle.addEventListener("click", () => {
   bodyLegendOpen = !bodyLegendOpen;
   render();
 });
+
+// The open Display palette ends above the result legend instead of covering
+// it. The legend's height follows its field, bands and notices, so it is
+// measured; styles.css spends the clearance on the palette's max-height.
+if (typeof ResizeObserver === "function") {
+  new ResizeObserver(() => {
+    const legend = dom.viewportLegend;
+    const clearance = legend.offsetHeight ? dom.viewport.clientHeight - legend.offsetTop : 0;
+    dom.viewport.style.setProperty("--legend-clearance", `${clearance}px`);
+  }).observe(dom.viewportLegend);
+}
 
 dom.displayPalette.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || !dom.displayPalette.open) return;
@@ -4317,11 +4846,16 @@ dom.displayPalette.addEventListener("keydown", (event) => {
   dom.displayPalette.open = false;
   dom.displayPalette.querySelector("summary").focus();
 });
+// The canvas does not dismiss the palette: orbiting to judge a cut or an
+// opacity while the controls stay open is the point of a floating palette.
+// Escape (here or on the canvas) and the Display toggle still close it.
 document.addEventListener("pointerdown", (event) => {
+  if (event.target === dom.canvas) return;
   if (!dom.displayPalette.contains(event.target)) dom.displayPalette.open = false;
 });
 
 dom.canvas.addEventListener("pointerdown", (event) => {
+  closeSelectOther();
   orbiting = true;
   pointerDownPoint = { x: event.clientX, y: event.clientY };
   suppressNextCanvasClick = false;
@@ -4349,8 +4883,10 @@ globalThis.addEventListener("pointercancel", () => {
 });
 
 dom.canvas.addEventListener("mousemove", (event) => {
+  lastPickPosition = { clientX: event.clientX, clientY: event.clientY };
   if (
     orbiting ||
+    dom.selectOther.matches(":popover-open") ||
     !currentState ||
     !lastRenderGraph
   ) return;
@@ -4412,7 +4948,7 @@ function setStatus(message, severity = false) {
   dom.status.textContent = message;
   dom.status.dataset.level = level;
   dom.status.dataset.error = String(level === "error");
-  dom.status.dataset.ready = String(level === "ok" && message === "Ready");
+  dom.status.dataset.ready = String(level === "ok" && ["Ready", "Live preview connected"].includes(message));
 }
 
 // Every failure goes through here, so there is exactly one place where a raw
@@ -4463,7 +4999,18 @@ async function handleLivePreviewEvent(raw) {
     dom.profileLibrary.close();
   }
   if (message.type === "script_error") {
-    if (studio.available) showScriptError(message);
+    void meshClient.refresh();
+    if (studio.available) {
+      dispatch({ type: "setBodyVisibility", bodyId: "analysis_mesh", visible: false });
+      dispatch({ type: "setBodyVisibility", bodyId: "geometry", visible: true });
+      studio.reviewStale = Boolean(message.review_stale);
+      showScriptError(message);
+      render();
+    }
+    return;
+  }
+  if (message.type === "mesh_status") {
+    await meshClient.refresh();
     return;
   }
   if (["solve_started", "solve_failed", "solve_finished", "review_ready", "review_failed"].includes(message.type)) {
@@ -4471,6 +5018,7 @@ async function handleLivePreviewEvent(raw) {
     return;
   }
   if (message.type === "scene_reloaded") {
+    if (studio.available) void meshClient.refresh();
     if (message.bundle) {
       // A project studio rebuilt one of its two bundles; the one not on screen
       // only moves the status.
@@ -4488,6 +5036,7 @@ async function handleLivePreviewEvent(raw) {
     try {
       await loadBundle(bundleUrl, { preserve: true });
       await refreshScriptFromDisk();
+      showGeneratedMesh();
       render();
       // In the studio the script pane already says what ran; a revision number
       // parked in the header only reads as jargon.
@@ -4745,6 +5294,13 @@ async function loadStudioProject(catalog) {
   const info = await fetchStudioJson("/api/project");
   if (!info?.ok) return false;
   studio.project = info;
+  if (dom.projectsLink && info.launcher_url) {
+    const url = new URL(info.launcher_url, window.location.href);
+    if (["127.0.0.1", "localhost"].includes(url.hostname) && url.protocol === "http:") {
+      dom.projectsLink.href = url.href;
+      dom.projectsLink.hidden = false;
+    }
+  }
   studio.hasReview = Boolean(info.has_review);
   studio.reviewStale = Boolean(info.review_stale);
   studio.solving = Boolean(info.solving);
@@ -4757,11 +5313,14 @@ async function initStudio(catalog) {
   const result = await fetchStudioJson("/api/script");
   if (typeof result?.code !== "string") return;
   studio.available = true;
+  await meshClient.refresh();
   // loadStudioProject settled hasReview/reviewStale a few lines earlier, so the
   // rule itself lives in workflowState with the rest of the stage tree and is
   // tested there rather than through a browser.
   const stage = openingStage(studio);
   setScriptText(result.code);
+  studio.diskCode = editorSource(result.code);
+  studio.sourceRevision = result.source_revision;
   await showStudioBundle(stage);
   dispatch({ type: "setStage", stage });
   // The rail opens on workflowState's default tab - Results for a solved review,
@@ -4849,9 +5408,6 @@ function renderMode() {
   const view = currentWorkspace();
   document.body.dataset.studio = String(studio.available);
   document.body.dataset.mode = view.stage === "build" ? "build" : "review";
-  // The stage decides whether a dragged script width applies, so it is applied
-  // where the stage is decided rather than once at startup.
-  syncCodePaneWidth();
   dom.modeSwitch.hidden = !(studio.available || sourceView.available) || currentState.embed;
   for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
@@ -4868,16 +5424,15 @@ function renderMode() {
 function renderCodeMeshToggle() {
   if (!dom.codeMeshToggle) return;
   const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
-  if (!meshBody) {
-    dom.codeMeshToggle.hidden = true;
-    return;
-  }
-  dom.codeMeshToggle.hidden = false;
-  const isVisible = meshBody.visible;
-  dom.codeMeshToggle.setAttribute("aria-pressed", String(isVisible));
-  dom.codeMeshToggle.title = isVisible
-    ? "Hide 1D analysis mesh (Alt+M)"
-    : "Show 1D analysis mesh elements and nodes (Alt+M)";
+  const vm = meshToggleViewModel(meshBody, meshNative());
+  dom.codeMeshToggle.hidden = Boolean(vm.hidden);
+  if (vm.hidden) return;
+  dom.codeMeshToggle.dataset.action = vm.action;
+  dom.codeMeshToggle.disabled = Boolean(vm.disabled);
+  dom.codeMeshToggle.setAttribute("aria-pressed", String(Boolean(vm.pressed)));
+  dom.codeMeshToggle.setAttribute("aria-busy", String(Boolean(vm.busy)));
+  dom.codeMeshToggle.title = vm.title;
+  dom.codeMeshLabel.textContent = vm.label;
 }
 
 // -- Build mode's file tabs: model.py is the source, every .comm is generated --
@@ -4897,10 +5452,10 @@ function renderCodeTabs() {
   const key = JSON.stringify([studio.available, names, selected]);
   if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
     dom.codeTabs.dataset.cases = key;
-    const source = codeTabButton(null, "model.py", "source", "Edit load cases and local fields in Python");
+    const source = codeTabButton(null, "model.py", "Edit the model and its inputs");
     dom.codeTabs.replaceChildren(source);
     if (selected && cases.includes(selected)) {
-      dom.codeTabs.append(codeTabButton(selected, "Solver .comm", "generated",
+      dom.codeTabs.append(codeTabButton(selected, "Solver .comm",
         `${selected}.comm — read-only Code_Aster input for the selected case`));
     }
     dom.codeCase.replaceChildren(...names.map((name) => new Option(name, name)));
@@ -4923,8 +5478,8 @@ function renderCodeTabs() {
   if (codeTab !== null) dom.codeState.textContent = "Read-only";
   else if (!studio.available) dom.codeState.textContent = browserJob ? browserProgress
     : sourceView.preview ? (dom.codeText.value === sourceView.preview.code ? "Geometry preview" : "Edited · run to update")
-    : bundleSourceEdited() ? "Edited draft" : "Python";
-  else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "Python";
+    : bundleSourceEdited() ? "Edited draft" : "";
+  else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "";
 }
 
 function renderCaseInputs() {
@@ -4934,7 +5489,7 @@ function renderCaseInputs() {
   dom.reviewInputs.parentElement.hidden = !active;
   dom.inputCount.textContent = active ? `(${active.fields?.length ?? active.field_count ?? 0} local)` : "";
   const result = getResultStateOptions(currentState).some((entry) => entry.loadCase === currentState.activeLoadCase);
-  dom.codeCaseStatus.textContent = studio.reviewStale || bundleSourceEdited() ? "Review outdated" : result ? "Solved result" : "Model inputs";
+  dom.codeCaseStatus.textContent = studio.reviewStale || bundleSourceEdited() ? "Review outdated" : result ? "Solved result" : "";
   if (!studio.available && sourceView.preview && isBuildMode()) {
     dom.codeCaseStatus.textContent = "Geometry only · not solved";
   }
@@ -4953,16 +5508,13 @@ dom.codeCase.addEventListener("change", () => {
 });
 dom.compareCases.addEventListener("change", renderCaseInputs);
 
-function codeTabButton(tab, file, role, title) {
+function codeTabButton(tab, file, title) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "code-file";
   button.dataset.codeTab = tab ?? "";
   button.title = title;
-  const tag = document.createElement("span");
-  tag.className = `code-role code-role-${role}`;
-  tag.textContent = role;
-  button.append(file, tag);
+  button.textContent = file;
   button.addEventListener("click", () => showCodeTab(tab));
   return button;
 }
@@ -5023,7 +5575,7 @@ function renderSolveControls() {
   const label = studio.solving ? "Solving…" : project?.solves ? (codePaneCases().length > 1 ? "Solve all" : "Solve") : "Build review";
   for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
     button.hidden = !canSolve;
-    button.disabled = studio.solving || studio.preparing;
+    button.disabled = studio.solving || studio.preparing || Boolean(meshClient.snapshot().job?.busy);
     button.textContent = label;
   }
   dom.reviewEmpty.hidden = !(project && currentStage() === "review" && !studio.hasReview);
@@ -5236,14 +5788,12 @@ async function runScript() {
   dom.codeState.textContent = "Running…";
   const code = dom.codeText.value;
   try {
-    const response = await fetch("/api/script", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code })
-    });
-    const result = await response.json().catch(() => ({ ok: false, error: `Studio answered ${response.status}` }));
+    const result = await saveStudioSource(studio, code);
     if (!result.ok) {
+      if (typeof result.review_stale === "boolean") studio.reviewStale = result.review_stale;
       showScriptError(result);
+      if (studio.saveConflict) showSourceConflict();
+      render();
       return;
     }
     studio.ranCode = code;
@@ -5264,6 +5814,31 @@ async function runScript() {
     dom.codeRun.disabled = false;
     renderCodeFoot();
   }
+}
+
+function showSourceConflict() {
+  dom.codeState.textContent = "Source conflict · your edits are kept";
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download your edits";
+  download.addEventListener("click", downloadScript);
+  const reload = document.createElement("button");
+  reload.type = "button";
+  reload.textContent = "Reload disk source (discard edits)";
+  reload.addEventListener("click", async () => {
+    const draft = dom.codeText.value;
+    const result = await fetchStudioJson("/api/script");
+    if (typeof result?.code !== "string" || dom.codeText.value !== draft) return;
+    studio.sourceRevision = result.source_revision;
+    studio.diskCode = editorSource(result.code);
+    studio.saveConflict = false;
+    studio.error = null;
+    setScriptText(result.code);
+    dom.codeProblem.hidden = true;
+    dom.codeState.textContent = "Loaded disk source";
+    render();
+  });
+  dom.codeProblem.append(download, reload);
 }
 
 function showScriptError({ error, line } = {}) {
@@ -5304,7 +5879,10 @@ async function refreshScriptFromDisk() {
   try {
     const response = await fetch("/api/script", { cache: "no-store" });
     const result = response.ok ? await response.json() : null;
-    if (typeof result?.code !== "string" || result.code === studio.ranCode) return;
+    if (typeof result?.code !== "string" || studio.running || dom.codeText.value !== studio.ranCode) return;
+    studio.sourceRevision = result.source_revision;
+    studio.diskCode = editorSource(result.code);
+    if (studio.diskCode === studio.ranCode) return;
     const { scrollTop } = dom.codeText;
     setScriptText(result.code);
     showIdentity(dom.buildIdentity, "Source", await sourceIdentity(studio.ranCode));
@@ -5328,14 +5906,17 @@ function renderCodeFoot() {
   if (!studio.available) {
     const note = document.createElement("span");
     note.textContent = studio.codeTab === null
-      ? "Update geometry executes Python in your browser. Review shows the published Code_Aster results; edits require a new solve. Use Exchange → Download model.py to save your edits."
-      : "Published solver input · read-only · not regenerated from draft edits";
+      ? "Browser preview · edits require a new Code_Aster solve"
+      : "Published input · draft edits are excluded";
+    note.title = studio.codeTab === null
+      ? "Update geometry runs Python in your browser. Review uses published Code_Aster results. Save edits with Exchange → Download model.py."
+      : "This published .comm is not regenerated from your draft model.py.";
     dom.codeFoot.replaceChildren(note);
     return;
   }
   if (studio.codeTab !== null) {
     const note = document.createElement("span");
-    note.textContent = "Generated from model.py + study.py · read-only · solver input, not results";
+    note.textContent = "Generated input · model.py + study.py";
     dom.codeFoot.replaceChildren(note);
     return;
   }
@@ -5350,7 +5931,7 @@ function renderCodeFoot() {
     // instead of leaving the missing tabs unexplained.
     const hint = document.createElement("span");
     hint.dataset.noStudyHint = "";
-    hint.textContent = "No study.py load cases — add LOAD_CASES to study.py for solver files and Solve";
+    hint.textContent = "Add LOAD_CASES in study.py to enable Solver .comm and Solve";
     foot.push(hint);
   }
   dom.codeFoot.replaceChildren(...foot);
@@ -5576,18 +6157,12 @@ for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
 
 dom.codeMeshToggle?.addEventListener("click", () => {
   if (!currentState) return;
-  const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
-  const nextVisible = !(meshBody?.visible ?? false);
-  dispatch({
-    type: "setBodyVisibility",
-    bodyId: "analysis_mesh",
-    visible: nextVisible
-  });
-  dispatch({
-    type: "setBodyOpacity",
-    bodyId: "geometry",
-    opacity: nextVisible ? 0.35 : 1.0
-  });
+  if (dom.codeMeshToggle.dataset.action === "generate") {
+    showMeshWhenReady = true;
+    void meshClient.generate(false);
+    return;
+  }
+  dispatch({ type: "toggleFeMesh" });
   render();
 });
 
@@ -5612,85 +6187,13 @@ function downloadScript() {
 }
 
 window.addEventListener("beforeunload", (event) => {
-  if (![...bundleDrafts.values()].some(draft => draft.code !== draft.downloaded)) return;
+  if (!(studio.available && dom.codeText.value !== studio.diskCode)
+      && ![...bundleDrafts.values()].some(draft => draft.code !== draft.downloaded)) return;
   event.preventDefault();
   event.returnValue = "";
 });
 
-// -- Script pane resize: drag the right edge; double-click resets to the default --
-const CODE_PANE_MIN_PX = 300;
-const CODE_PANE_WIDTH_KEY = "tuba.codePaneWidthPx";
-
-// The width has to be set on the workspace, not the pane. The workspace's
-// padding-left reserves the same --controls-width the pane is drawn at, so a
-// width set on the pane alone moved the pane and left the reservation behind:
-// the strip between the two showed as a band beside the viewport that never
-// gave the scene any room.
-function clampCodePaneWidth(px) {
-  return Math.min(Math.max(Math.round(px), CODE_PANE_MIN_PX), Math.floor(window.innerWidth * 0.75));
-}
-
-function storedCodePaneWidth() {
-  try {
-    const stored = Number.parseInt(window.localStorage.getItem(CODE_PANE_WIDTH_KEY) ?? "", 10);
-    return Number.isFinite(stored) ? clampCodePaneWidth(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-let codePaneWidthPx = storedCodePaneWidth();
-
-// Build only: the width is the script pane's, and Review's rail keeps its own
-// default rather than taking a width dragged for a different panel.
-function syncCodePaneWidth() {
-  if (codePaneWidthPx != null && document.body.dataset.mode === "build") {
-    dom.workspace.style.setProperty("--controls-width", `${codePaneWidthPx}px`);
-  } else {
-    dom.workspace.style.removeProperty("--controls-width");
-  }
-}
-
-function applyCodePaneWidth(px) {
-  codePaneWidthPx = clampCodePaneWidth(px);
-  syncCodePaneWidth();
-  try {
-    window.localStorage.setItem(CODE_PANE_WIDTH_KEY, String(codePaneWidthPx));
-  } catch {
-    // Private browsing and the like: the drag still works for this visit.
-  }
-}
-
-function resetCodePaneWidth() {
-  codePaneWidthPx = null;
-  syncCodePaneWidth();
-  try {
-    window.localStorage.removeItem(CODE_PANE_WIDTH_KEY);
-  } catch {
-    // Nothing persisted, nothing to clear.
-  }
-}
-
-dom.codeResize.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0) return;
-  event.preventDefault();
-  dom.codeResize.setPointerCapture(event.pointerId);
-  dom.codeResize.dataset.dragging = "";
-  const move = (moveEvent) => {
-    applyCodePaneWidth(moveEvent.clientX - dom.codePane.getBoundingClientRect().left);
-  };
-  const stop = () => {
-    delete dom.codeResize.dataset.dragging;
-    dom.codeResize.removeEventListener("pointermove", move);
-    dom.codeResize.removeEventListener("pointerup", stop);
-    dom.codeResize.removeEventListener("pointercancel", stop);
-  };
-  dom.codeResize.addEventListener("pointermove", move);
-  dom.codeResize.addEventListener("pointerup", stop);
-  dom.codeResize.addEventListener("pointercancel", stop);
-});
-
-dom.codeResize.addEventListener("dblclick", resetCodePaneWidth);
+const paneResizing = initPaneResizing(dom);
 
 dom.codeText.addEventListener("input", () => {
   studio.revealLine = null;
@@ -5766,6 +6269,8 @@ const SHORTCUTS = [
   ["n", "Next finding", () => stepFindingBy(1), () => getFindings(currentState).length > 0],
   ["d", "Plot the selected run", () => openSelectedRunDiagram(), () => Boolean(selectedRunDiagramRun())],
   ["F", "Fit the whole scene", () => dom.resetView.click(), () => !dom.resetView.hidden],
+  // Through the checkbox, so it, the saved view and the badges stay in step.
+  ["v", "Show or hide values", () => dom.valueLabelsToggle.click(), () => !dom.overlaysBlock.hidden],
   ["?", "Show this list", () => toggleShortcutOverlay(true), () => true]
 ];
 
@@ -5788,6 +6293,8 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Escape") {
+    if (analysisDockOpen) setAnalysisDock(false);
+    if (event.target === dom.canvas) dom.displayPalette.open = false;
     toggleShortcutOverlay(false);
     return;
   }
@@ -5862,7 +6369,7 @@ function buildShortcutOverlay() {
 
   const list = document.createElement("dl");
   list.className = "shortcut-list";
-  for (const [key, label] of [...SHORTCUTS, ["Ctrl+Enter", "Run model.py (Build)"], ["Ctrl+S", "Download model.py"], ["Alt+M", "Toggle the analysis mesh (Build)"]]) {
+  for (const [key, label] of [...SHORTCUTS, ["Ctrl+Enter", "Run model.py (Build)"], ["Ctrl+S", "Download model.py"], ["Alt+M", "Toggle the FE mesh (Build)"]]) {
     const term = document.createElement("dt");
     const kbd = document.createElement("kbd");
     kbd.textContent = key;

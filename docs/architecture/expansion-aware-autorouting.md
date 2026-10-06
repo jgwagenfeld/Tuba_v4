@@ -1,8 +1,9 @@
 # Expansion-aware autorouting
 
-Scope reviewed 2026-09-30 on the cleanup branch based on `ac00d69`. See the
+This scope record reflects the September 30, 2026 review. See the
 [current autorouting manual](../content/autorouting.md) for runnable usage and
-the [library review](library-architecture-review.md) for outstanding issues.
+current limits, and the [historical cleanup review](library-architecture-review.md)
+for that review's findings and verification.
 
 ## Current behavior
 

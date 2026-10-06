@@ -43,7 +43,9 @@ export function elementInputSection(state, object) {
       lines.push({ label: `${quantity} · ${assignmentScope(field)}`, value: `${formatQuantity(field.value, UNITS[quantity], system)}${field.profile === "linear" ? " (profile endpoint)" : ""}`, sourceLine: field.source_call_line ?? field.source_line });
     }
   }
-  lines.push({ kind: "note", label: "Authored assignments; node temperatures interpolate along connected elements." });
+  if (fields.some((field) => field.quantity === "temperature" && field.scope === "nodes")) {
+    lines.push({ kind: "note", label: "Node temperatures interpolate along connected elements." });
+  }
   return { title: `Inputs · ${active.load_case}`, lines };
 }
 
@@ -127,6 +129,6 @@ export function renderLoadCaseInputs(host, state, { select, sourceLink, compare 
   note.className = "case-input-note";
   note.textContent = compare
     ? "— means no matching assignment; inspect that case's defaults and other assignments."
-    : fields.length ? "Authored inputs. Select an assignment to highlight its scope; line links open model.py. Unassigned regions use the defaults. Node temperatures interpolate along connected elements." : "Uniform inputs: every region uses the case defaults.";
-  host.append(note);
+    : fields.length ? "Unassigned regions use defaults. Node temperatures interpolate along connected elements." : "";
+  if (note.textContent) host.append(note);
 }

@@ -128,6 +128,97 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         self.assertFalse(any(obj.metadata.get("element_id") == "VM1" for obj in scene.objects))
 
 
+    def test_a_finely_meshed_member_is_drawn_as_profiled_spans_through_its_solved_nodes(self):
+        model, result_state, analysis_mesh = _rhs_member_state_and_mesh(segments=100)
+        visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
+
+        scene = build_visualization_scene(SceneRequest(
+            model,
+            result_states=[result_state],
+            geometry_states=[visual_state],
+            analysis_meshes=[analysis_mesh],
+            scene_id="scene:rhs_spans",
+        ))
+        scene.validate()
+        spans = sorted(
+            (obj for obj in scene.objects
+             if obj.kind == "deformed_analysis_mesh_element" and obj.metadata.get("geometry_state_id") == visual_state.id),
+            key=lambda obj: obj.metadata["span_index"],
+        )
+        assets = [_asset(scene, span.geometry_asset_id) for span in spans]
+
+        self.assertEqual([span.metadata["span_index"] for span in spans], list(range(8)))
+        self.assertTrue(all(str(span.entity_ref) == "element:rhs_0" for span in spans))
+        self.assertTrue(all(asset.format == "mesh" for asset in assets))
+        self.assertTrue(all(asset.generation_config["source"] == "tuba.deformed_analysis_mesh.profile" for asset in assets))
+        # Spans walk the member from its n1 end and share their boundary nodes.
+        chains = [asset.generation_config["node_ids"] for asset in assets]
+        self.assertEqual(chains[0][0], "M0")
+        self.assertEqual(chains[-1][-1], "M100")
+        self.assertTrue(all(left[-1] == right[0] for left, right in zip(chains, chains[1:])))
+        self.assertEqual(sorted(segment for span in spans for segment in span.metadata["element_ids"]),
+                         sorted(analysis_mesh.elements))
+        for asset in assets:
+            config = asset.generation_config
+            stations = len(config["section_origins"])
+            self.assertLessEqual(stations, 4)
+            self.assertEqual(len(config["section_deformations"]), stations)
+            self.assertEqual(len(config["vertices"]) % stations, 0)
+            # Every ring sits at its own node's solved place: the sag, not a chord.
+            ring = len(config["vertices"]) // stations
+            for index, origin in enumerate(config["section_origins"]):
+                centre = [sum(vertex[axis] for vertex in config["vertices"][index * ring:(index + 1) * ring]) / ring
+                          for axis in range(3)]
+                self.assertAlmostEqual(centre[2], -10.0 * _sag(origin[0]), places=9)
+
+    def test_a_line_model_member_keeps_one_body_per_segment(self):
+        # Sixteen segments: a TUYAU_3M bend, which line-model bundles draw segment by segment.
+        model, result_state, analysis_mesh = _rhs_member_state_and_mesh(segments=16)
+        visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
+
+        scene = build_visualization_scene(SceneRequest(
+            model,
+            result_states=[result_state],
+            geometry_states=[visual_state],
+            analysis_meshes=[analysis_mesh],
+            scene_id="scene:rhs_segments",
+        ))
+        warped = [obj for obj in scene.objects if obj.kind == "deformed_analysis_mesh_element"]
+
+        self.assertEqual(sorted(obj.metadata["element_id"] for obj in warped), sorted(analysis_mesh.elements))
+        self.assertFalse(any("span_index" in obj.metadata for obj in warped))
+
+    def test_quadratic_pipe_segments_are_walked_in_order_whatever_their_node_order(self):
+        model, result_state, _ = _model_state_and_mesh()
+        n0, n1 = "N0", "N1"
+        nodes = {n0: (0.0, 0.0, 0.0), "P1": (0.25, 0.0, 0.0), "Q1": (0.5, 0.0, 0.0), "P2": (0.75, 0.0, 0.0),
+                 n1: (1.0, 0.0, 0.0)}
+        # Code_Aster's SEG3 stores (end, end, middle); a mesh importer may not.
+        elements = {"T1": ("Q1", n1, "P2"), "T0": (n0, "P1", "Q1")}
+        result_state.node_displacements.update({node: (0.0, 0.1, 0.0, 0.0, 0.0, 0.0) for node in ("P1", "Q1", "P2")})
+        analysis_mesh = AnalysisMesh(
+            id="analysis_mesh:Hot", model_revision=0, solver_name="Code_Aster", nodes=nodes, elements=elements,
+            groups={"AllPipes": tuple(elements)}, node_sources={},
+            element_sources={element_id: MeshElementSource(element_id=element_id, source_ref=EntityRef("element", "pipe_0"),
+                                                           role="native_element") for element_id in elements},
+        )
+        visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
+
+        scene = build_visualization_scene(SceneRequest(
+            model, result_states=[result_state], geometry_states=[visual_state],
+            analysis_meshes=[analysis_mesh], scene_id="scene:seg3",
+        ))
+        spans = sorted((obj for obj in scene.objects if obj.kind == "deformed_analysis_mesh_element"),
+                       key=lambda obj: obj.metadata["span_index"])
+        assets = [_asset(scene, span.geometry_asset_id) for span in spans]
+
+        self.assertEqual([asset.generation_config["node_ids"] for asset in assets],
+                         [[n0, "P1", "Q1"], ["Q1", "P2", n1]])
+        self.assertTrue(all(asset.format == "tube" for asset in assets))
+        self.assertEqual(assets[0].generation_config["points"], [[0.0, 1.0, 0.0], [0.25, 1.0, 0.0], [0.5, 1.0, 0.0]])
+        self.assertEqual([span.metadata["element_ids"] for span in spans], [["T0"], ["T1"]])
+
+
 def _deformed_object(scene, kind, geometry_state_id):
     return next(
         obj
@@ -273,6 +364,56 @@ def _volume_model_state_and_mesh():
             "faces": [[0, 1, 2]],
             "node_ids": node_ids[:3],
         },
+    )
+    return model, result_state, analysis_mesh
+
+
+def _sag(x):
+    return 0.01 * math.sin(math.pi * x / 2.0)
+
+
+def _rhs_member_state_and_mesh(*, segments):
+    """One 2 m RHS member meshed the way gmsh hands it over: segments out of order, some reversed."""
+    model = Model(project_name="DeformedRHS")
+    model.add_material("Steel", E=2.0e11, nu=0.3)
+    model.add_rectangular_section("RHS", height_y=0.06, height_z=0.06, thickness_y=0.003, thickness_z=0.003)
+    n0 = model.add_node([0.0, 0.0, 0.0])
+    n1 = model.add_node([2.0, 0.0, 0.0])
+    model.add_element(id="rhs_0", type="beam", n1=n0, n2=n1, section="RHS", material="Steel")
+    nodes = {f"M{index}": (2.0 * index / segments, 0.0, 0.0) for index in range(segments + 1)}
+    order = sorted(range(segments), key=lambda index: (index * 7) % segments)
+    elements = {
+        f"S{index}": (f"M{index + 1}", f"M{index}") if index % 3 == 0 else (f"M{index}", f"M{index + 1}")
+        for index in order
+    }
+    result_state = ResultState(
+        id="result_state:Sag",
+        study_id="analysis_study:Sag",
+        model_revision=0,
+        solver_name="Code_Aster",
+        load_case="Sag",
+        mesh_id="analysis_mesh:Sag",
+        node_displacements={
+            node: (0.0, 0.0, -_sag(x), 0.0, -0.01 * math.pi / 2.0 * math.cos(math.pi * x / 2.0), 0.0)
+            for node, (x, _, _) in nodes.items()
+        },
+        node_reactions={},
+        element_results={},
+    )
+    analysis_mesh = AnalysisMesh(
+        id="analysis_mesh:Sag",
+        model_revision=0,
+        solver_name="Code_Aster",
+        nodes=nodes,
+        elements=elements,
+        groups={"G_FRAME": tuple(elements)},
+        node_sources={},
+        element_sources={
+            element_id: MeshElementSource(element_id=element_id, source_ref=EntityRef("element", "rhs_0"),
+                                          role="straight_segment")
+            for element_id in elements
+        },
+        modelisations={"G_FRAME": "POU_D_T"},
     )
     return model, result_state, analysis_mesh
 

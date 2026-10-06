@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { resolveEntityObjectId } from "../src/reviewSelection.js";
+import { resolveEntityObjectId, selectionRepresentative, relatedSelectionIds } from "../src/reviewSelection.js";
+
+test("imported local axes select their owning component without swallowing port selection", () => {
+  const state = { objects: [
+    { id: "object:component:part", entity_ref: "component:part", kind: "imported_component" },
+    { id: "axis", entity_ref: "component:part", kind: "local_coordinate_axis" },
+    { id: "port", entity_ref: "port:outlet", kind: "imported_port" }
+  ] };
+  assert.equal(selectionRepresentative(state, "axis"), "object:component:part");
+  assert.deepEqual(relatedSelectionIds(state, ["object:component:part"]), ["object:component:part", "axis"]);
+  assert.equal(selectionRepresentative(state, "port"), "port");
+});
 
 function reviewState() {
   return {

@@ -3045,6 +3045,13 @@ RESU = CALC_CHAMP(
     FORCE='REAC_NODA',
 );
 
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    GROUP_MA=('G_TUBE',),
+    CONTRAINTE=('SIPO_ELNO',),
+);
+
 # ----- Write MED results file -----
 IMPR_RESU(
     FORMAT='MED',
@@ -3109,6 +3116,24 @@ IMPR_TABLE(
     SEPARATEUR=',',
 );
 
+# ----- Text table for SIPO_ELNO -----
+TAB_SIPO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIPO_ELNO',
+        GROUP_MA=('G_TUBE',),
+        NOM_CMP=('SN', 'SMFY', 'SMFZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIPO,
+    UNITE=43,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
 # ----- Linear buckling eigenvalue analysis on this load case's prestress -----
 PREC = CREA_CHAMP(
     RESULTAT=RESU,
@@ -3165,7 +3190,7 @@ TAB_FLANB = CREA_TABLE(
 
 IMPR_TABLE(
     TABLE=TAB_FLANB,
-    UNITE=43,
+    UNITE=45,
     FORMAT='TABLEAU',
     FORMAT_R='1PE24.16',
     SEPARATEUR=',',

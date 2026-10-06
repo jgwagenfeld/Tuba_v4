@@ -17,14 +17,19 @@ def gmsh_model(
     name_prefix: str,
     *,
     initialize_args: list[str] | None = None,
-    options: dict[str, float] | None = None,
+    options: dict[str, float | str] | None = None,
 ) -> Iterator[str]:
     """Yield an isolated model and restore any caller-owned Gmsh session."""
+    # C++ terminal output bypasses Python redirects and would corrupt MCP stdio.
+    options = {"General.Terminal": 0, **(options or {})}
     with _GMSH_LOCK:
         owned_session = not bool(gmsh.isInitialized())
         previous_model = gmsh.model.getCurrent() if not owned_session else ""
         previous_options = (
-            {name: gmsh.option.getNumber(name) for name in options or {}}
+            {
+                name: (gmsh.option.getString(name) if isinstance(value, str) else gmsh.option.getNumber(name))
+                for name, value in (options or {}).items()
+            }
             if not owned_session
             else {}
         )
@@ -38,7 +43,8 @@ def gmsh_model(
             gmsh.model.add(model_name)
             model_added = True
             for name, value in (options or {}).items():
-                gmsh.option.setNumber(name, value)
+                setter = gmsh.option.setString if isinstance(value, str) else gmsh.option.setNumber
+                setter(name, value)
             yield model_name
         finally:
             if gmsh.isInitialized():
@@ -52,6 +58,7 @@ def gmsh_model(
                     gmsh.finalize()
                 else:
                     for name, value in previous_options.items():
-                        gmsh.option.setNumber(name, value)
+                        setter = gmsh.option.setString if isinstance(value, str) else gmsh.option.setNumber
+                        setter(name, value)
                     if previous_model:
                         gmsh.model.setCurrent(previous_model)

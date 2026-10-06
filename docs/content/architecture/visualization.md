@@ -430,6 +430,6 @@ divide it back out and recover the FE stress they started from.
 
 ## True clipping
 
-The section box performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. The controls do not approximate sectioning by hiding whole objects whose bounds fall outside the box. Camera and section helpers remain visible so the cut can be understood and reset.
+Cut view (Display → Cut view: Off, Around selection, Custom; or **Cut view around selection** in the right-click menu) performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. Objects whose bounds lie wholly outside the box are hidden, and labels and value badges are never sliced: one whose anchor is outside the box is hidden whole. A thin outline marks the box, so the cut can be understood and switched off.
 
 [Open the published Code_Aster review viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).

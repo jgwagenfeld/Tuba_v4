@@ -20,8 +20,8 @@ from typing import Any, Protocol
 from tuba.project.evidence import evidence_dir
 from tuba.solver.aster import CodeAsterSolver
 
-_VOLUME_REQUIRED = ("element_ids", "max_element_size")
-_VOLUME = frozenset({*_VOLUME_REQUIRED, "element_order"})
+_VOLUME_REQUIRED = ("element_ids",)
+_VOLUME = frozenset({*_VOLUME_REQUIRED, "max_element_size", "element_order"})
 
 
 class Study(Protocol):
@@ -61,6 +61,7 @@ class StudySettings:
     artifact_dir: Path | None = None
     build_review: Callable[..., Any] | None = None
     check: Callable[..., Any] | None = None
+    mesh_convergence: dict[str, Any] | None = None
 
     def solver(self, work_dir: str | Path | None = None) -> CodeAsterSolver:
         """The study's solver for *work_dir*: the one place ``SOLVER_OPTIONS`` are applied."""
@@ -96,6 +97,7 @@ def study_settings(study: Any) -> StudySettings:
             raise ValueError(f"VOLUME_EXPORT cannot set {', '.join(unknown)}; it takes element_ids, max_element_size and element_order.")
         if missing := [key for key in _VOLUME_REQUIRED if key not in volume]:
             raise ValueError(f"VOLUME_EXPORT needs {' and '.join(missing)}.")
+        volume.setdefault("max_element_size", None)
         if options.get("load_path") is not None:
             raise ValueError("VOLUME_EXPORT cannot follow a load_path: native contact load paths need POU_D_T beams.")
     artifact_dir = getattr(study, "ARTIFACT_DIR", None)
@@ -106,7 +108,13 @@ def study_settings(study: Any) -> StudySettings:
     check = getattr(study, "check", None)
     if check is not None and not callable(check):
         raise ValueError("check must be callable.")
-    return StudySettings(tuple(names), options, volume, artifact_dir, build_review, check)
+    convergence = getattr(study, "MESH_CONVERGENCE", None)
+    if convergence is not None:
+        from tuba.analysis.mesh_convergence import validate_convergence_settings
+        convergence = validate_convergence_settings(convergence)
+        if len(names) != 1:
+            raise ValueError("MESH_CONVERGENCE requires exactly one LOAD_CASES operation.")
+    return StudySettings(tuple(names), options, volume, artifact_dir, build_review, check, convergence)
 
 
 #: Marker for a study.py the MCP server manages: LOAD_CASES is synced from model.py's load

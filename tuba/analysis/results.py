@@ -197,7 +197,7 @@ def result_state_from_fea_results(
             "forces_n1": _persistent_result_vector(element_result.forces_n1, f"forces_n1 {element_id}"),
             "forces_n2": _persistent_result_vector(element_result.forces_n2, f"forces_n2 {element_id}"),
         }
-        for key in ("von_mises_n1", "von_mises_n2", "max_von_mises"):
+        for key in ("von_mises_n1", "von_mises_n2", "max_von_mises", "max_normal_stress"):
             value = float(getattr(element_result, key))
             if np.isfinite(value):
                 data[key] = value
@@ -396,6 +396,7 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
             von_mises_n1=float(data.get("von_mises_n1", np.nan)),
             von_mises_n2=float(data.get("von_mises_n2", np.nan)),
             max_von_mises=float(data.get("max_von_mises", np.nan)),
+            max_normal_stress=float(data.get("max_normal_stress", np.nan)),
         )
     return results
 

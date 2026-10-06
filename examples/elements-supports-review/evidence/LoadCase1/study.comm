@@ -69,6 +69,15 @@ MAT_STEEL = DEFI_MATERIAU(
         RHO=7.850000E+03,
         ALPHA=1.200000E-05,
     ),
+);
+
+MC0 = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.000000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
     CABLE=_F(EC_SUR_E=1.0),
 );
 
@@ -81,6 +90,7 @@ CHMAT = AFFE_MATERIAU(
             GROUP_MA='G5AF7883',
             MATER=MAT_STEEL,
         ),
+        _F(GROUP_MA='cable_0', MATER=MC0),
 _F(GROUP_MA='GE3D248C',MATER=CM0),
     ),
 );
@@ -273,6 +283,7 @@ CHMAT = AFFE_MATERIAU(
             GROUP_MA='G5AF7883',
             MATER=MAT_STEEL,
         ),
+        _F(GROUP_MA='cable_0', MATER=MC0),
 _F(GROUP_MA='GE3D248C',MATER=CM0),
     ),
     AFFE_VARC=_F(
@@ -327,6 +338,13 @@ RESU = CALC_CHAMP(
     CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
     CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
     FORCE='REAC_NODA',
+);
+
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    GROUP_MA=('G_TUBE',),
+    CONTRAINTE=('SIPO_ELNO',),
 );
 
 # ----- Write MED results file -----
@@ -412,6 +430,25 @@ TAB_SIEQ = CREA_TABLE(
 IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIPO_ELNO -----
+TAB_SIPO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIPO_ELNO',
+        GROUP_MA=('G_TUBE',),
+        NOM_CMP=('SN', 'SMFY', 'SMFZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIPO,
+    UNITE=43,
     FORMAT='TABLEAU',
     FORMAT_R='1PE24.16',
     SEPARATEUR=',',

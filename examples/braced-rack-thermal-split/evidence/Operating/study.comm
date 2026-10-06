@@ -963,6 +963,13 @@ RESU = CALC_CHAMP(
     FORCE='REAC_NODA',
 );
 
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    GROUP_MA=('G_TUBE',),
+    CONTRAINTE=('SIPO_ELNO',),
+);
+
 # ----- Write MED results file -----
 IMPR_RESU(
     FORMAT='MED',
@@ -1046,6 +1053,25 @@ TAB_SIEQ = CREA_TABLE(
 IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIPO_ELNO -----
+TAB_SIPO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIPO_ELNO',
+        GROUP_MA=('G_TUBE',),
+        NOM_CMP=('SN', 'SMFY', 'SMFZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIPO,
+    UNITE=43,
     FORMAT='TABLEAU',
     FORMAT_R='1PE24.16',
     SEPARATEUR=',',
