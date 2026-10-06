@@ -81,3 +81,16 @@ def test_asset_local_coordinates_are_transformed_to_global_port(tmp_path: Path):
     assert list(port.position) == local_to_global_point([0.0, 0.0, 0.0], placement)
     assert list(model.nodes["N1"].coords) == list(port.position)
     assert model.cad_assets["cad_asset_custom_equipment"].placement == placement
+
+
+def test_gallery_stl_surface_does_not_need_trimesh(monkeypatch):
+    # trimesh is an optional extra the Pages build does not install; without it
+    # the gallery component lost its surface and the official bundle failed.
+    import sys
+
+    monkeypatch.setitem(sys.modules, "trimesh", None)
+    model = build_model(Path("examples/assets/imported_component_demo.stl"))
+
+    metadata = model.cad_assets["cad_asset_custom_equipment"].metadata
+    assert metadata["mesh_vertices_local"][:2] == [[0.0, 0.0, 0.0], [0.4, 0.0, 0.0]]
+    assert metadata["mesh_faces"] == [[0, 1, 2], [0, 2, 3], [1, 3, 2], [0, 3, 1]]

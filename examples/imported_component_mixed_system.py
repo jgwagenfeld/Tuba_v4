@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 import tuba
 from tuba.geometry.step_analysis_importer import StepAnalysisImporter
+from tuba.geometry.stl_reference import inspect_stl_reference
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 from tuba.visualization.scene import SceneDiagnostic
@@ -235,16 +236,19 @@ def _placement_transform(placement: dict[str, Any]) -> tuple[np.ndarray, np.ndar
 def _mesh_metadata_for_source(source: Path, fmt: str) -> dict[str, Any]:
     if fmt != "STL":
         return {}
-    try:
-        import trimesh
-    except ImportError:
+    # Tuba's own reader, not trimesh: trimesh is an optional extra, and without
+    # it the component silently lost its surface (the Pages build has no trimesh).
+    # Vertices are renumbered in first-use order, which is trimesh's merged order,
+    # because the mesh is part of the solver identity the committed evidence attests.
+    inspected = inspect_stl_reference(source)
+    vertices, faces = inspected["mesh_vertices_local"], inspected["mesh_faces"]
+    if len(vertices) > 5000:
         return {}
-    mesh = trimesh.load_mesh(source, force="mesh")
-    if mesh.vertices is None or mesh.faces is None or len(mesh.vertices) > 5000:
-        return {}
+    order = list(dict.fromkeys(index for face in faces for index in face))
+    renumber = {old: new for new, old in enumerate(order)}
     return {
-        "mesh_vertices_local": [[float(value) for value in row] for row in mesh.vertices.tolist()],
-        "mesh_faces": [[int(value) for value in row] for row in mesh.faces.tolist()],
+        "mesh_vertices_local": [[float(value) for value in vertices[index]] for index in order],
+        "mesh_faces": [[renumber[index] for index in face] for face in faces],
     }
 
 
