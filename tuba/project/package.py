@@ -99,11 +99,17 @@ def _result_files(root: Path) -> list[str]:
     return sorted(files)
 
 
-def _inventory(root: Path, include_results: bool) -> dict:
+def _inventory(root: Path, include_results: bool) -> tuple[dict, dict[str, Path]]:
+    """The manifest, and where each packaged file is read from (workspace helpers live outside root)."""
     from tuba import __version__
     load_project(root)
     names = _source_files(root) + (_result_files(root) if include_results else [])
-    _check_local_imports(root, names)
+    sources = {name: root / name for name in names}
+    for helper, path in _check_local_imports(root, names).items():
+        if helper in sources:
+            raise ValueError(f"Workspace helper {helper} collides with a project file of the same path.")
+        sources[helper] = path
+    names = sorted(sources)
     if len(names) > MAX_FILES:
         raise ValueError(f"Project exceeds {MAX_FILES} files; move generated output out of the project.")
     records = []
@@ -113,7 +119,7 @@ def _inventory(root: Path, include_results: bool) -> dict:
         if name.casefold() in seen:
             raise ValueError(f"Case-colliding project paths: {name}.")
         seen.add(name.casefold())
-        path = root / name
+        path = sources[name]
         if not path.is_file() or any(parent.is_symlink() or getattr(parent, "is_junction", lambda: False)()
                                      for parent in [path, *path.parents] if parent != root and root in parent.parents):
             raise ValueError(f"Package input must be a regular file: {name}.")
@@ -125,22 +131,48 @@ def _inventory(root: Path, include_results: bool) -> dict:
         raise ValueError("Project exceeds the 4 GiB expanded size limit.")
     return {"format": FORMAT, "name": root.name, "tuba_version": __version__,
             "project_root": "project", "include_results": include_results, "files": records,
-            "size_bytes": total}
+            "size_bytes": total}, sources
 
 
-def _check_local_imports(root: Path, names: list[str]) -> None:
-    """Refuse detectable workspace imports/absolute inputs; never execute source to pack it.
+def _workspace_module(workspaces: list[Path], module: str, names: list[str]) -> dict[str, Path]:
+    """Files for ``module`` (or its imported submodules) under a workspace folder, by archive path."""
+    found = {}
+    for dotted in [module, *(f"{module}.{name}" for name in names)]:
+        parts = dotted.split(".")
+        for workspace in workspaces:
+            base = workspace.joinpath(*parts)
+            path = next((candidate for candidate in (base.with_suffix(".py"), base / "__init__.py") if candidate.is_file()), None)
+            if path is None or not path.resolve().is_relative_to(workspace):
+                continue
+            found[path.relative_to(workspace).as_posix()] = path
+            for depth in range(1, len(parts)):
+                package_init = workspace.joinpath(*parts[:depth], "__init__.py")
+                if package_init.is_file():
+                    found[package_init.relative_to(workspace).as_posix()] = package_init
+            break
+    return found
+
+
+def _check_local_imports(root: Path, names: list[str]) -> dict[str, Path]:
+    """Refuse foreign imports/absolute inputs; collect helpers from the project's own workspace.
+
+    A project inside a workspace on ``sys.path`` (a gallery project under ``examples/``
+    importing ``examples.<helper>``) brings those helper modules along at their module
+    path, scanned the same way. Code from anywhere else is refused. Never executes source.
 
     ponytail: static imports only; dynamic imports and computed paths remain the
     author's responsibility. A sandboxed dependency recorder would cover those.
     """
     installed = [Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve(),
                  Path(sysconfig.get_path("stdlib")).resolve()]
-    for name in names:
-        if not name.endswith(".py"):
-            continue
+    workspaces = [workspace for workspace in (Path(entry or ".").resolve() for entry in sys.path)
+                  if workspace != root and root.is_relative_to(workspace)]
+    helpers: dict[str, Path] = {}
+    pending = [(name, root / name) for name in names if name.endswith(".py")]
+    while pending:
+        name, path = pending.pop()
         try:
-            tree = ast.parse((root / name).read_bytes(), filename=name)
+            tree = ast.parse(path.read_bytes(), filename=name)
         except SyntaxError as exc:
             raise ValueError(f"{name} has invalid Python: {exc.msg} at line {exc.lineno}.") from exc
         for node in ast.walk(tree):
@@ -155,14 +187,25 @@ def _check_local_imports(root: Path, names: list[str]) -> None:
                              else list(spec.submodule_search_locations or ()) if spec else [])
                 for location in locations:
                     source = Path(location).resolve()
-                    if not any(source.is_relative_to(prefix) for prefix in [root, *installed]):
+                    if any(source.is_relative_to(prefix) for prefix in [root, *installed]):
+                        continue
+                    imported = [alias.name for alias in node.names] if isinstance(node, ast.ImportFrom) else []
+                    found = _workspace_module(workspaces, module, imported)
+                    if not found:
                         raise ValueError(f"{name} imports workspace code outside this project: {module}. Move the helper into the project before sharing.")
+                    for helper, helper_path in found.items():
+                        if helper not in helpers:
+                            helpers[helper] = helper_path
+                            if helper.endswith(".py"):
+                                pending.append((helper, helper_path))
+                    break
             if isinstance(node, ast.Call) and node.args:
                 function = node.func.id if isinstance(node.func, ast.Name) else node.func.attr if isinstance(node.func, ast.Attribute) else ""
                 value = node.args[0]
                 if function in {"Path", "open"} and isinstance(value, ast.Constant) and isinstance(value.value, str):
                     if value.value.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:[\\/]", value.value):
                         raise ValueError(f"{name} uses an absolute input path. Keep inputs project-local and resolve them from Path(__file__).parent before sharing.")
+    return helpers
 
 
 def plan_project_package(root: str | Path, *, include_results: bool = False) -> dict:
@@ -170,7 +213,7 @@ def plan_project_package(root: str | Path, *, include_results: bool = False) -> 
     from tuba.project.claim import claim_solve
     root = Path(root).resolve()
     with claim_solve(root) if include_results else nullcontext():
-        return _inventory(root, include_results)
+        return _inventory(root, include_results)[0]
 
 
 def package_suffix(path: str | Path) -> str | None:
@@ -189,7 +232,7 @@ def export_project_package(root: str | Path, output: str | Path, *, include_resu
         raise FileExistsError(f"Package already exists: {output}.")
     output.parent.mkdir(parents=True, exist_ok=True)
     with claim_solve(root) if include_results else nullcontext():
-        manifest = _inventory(root, include_results)
+        manifest, sources = _inventory(root, include_results)
         with tempfile.TemporaryDirectory(prefix="tuba-package-", dir=output.parent) as temporary:
             archive = Path(temporary) / ("package.tgz" if suffix in {".tgz", ".tar.gz"} else "package.zip")
             raw_manifest = (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
@@ -199,14 +242,14 @@ def export_project_package(root: str | Path, output: str | Path, *, include_resu
                     header.size = len(raw_manifest)
                     bundle.addfile(header, io.BytesIO(raw_manifest))
                     for record in manifest["files"]:
-                        bundle.add(root / record["path"], "project/" + record["path"], recursive=False)
+                        bundle.add(sources[record["path"]], "project/" + record["path"], recursive=False)
             else:
                 with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as bundle:
                     bundle.writestr("manifest.json", raw_manifest)
                     for record in manifest["files"]:
-                        bundle.write(root / record["path"], "project/" + record["path"])
+                        bundle.write(sources[record["path"]], "project/" + record["path"])
             inspect_project_package(archive)
-            if manifest != _inventory(root, include_results):
+            if manifest != _inventory(root, include_results)[0]:
                 raise ValueError("Project changed during export; retry after saving and solving.")
             with output.open("xb") as destination, archive.open("rb") as source:
                 try:

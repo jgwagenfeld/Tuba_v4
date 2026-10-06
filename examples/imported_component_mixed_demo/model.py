@@ -8,7 +8,11 @@ from pathlib import Path
 
 from examples.imported_component_mixed_system import build_model
 
-# Relative on purpose, as the gallery has always recorded it: the path is published in the bundle.
-SOURCE = Path("examples/assets/imported_component_demo.stl")
+# Relative on purpose, as the gallery has always recorded it: the path is published in the bundle,
+# and the browser preview resolves it from the gallery root. A shared package opened anywhere
+# else finds the file beside this script instead.
+SOURCE = Path("examples/imported_component_mixed_demo/imported_component_demo.stl")
+if not SOURCE.exists():
+    SOURCE = Path(__file__).resolve().parent / SOURCE.name
 
 model = build_model(SOURCE)

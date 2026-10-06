@@ -201,7 +201,7 @@ def test_gallery_archive_runs_after_extraction_and_omits_unsupported_ifc(tmp_pat
     with ZipFile(archive) as source:
         names = set(source.namelist())
         assert {"examples/imported_component_mixed_demo/model.py", "examples/imported_component_mixed_demo/study.py",
-                "examples/imported_component_mixed_system.py", "examples/assets/imported_component_demo.stl",
+                "examples/imported_component_mixed_system.py", "examples/imported_component_mixed_demo/imported_component_demo.stl",
                 "README.md"} <= names
         assert not any(name.endswith((".rmed", ".csv")) or "evidence/" in name for name in names)
         source.extractall(tmp_path / "unpacked")

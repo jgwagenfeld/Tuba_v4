@@ -89,7 +89,7 @@ def test_gallery_stl_surface_does_not_need_trimesh(monkeypatch):
     import sys
 
     monkeypatch.setitem(sys.modules, "trimesh", None)
-    model = build_model(Path("examples/assets/imported_component_demo.stl"))
+    model = build_model(Path("examples/imported_component_mixed_demo/imported_component_demo.stl"))
 
     metadata = model.cad_assets["cad_asset_custom_equipment"].metadata
     assert metadata["mesh_vertices_local"][:2] == [[0.0, 0.0, 0.0], [0.4, 0.0, 0.0]]

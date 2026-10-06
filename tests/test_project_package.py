@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import stat
+import sys
 import tarfile
 import zipfile
 
@@ -96,6 +97,28 @@ def test_corrupt_or_ambiguous_archives_are_refused(tmp_path, monkeypatch, change
     with pytest.raises(ValueError):
         package.unpack_project_package(archive, tmp_path / "working")
     assert not (tmp_path / "working").exists()
+
+
+def test_workspace_helpers_travel_with_the_project(tmp_path, monkeypatch):
+    # Gallery projects import shared helpers from their own workspace
+    # (examples/<project> -> examples.code_aster_artifact_review); those come along.
+    workspace = tmp_path / "workspace"
+    root = workspace / "examples" / "demo"
+    root.parent.mkdir(parents=True)
+    create_project(root)
+    (workspace / "examples" / "shared.py").write_text("from examples.deeper import VALUE\n")
+    (workspace / "examples" / "deeper.py").write_text("VALUE = 2.5\n")
+    (root / "model.py").write_text((root / "model.py").read_text(encoding="utf-8")
+                                   + "\nfrom examples.shared import VALUE\nassert VALUE == 2.5\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(workspace))
+    archive = tmp_path / "demo.tgz"
+    manifest = package.export_project_package(root, archive)
+    assert {"examples/shared.py", "examples/deeper.py"} <= {record["path"] for record in manifest["files"]}
+
+    monkeypatch.setattr(sys, "path", [entry for entry in sys.path if entry != str(workspace)])
+    monkeypatch.chdir(tmp_path)
+    opened = package.unpack_project_package(archive, tmp_path / "opened")
+    assert load_project(opened).run_model()["model"] is not None
 
 
 def test_source_is_inspected_without_execution_and_external_workspace_imports_are_refused(tmp_path, monkeypatch):

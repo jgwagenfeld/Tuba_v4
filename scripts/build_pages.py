@@ -311,7 +311,7 @@ def _publish_downloads(viewer_root: Path, gallery: Any) -> None:
             archive.write(source, source.relative_to(ROOT).as_posix())
         # The imported component example resolves this local asset from archive root.
         if gallery.id == "imported_component_mixed_demo":
-            source = ROOT / "examples/assets/imported_component_demo.stl"
+            source = ROOT / "examples/imported_component_mixed_demo/imported_component_demo.stl"
             archive.write(source, source.relative_to(ROOT).as_posix())
         archive.writestr("README.md", "Run from this archive root with Tuba installed:\n"
                          f"python -m tuba.cli_studio {gallery.project}\n\n"
