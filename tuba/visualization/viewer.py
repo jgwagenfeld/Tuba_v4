@@ -61,6 +61,11 @@ class LocalHTTPServer(ThreadingHTTPServer):
     """
 
     allow_reuse_address = os.name != "nt"
+    # socketserver's default listen backlog is 5. A viewer page opens more parallel
+    # connections than that (fonts, chunks, bundles.json), and two tabs opening at
+    # once overflow it; Windows then refuses the excess outright, and a refused
+    # viewer chunk leaves the page dead until reload.
+    request_queue_size = 128
 
 
 def create_server(

@@ -88,3 +88,11 @@ def test_viewer_asset_override_rejects_invalid_paths(tmp_path, monkeypatch, path
     monkeypatch.setenv("TUBA_VIEWER_ASSETS", " " if path_kind == "empty" else str(root))
     with pytest.raises(ValueError, match="TUBA_VIEWER_ASSETS"):
         viewer_assets_path()
+
+
+def test_local_server_backlog_holds_two_viewer_tabs_opening_at_once():
+    # The default backlog of 5 overflowed when two Studio tabs opened together;
+    # Windows refused the excess connections and a viewer chunk failed to load.
+    from tuba.visualization.viewer import LocalHTTPServer
+
+    assert LocalHTTPServer.request_queue_size >= 64
