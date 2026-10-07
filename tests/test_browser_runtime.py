@@ -43,6 +43,26 @@ def test_browser_runtime_contains_current_python_and_data_but_no_results_or_view
                        or name.endswith(".rmed") for name in bundle.namelist())
 
 
+def test_browser_runtime_rebuilds_source_archive_without_adding_local_files(tmp_path):
+    shipped = tmp_path / "tuba/visualization/_viewer/tuba-browser.zip"
+    shipped.parent.mkdir(parents=True)
+    (tmp_path / "tuba/public.py").write_text("# updated source\n")
+    (tmp_path / "tuba/local.py").write_text("# local input\n")
+    private = tmp_path / "examples/private-project/model.py"
+    private.parent.mkdir(parents=True)
+    private.write_text("# local project\n")
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.0.0"\n')
+    for name in ("LICENSE", "LICENSE.GPL"):
+        (tmp_path / name).write_text("test license\n")
+    with ZipFile(shipped, "w") as bundle:
+        bundle.writestr("tuba/public.py", "# previous source\n")
+    with ZipFile(BytesIO(browser_runtime_archive(tmp_path))) as bundle:
+        assert bundle.read("tuba/public.py") == b"# updated source\n"
+        assert set(bundle.namelist()) == {
+            "tuba/public.py", "tuba-0.0.0.dist-info/METADATA", "LICENSE", "LICENSE.GPL",
+        }
+
+
 def test_browser_preview_builds_a_scene_without_gmsh():
     # The browser has no gmsh. Every scene build reads the mesh-sizing policy, and
     # importing tuba.meshing once dragged the gmsh-backed generator in with it, so

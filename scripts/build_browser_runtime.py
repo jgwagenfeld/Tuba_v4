@@ -12,9 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def browser_runtime_archive(root: Path = ROOT) -> bytes:
     # Publish repository inputs only; local files must never enter the bundle.
-    tracked = subprocess.check_output(
-        ["git", "ls-files", "-z", "--", "tuba", "examples"], cwd=root,
-    ).decode("utf-8").split("\0")
+    if (root / ".git").exists():
+        tracked = subprocess.check_output(
+            ["git", "ls-files", "-z", "--", "tuba", "examples"], cwd=root,
+        ).decode("utf-8").split("\0")
+    else:
+        # Source archives have no index; the shipped runtime records public inputs.
+        with ZipFile(root / "tuba/visualization/_viewer/tuba-browser.zip") as shipped:
+            tracked = shipped.namelist()
     output = BytesIO()
     # Python versions bundle different zlib implementations; store identical bytes.
     with ZipFile(output, "w", compression=ZIP_STORED) as archive:

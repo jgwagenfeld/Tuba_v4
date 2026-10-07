@@ -177,6 +177,7 @@ function bundleManifest() {
 }
 
 function browserRuntime() {
+  let payload;
   function archive() {
     const result = spawnSync(python, [join(REPO_ROOT, "scripts", "build_browser_runtime.py")], { maxBuffer: 16 * 1024 * 1024 });
     if (result.status !== 0) throw new Error(`Browser runtime build failed: ${result.stderr}`);
@@ -184,7 +185,9 @@ function browserRuntime() {
   }
   return {
     name: "tuba-browser-runtime",
-    generateBundle() { this.emitFile({ type: "asset", fileName: "tuba-browser.zip", source: archive() }); },
+    // Read the source archive's input list before Vite clears the output directory.
+    buildStart() { payload = archive(); },
+    generateBundle() { this.emitFile({ type: "asset", fileName: "tuba-browser.zip", source: payload }); },
     configureServer(server) {
       server.middlewares.use("/tuba-browser.zip", (_request, response) => {
         response.setHeader("content-type", "application/zip");
