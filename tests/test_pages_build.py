@@ -4,7 +4,6 @@ from dataclasses import FrozenInstanceError
 from importlib import import_module
 from pathlib import Path
 import subprocess
-import sys
 from zipfile import ZipFile
 from types import SimpleNamespace
 
@@ -192,27 +191,28 @@ def test_independent_piping_cases_require_stress_fields_and_matching_provenance(
         build_pages._validate_independent_case_review(tmp_path, scene, review)
 
 
-def test_gallery_archive_runs_after_extraction_and_omits_unsupported_ifc(tmp_path):
+def test_gallery_archive_opens_as_a_project_package_and_omits_unsupported_ifc(tmp_path, monkeypatch):
+    from tuba.project import load_project
+    from tuba.project.package import unpack_project_package
+
     gallery = next(item for item in build_pages.OFFICIAL_GALLERIES if item.id == "imported_component_mixed_demo")
     build_pages._publish_downloads(tmp_path, gallery)
+    build_pages._publish_downloads(tmp_path, gallery)  # Rebuilding replaces the generated download.
     archive = tmp_path / "downloads" / f"{gallery.id}.zip"
     assert archive.is_file()
     assert not (tmp_path / "downloads" / f"{gallery.id}.ifc").exists()
     with ZipFile(archive) as source:
         names = set(source.namelist())
-        assert {"examples/imported_component_mixed_demo/model.py", "examples/imported_component_mixed_demo/study.py",
-                "examples/imported_component_mixed_system.py", "examples/imported_component_mixed_demo/imported_component_demo.stl",
-                "README.md"} <= names
-        assert not any(name.endswith((".rmed", ".csv")) or "evidence/" in name for name in names)
-        source.extractall(tmp_path / "unpacked")
-    run = subprocess.run([sys.executable, "-c", "from pathlib import Path; "
-        "import examples.imported_component_mixed_system as source; "
-        "assert Path(source.__file__).resolve().is_relative_to(Path.cwd()); "
-        "from tuba.project import load_project; "
-        "assert load_project(Path('examples/imported_component_mixed_demo')).run_model()['model'].imported_components"],
-        cwd=tmp_path / "unpacked", env={**os.environ, "PYTHONPATH": str(build_pages.ROOT)},
-        capture_output=True, text=True)
-    assert run.returncode == 0, run.stderr
+        assert {"manifest.json", "project/model.py", "project/study.py",
+                "project/examples/imported_component_mixed_system.py",
+                "project/imported_component_demo.stl"} <= names
+        assert not any(name.endswith(".rmed") or "evidence/" in name for name in names)
+    opened = unpack_project_package(archive, tmp_path / "unpacked")
+    monkeypatch.chdir(opened)
+    namespace = load_project(opened).run_model()
+    assert namespace["model"].imported_components
+    assert Path(namespace["SOURCE"]).resolve().is_relative_to(opened)
+    assert Path(namespace["build_model"].__code__.co_filename).is_relative_to(opened)
 
 
 def _project_tree(root: Path) -> None:

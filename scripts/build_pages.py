@@ -16,7 +16,6 @@ from collections.abc import Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any
-from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,6 +23,7 @@ if str(ROOT) not in sys.path:
 
 from scripts import prepare_release
 from scripts.official_gallery import OFFICIAL_GALLERIES
+from tuba.project.package import export_project_package
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 
@@ -298,25 +298,9 @@ def _publish_downloads(viewer_root: Path, gallery: Any) -> None:
     destination = viewer_root / "downloads"
     destination.mkdir(exist_ok=True)
     (destination / f"{gallery.id}.ifc").unlink(missing_ok=True)
-    with ZipFile(destination / f"{gallery.id}.zip", "w", ZIP_DEFLATED) as archive:
-        for source in (project / "model.py", project / "study.py"):
-            if source.is_file():
-                archive.write(source, source.relative_to(ROOT).as_posix())
-        imports = set()
-        for source in (project / "model.py", project / "study.py"):
-            if source.is_file():
-                imports.update(re.findall(r"^from examples\.([A-Za-z_][A-Za-z_0-9]*) import", source.read_text(encoding="utf-8"), re.M))
-        for name in sorted(imports):
-            source = ROOT / "examples" / f"{name}.py"
-            archive.write(source, source.relative_to(ROOT).as_posix())
-        # The imported component example resolves this local asset from archive root.
-        if gallery.id == "imported_component_mixed_demo":
-            source = ROOT / "examples/imported_component_mixed_demo/imported_component_demo.stl"
-            archive.write(source, source.relative_to(ROOT).as_posix())
-        archive.writestr("README.md", "Run from this archive root with Tuba installed:\n"
-                         f"python -m tuba.cli_studio {gallery.project}\n\n"
-                         "The source is editable. Code_Aster is required to solve and review "
-                         "engineering results; solver evidence is not included.\n")
+    archive = destination / f"{gallery.id}.zip"
+    archive.unlink(missing_ok=True)
+    export_project_package(project, archive)
     try:
         from tuba.external.ifc import IfcExporter
         from tuba.project import load_project

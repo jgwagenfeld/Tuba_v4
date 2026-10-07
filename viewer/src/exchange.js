@@ -19,7 +19,7 @@ export function renderPublishedDownloads(dialog, entry) {
     link.textContent = kind === "project" ? "Download project ZIP" : "Download IFC geometry";
     const description = document.createElement("p");
     description.textContent = kind === "project"
-      ? "Editable Python source for Tuba Studio. Follow the included README to open it. Solver results are not included."
+      ? "Open this ZIP with Open package in local Tuba Studio. Includes editable Python and project inputs. Solver results are not included."
       : "3D geometry for CAD/BIM coordination, in IFC format. Does not include engineering results or an editable Tuba model.";
     row.append(link, description);
     downloads.append(row);
