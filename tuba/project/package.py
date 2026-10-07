@@ -37,6 +37,7 @@ MAX_PATH_BYTES = 1024
 MAX_PATH_DEPTH = 32
 MAX_TOTAL_PATH_BYTES = 8 * 1024**2
 MAX_CENTRAL_DIRECTORY_BYTES = 32 * 1024**2
+MAX_TAR_METADATA_BYTES = 32 * 1024**2
 PACKAGE_SUFFIXES = (".tubaproject", ".tar.gz", ".tgz", ".zip")
 _EXCLUDED = {".git", ".tuba", ".build", ".scratch", ".tmp", ".cache", ".worktrees", ".agents",
              ".venv", "venv", "env", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache",
@@ -301,7 +302,7 @@ def _open_package(archive: Path):
                     entries.append((info.filename.rstrip("/") if info.is_dir() else info.filename, info.file_size, info.is_dir()))
                 yield entries, bundle.open
         else:
-            with _PackageGzip(archive, "rb") as compressed, tarfile.open(fileobj=compressed, mode="r:") as bundle:
+            with _PackageGzip(archive, "rb") as compressed, tarfile.open(fileobj=compressed, mode="r:", tarinfo=_PackageTarInfo) as bundle:
                 entries = []
                 expanded = 0
                 path_bytes = 0
@@ -319,6 +320,7 @@ def _open_package(archive: Path):
                         raise ValueError("Package exceeds the file count or expanded size limit.")
                     if info.name == "manifest.json" and info.size > 8 * 1024**2:
                         raise ValueError("Package manifest exceeds 8 MiB.")
+                compressed.checking_metadata = False
                 yield entries, bundle.extractfile
                 # Read the gzip trailer too: tar parsing alone can miss truncated
                 # gzip streams. Bound extra padding/metadata rather than expanding
@@ -344,23 +346,27 @@ def _preflight_zip(archive: Path) -> None:
         if disk or directory_disk or disk_count != count or offset + 22 + comment != len(tail):
             raise ValueError("Invalid or multi-disk ZIP end record.")
         end_offset = max(0, size - 65557) + offset
+        directory_end_offset = end_offset
         if end_offset >= 20:
             source.seek(end_offset - 20)
             locator = source.read(20)
             if locator.startswith(b"PK\x06\x07"):
                 _, zip64_disk, zip64_offset, disks = struct.unpack("<4sLQL", locator)
-                if zip64_disk or disks != 1 or zip64_offset > end_offset - 76:
+                if zip64_disk or disks != 1 or zip64_offset != end_offset - 76:
                     raise ValueError("Invalid ZIP64 locator.")
                 source.seek(zip64_offset)
                 record = source.read(56)
                 if len(record) != 56 or not record.startswith(b"PK\x06\x06"):
                     raise ValueError("Invalid ZIP64 end record.")
                 _, record_size, _, _, disk, directory_disk, disk_count, count, directory_bytes, directory_offset = struct.unpack("<4sQ2H2L4Q", record)
-                if record_size > 4096 or disk or directory_disk or disk_count != count:
+                if record_size != 44 or disk or directory_disk or disk_count != count:
                     raise ValueError("Invalid or over-budget ZIP64 end record.")
+                directory_end_offset = zip64_offset
         if count > 2 * MAX_FILES + 1 or directory_bytes > MAX_CENTRAL_DIRECTORY_BYTES:
             raise ValueError("ZIP central directory exceeds the entry or metadata size limit.")
-        if directory_offset + directory_bytes > end_offset:
+        # ZipFile reads backwards from the physical end record, not the declared
+        # offset, for concatenated archives. Validate the same directory it reads.
+        if directory_offset + directory_bytes != directory_end_offset:
             raise ValueError("Invalid ZIP central directory bounds.")
         source.seek(directory_offset)
         actual_count = path_bytes = 0
@@ -384,11 +390,34 @@ def _preflight_zip(archive: Path) -> None:
             raise ValueError("ZIP central directory entry count differs from its end record.")
 
 
+class _PackageTarInfo(tarfile.TarInfo):
+    def _proc_member(self, bundle):
+        # PAX/GNU headers recursively parse the next header while retaining their
+        # buffers. This also guards TarFile's eager first-member construction.
+        depth = getattr(bundle, "_package_header_depth", 0)
+        if depth >= MAX_PATH_DEPTH:
+            raise ValueError("Package tar metadata nesting exceeds the depth limit.")
+        bundle._package_header_depth = depth + 1
+        try:
+            return super()._proc_member(bundle)
+        finally:
+            bundle._package_header_depth = depth
+
+
 class _PackageGzip(gzip.GzipFile):
     """Bound tar's seeks and metadata allocations before tarfile parses untrusted headers."""
+    def __init__(self, *args, **kwargs):
+        self.checking_metadata = True
+        self.metadata_bytes = 0
+        super().__init__(*args, **kwargs)
+
     def read(self, size=-1):
         if not 0 <= size <= 8 * 1024**2 + tarfile.BLOCKSIZE:
             raise ValueError("Package tar metadata read exceeds 8 MiB.")
+        if self.checking_metadata:
+            self.metadata_bytes += size
+            if self.metadata_bytes > MAX_TAR_METADATA_BYTES:
+                raise ValueError("Package tar metadata exceeds the cumulative size limit.")
         data = super().read(size)
         if self.tell() > MAX_EXPANDED_BYTES + 64 * 1024**2:
             raise ValueError("Package tar metadata/padding exceeds the size limit.")

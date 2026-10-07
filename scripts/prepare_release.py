@@ -13,11 +13,16 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def main() -> int:
+def main(*, out_dir: Path | None = None) -> int:
     npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
     if npm is None and os.name == "nt":
         npm = str(Path(os.environ["ProgramFiles"]) / "nodejs" / "npm.cmd")
-    subprocess.run([npm, "run", "build"], cwd=ROOT / "viewer", check=True)
+    command = [npm, "run", "build"]
+    if out_dir is not None:
+        command += ["--", "--outDir", str(Path(out_dir).resolve())]
+    subprocess.run(command, cwd=ROOT / "viewer", check=True)
+    if out_dir is not None:
+        return 0
 
     build_dir = (ROOT / "build").resolve()
     if build_dir.parent != ROOT.resolve():

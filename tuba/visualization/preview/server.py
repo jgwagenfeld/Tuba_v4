@@ -17,12 +17,13 @@ from typing import TYPE_CHECKING, Any
 
 from tuba.model import TubaModel
 from tuba.visualization.preview.transport import PreviewServer, file_fingerprint
+from tuba.visualization.viewer import MAX_SCENE_BYTES
 from tuba.visualization.web_export import write_scene_bundle
 
 if TYPE_CHECKING:
     from tuba.project.study import StudySettings
 
-MAX_REFERENCE_SCENE_BYTES = 32 * 1024 * 1024
+MAX_REFERENCE_SCENE_BYTES = MAX_SCENE_BYTES
 
 
 class ProjectStudioServer(PreviewServer):
@@ -714,7 +715,7 @@ class ProjectStudioServer(PreviewServer):
                 # write_scene_bundle writes text; Windows expands LF to CRLF.
                 size += len(chunk.encode("utf-8")) + (chunk.count("\n") if os.name == "nt" else 0)
                 if size > MAX_REFERENCE_SCENE_BYTES:
-                    raise ValueError("IFC merged scene JSON exceeds the 32 MiB receiving limit before publication.")
+                    raise ValueError("IFC merged scene JSON exceeds the 64 MiB receiving limit before publication.")
 
     def _rewrite_review_references(self, root: Path) -> None:
         from tuba.visualization.scene import VisualizationScene

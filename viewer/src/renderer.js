@@ -3,7 +3,7 @@ import { prescribedDisplacementText, SUPPORT_GROUND_COLOR, supportPartColors } f
 import { sceneStage } from "./workflowState.js";
 import { getUnitSystem } from "./units.js";
 import * as THREE from "three";
-import { tubeTessellation, validateSceneBudget } from "./sceneBudget.js";
+import { textTextureSize, tubeTessellation, validateSceneBudget } from "./sceneBudget.js";
 import { relatedSelectionIds, selectionKey } from "./reviewSelection.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
@@ -69,7 +69,7 @@ export const WEBGL2_UNAVAILABLE = "viewer.webgl2_unavailable";
 const isInspectionDiagnosticSource = source => ["tuba.interface_mapping", "tuba.analysis_mesh.review"].includes(source);
 
 export function createThreeSceneGraph(sceneState, options = {}) {
-  validateSceneBudget(sceneState);
+  validateSceneBudget(sceneState, []);
   // Built for the uncut model. Cut view culls whole objects through state, and
   // a graph built without them could not show them again while a handle is
   // dragged outward; updateSceneGraphVisibility hides them instead, and the
@@ -77,6 +77,12 @@ export function createThreeSceneGraph(sceneState, options = {}) {
   const state = sceneState.sectionBox && Array.isArray(sceneState.objects)
     ? { ...sceneState, visibleObjectIds: uncutVisibleObjectIds(sceneState) }
     : sceneState;
+  const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  const renderAssets = (state.geometryAssets ?? []).filter((asset) =>
+    isAssetVisible(asset, visibleIds) &&
+    assetMatchesActiveGeometryState(asset, payloadsByAssetId.get(asset.id) ?? {}, state.activeGeometryStateId));
+  validateSceneBudget(state, renderAssets);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(options.backgroundColor ?? 0xf8fafc);
 
@@ -86,10 +92,9 @@ export function createThreeSceneGraph(sceneState, options = {}) {
 
   const declaredBounds = normalizeBounds(state.bounds) ?? mergeAssetBounds(state.geometryAssets ?? []);
 
-  const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
-  const visibleIds = new Set(state.visibleObjectIds ?? []);
   const renderState = {
     ...state,
+    textureBudget: { pixels: 0 },
     canvasFactory: options.canvasFactory ?? (() => globalThis.document?.createElement("canvas")),
     deformedReference: visibleDeformedReference(state, payloadsByAssetId, visibleIds)
   };
@@ -97,11 +102,8 @@ export function createThreeSceneGraph(sceneState, options = {}) {
   const diagnostics = [];
   let renderedObjectCount = 0;
 
-  for (const asset of state.geometryAssets ?? []) {
+  for (const asset of renderAssets) {
     const payload = payloadsByAssetId.get(asset.id) ?? {};
-    if (!isAssetVisible(asset, visibleIds) || !assetMatchesActiveGeometryState(asset, payload, state.activeGeometryStateId)) {
-      continue;
-    }
     const result = createRenderableForAsset(asset, payload, renderState);
     if (result.diagnostic) {
       diagnostics.push(result.diagnostic);
@@ -1654,8 +1656,10 @@ function createLabel(asset, config, format, state) {
   const fontSize = 64;
   const padding = 18;
   context.font = `600 ${fontSize}px sans-serif`;
-  canvas.width = Math.ceil(context.measureText(text).width + padding * 2);
-  canvas.height = fontSize + padding * 2;
+  const dimensions = textTextureSize(text, context.measureText(text).width + padding * 2,
+    fontSize + padding * 2, state.textureBudget);
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
   context.font = `600 ${fontSize}px sans-serif`;
   context.fillStyle = "rgba(15, 23, 42, 0.86)";
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -1685,8 +1689,9 @@ function createFrictionBadgeSprite(text, position, state, status = null, overLim
   const padY = 12;
   context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
   const textWidth = context.measureText ? context.measureText(text).width : 110;
-  canvas.width = Math.ceil(textWidth + padX * 2);
-  canvas.height = fontSize + padY * 2;
+  const dimensions = textTextureSize(text, textWidth + padX * 2, fontSize + padY * 2, state.textureBudget);
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
 
   context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
 
@@ -1754,8 +1759,9 @@ function createLoadBadgeSprite(text, position, state, kind = "force") {
   const padY = 12;
   context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
   const textWidth = context.measureText ? context.measureText(text).width : 110;
-  canvas.width = Math.ceil(textWidth + padX * 2);
-  canvas.height = fontSize + padY * 2;
+  const dimensions = textTextureSize(text, textWidth + padX * 2, fontSize + padY * 2, state.textureBudget);
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
 
   context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
 
@@ -2425,7 +2431,7 @@ function createLineLoadComb(asset, config, format, state) {
   // so the same target works for small pipework and large racks.
   const pickBounds = new THREE.Box3().setFromObject(combGroup);
   if (!pickBounds.isEmpty()) {
-    const depth = Math.max(...starts.map((start, i) => start.distanceTo(ends[i]))) * 0.25;
+    const depth = starts.reduce((maximum, start, i) => Math.max(maximum, start.distanceTo(ends[i])), 0) * 0.25;
     const size = pickBounds.getSize(new THREE.Vector3()).max(new THREE.Vector3(depth, depth, depth));
     const volume = new THREE.Mesh(
       new THREE.BoxGeometry(size.x, size.y, size.z),

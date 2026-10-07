@@ -48,6 +48,7 @@ _PAGES_REQUIRED_FILES = frozenset(
         "viewer/bundles.json",
         "viewer/profiles.json",
         "viewer/tuba-browser.zip",
+        "viewer/pyodide/runtime-manifest.json",
         "viewer/licenses/font-notices.txt",
         "viewer/licenses/OFL-1.1.txt",
         # notebooks/10_interactive_postprocessor.ipynb used to be required here
@@ -72,7 +73,8 @@ def assemble_pages(output: Path) -> Path:
         raise ValueError(f"Pages output must be a directory: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    prepare_release.main()
+    viewer_assets = ROOT / ".build" / "pages-viewer"
+    prepare_release.main(out_dir=viewer_assets)
     uv = shutil.which("uv") or "uv"
     subprocess.run(
         [
@@ -96,7 +98,7 @@ def assemble_pages(output: Path) -> Path:
         staged = Path(temporary)
         shutil.copytree(ROOT / ".build" / "zensical-site", staged, dirs_exist_ok=True)
         viewer_root = staged / "viewer"
-        shutil.copytree(ROOT / "tuba" / "visualization" / "_viewer", viewer_root)
+        shutil.copytree(viewer_assets, viewer_root)
         bundle_ids = build_examples(viewer_root, audience="pages")
         write_bundle_catalog(viewer_root, bundle_ids)
         shoot_gallery_thumbnails(staged, viewer_root)
@@ -170,7 +172,7 @@ def validate_pages_tree(root: Path) -> None:
     if bundle_directories != list(PAGES_BUNDLE_IDS):
         raise ValueError("Pages viewer directories must match its official catalog exactly.")
     unexpected_directories = (
-        set(viewer_directories) - set(bundle_directories) - {"assets", "licenses", "gallery", "downloads"}
+        set(viewer_directories) - set(bundle_directories) - {"assets", "licenses", "gallery", "downloads", "pyodide"}
     )
     if unexpected_directories:
         raise ValueError("Pages viewer contains an unexpected non-bundle directory.")

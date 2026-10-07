@@ -17,6 +17,7 @@ BUNDLE_CONTENT_SECURITY_POLICY = (
     "sandbox allow-downloads; default-src 'none'; style-src 'unsafe-inline'; "
     "img-src 'self' data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
 )
+MAX_SCENE_BYTES = 64 * 1024**2
 
 
 def viewer_assets_path():
@@ -99,8 +100,8 @@ def create_server(
         raise ValueError(f"Bundle directory does not exist: {bundle_root}")
     scene_path = bundle_root / "scene.json"
     try:
-        if scene_path.stat().st_size > 32 * 1024**2:
-            raise ValueError("Bundle scene.json exceeds the 32 MiB limit.")
+        if scene_path.stat().st_size > MAX_SCENE_BYTES:
+            raise ValueError("Bundle scene.json exceeds the 64 MiB limit.")
         scene = json.loads(scene_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise ValueError(f"Bundle is missing scene.json: {bundle_root}") from exc

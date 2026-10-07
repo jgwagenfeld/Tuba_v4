@@ -99,9 +99,9 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
   const geometryAssets = Array.isArray(scene.geometry_assets)
     ? scene.geometry_assets
     : await readJson("geometry/geometry_assets.json");
-  validateSceneBudget({ scene, objects, geometryAssets });
+  validateSceneBudget({ scene, objects, geometryAssets }, []);
   const geometryPayloads = await readGeometryPayloads(scene.geometry_assets ?? geometryAssets, readJson);
-  validateSceneBudget({ scene, objects, geometryAssets, geometryPayloads });
+  validateSceneBudget({ scene, objects, geometryAssets, geometryPayloads }, []);
 
   const reviewResult = await loadOptionalReview(normalized, async (url) => {
     const response = await fetcher(url);
@@ -148,7 +148,7 @@ function manifestGeometryPayload(asset) {
 }
 
 export function createViewerState(bundle) {
-  validateSceneBudget(bundle);
+  validateSceneBudget(bundle, []);
   const scene = bundle.scene;
   const sourceObjects = scene.objects?.length ? scene.objects : bundle.objects ?? [];
   const insulatedRefs = new Set(sourceObjects

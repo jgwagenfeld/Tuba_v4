@@ -1,6 +1,7 @@
 """Adversarial checks for current evidence, inert exports and bounded package metadata."""
 
 import csv
+import gzip
 import io
 import json
 import shutil
@@ -20,6 +21,20 @@ from tuba.reporting.isometry import _csv
 from tuba.reporting.model import EngineeringReviewPackage, ReportColumn, ReportTable
 
 RACK = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
+
+
+def test_viewer_scene_size_boundary_rejects_before_json_parser(tmp_path, monkeypatch):
+    from tuba.visualization import viewer
+
+    monkeypatch.setattr(viewer, "MAX_SCENE_BYTES", 32)
+    scene = tmp_path / "scene.json"
+    scene.write_bytes(b"{}" + b" " * 30)
+    server, _ = viewer.create_server(tmp_path)
+    server.server_close()
+    scene.write_bytes(scene.read_bytes() + b" ")
+    monkeypatch.setattr(viewer.json, "loads", lambda *_args: pytest.fail("oversized scene reached JSON parser"))
+    with pytest.raises(ValueError, match="scene.json exceeds"):
+        viewer.create_server(tmp_path)
 
 
 @pytest.mark.parametrize("options", [{"line_segments": 4}, {"pipe_modelization": "POU_D_T"},
@@ -91,6 +106,37 @@ def test_package_cannot_understate_central_directory_entry_count(tmp_path, monke
     archive.write_bytes(original[:-22] + struct.pack("<4s4H2LH", *fields))
     monkeypatch.setattr(zipfile, "ZipFile", lambda *args, **kwargs: pytest.fail("must reject before ZipFile allocation"))
     with pytest.raises(ValueError, match="entry count differs"):
+        package.inspect_project_package(archive)
+
+
+def test_package_rejects_displaced_zip_directory_before_eager_parser(tmp_path, monkeypatch):
+    archive = tmp_path / "displaced.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("model.py", b"x")
+    original = archive.read_bytes()
+    fields = struct.unpack("<4s4H2LH", original[-22:])
+    directory = original[fields[6]:-22]
+    # The declared directory is valid, but ZipFile would parse the second copy.
+    archive.write_bytes(original[:-22] + directory + original[-22:])
+    monkeypatch.setattr(zipfile, "ZipFile", lambda *args, **kwargs: pytest.fail("must reject before ZipFile allocation"))
+    with pytest.raises(ValueError, match="directory bounds"):
+        package.inspect_project_package(archive)
+
+
+@pytest.mark.parametrize("header_type", [tarfile.XHDTYPE, tarfile.GNUTYPE_LONGNAME])
+@pytest.mark.parametrize("budget", ["depth", "bytes"])
+def test_package_bounds_recursive_tar_headers_before_first_member(tmp_path, monkeypatch, header_type, budget):
+    archive = tmp_path / "nested.tgz"
+    payload = b"10 path=x\n" if header_type == tarfile.XHDTYPE else b"x\0"
+    header = tarfile.TarInfo("metadata")
+    header.type, header.size = header_type, len(payload)
+    count = package.MAX_PATH_DEPTH + 1 if budget == "depth" else 3
+    if budget == "bytes":
+        monkeypatch.setattr(package, "MAX_TAR_METADATA_BYTES", 2048)
+    member = tarfile.TarInfo("model.py")
+    block = header.tobuf() + payload.ljust(tarfile.BLOCKSIZE, b"\0")
+    archive.write_bytes(gzip.compress(block * count + member.tobuf() + b"\0" * 1024))
+    with pytest.raises(ValueError, match="metadata.*" + ("depth" if budget == "depth" else "cumulative")):
         package.inspect_project_package(archive)
 
 

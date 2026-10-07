@@ -122,8 +122,8 @@ jobs:
       - run: npm run e2e -- section-camera
       - run: node e2e/exchange-dialog-smoke.mjs
       - run: npm run e2e -- legacy-workflow
-      - run: npm run build
-      - run: node scripts/browser-runtime-smoke.mjs
+      - run: npm run build -- --outDir ../.build/ci-viewer
+      - run: node scripts/browser-runtime-smoke.mjs ../.build/ci-viewer
       - run: git diff --exit-code
 
   assembled-pages:

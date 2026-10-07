@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from dataclasses import FrozenInstanceError
 from importlib import import_module
 from pathlib import Path
@@ -24,6 +25,7 @@ REQUIRED = {
     "viewer/bundles.json",
     "viewer/profiles.json",
     "viewer/tuba-browser.zip",
+    "viewer/pyodide/runtime-manifest.json",
     "viewer/autorouted-expansion-loop/scene.json",
     "viewer/licenses/font-notices.txt",
     "viewer/licenses/OFL-1.1.txt",
@@ -226,14 +228,18 @@ def _project_tree(root: Path) -> None:
     (viewer / "bundles.json").write_text("[]\n", encoding="utf-8")
     (viewer / "profiles.json").write_text('{"ok": true, "catalog": []}\n', encoding="utf-8")
     (viewer / "tuba-browser.zip").write_bytes(b"runtime archive")
+    (viewer / "pyodide").mkdir()
+    (viewer / "pyodide" / "runtime-manifest.json").write_text("{}", encoding="utf-8")
     (root / "docs" / "content").mkdir(parents=True)
 
 
 def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[str]:
     events: list[str] = []
 
-    def prepare() -> int:
+    def prepare(*, out_dir) -> int:
         events.append("prepare")
+        assert out_dir == root / ".build" / "pages-viewer"
+        shutil.copytree(root / "tuba" / "visualization" / "_viewer", out_dir)
         return 0
 
     def zensical(command, *, cwd, check, env=None):

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { createThreeSceneGraph } from "../src/renderer.js";
-import { loadSceneBundleFromUrl } from "../src/sceneLoader.js";
-import { SCENE_LIMITS, readBoundedJson, tubeTessellation, validateSceneBudget } from "../src/sceneBudget.js";
+import { createThreeSceneGraph, disposeThreeSceneGraph } from "../src/renderer.js";
+import { createViewerState, getVisibleObjectIds, loadSceneBundleFromUrl } from "../src/sceneLoader.js";
+import { SCENE_LIMITS, readBoundedJson, textTextureSize, tubeTessellation, validateSceneBudget } from "../src/sceneBudget.js";
 
 test("oversized tubes and total generated surfaces reject before renderer construction", () => {
   const asset = { id: "tube", format: "tube", generation_config: { points: Array.from({ length: 257 }, () => [0, 0, 0]), radius_m: .1 } };
@@ -18,7 +18,10 @@ test("oversized tubes and total generated surfaces reject before renderer constr
 test("stream limits cover declared size, chunked responses and aggregate bytes", async () => {
   await assert.rejects(readBoundedJson(new Response("{}", { headers: { "Content-Length": String(SCENE_LIMITS.responseBytes + 1) } })), /response bytes/);
   let cancelled = false;
-  const chunks = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(SCENE_LIMITS.responseBytes + 1)); }, cancel() { cancelled = true; } });
+  const chunk = new Uint8Array(1024 * 1024);
+  const chunks = new ReadableStream({ start(controller) {
+    for (let bytes = 0; bytes <= SCENE_LIMITS.responseBytes; bytes += chunk.length) controller.enqueue(chunk);
+  }, cancel() { cancelled = true; } });
   await assert.rejects(readBoundedJson(new Response(chunks)), /response\/aggregate bytes/);
   assert.equal(cancelled, true);
   await assert.rejects(readBoundedJson(new Response("{}"), { bytes: SCENE_LIMITS.totalBytes }), /aggregate bytes/);
@@ -42,4 +45,128 @@ test("ordinary generated review fixture passes with unchanged geometry", async (
     catch { return new Response("", { status: 404 }); }
   });
   assert.ok(validateSceneBudget(bundle).generatedVertices < SCENE_LIMITS.generatedVertices);
+});
+
+test("instanced subpoints budget shared geometry and per-instance buffers separately", () => {
+  const count = 133056; // The existing hydrogen-plant review's real subpoint count.
+  const totals = validateSceneBudget({ geometryAssets: [{ id: "subpoints", format: "tuyau_subpoint_glyphs",
+    generation_config: { starts: Array(count).fill([0, 0, 0]), ends: Array(count).fill([0, 0, 1]), radial_segments: 16 }
+  }] });
+  assert.equal(totals.generatedVertices, 100 + count * 7);
+  assert.equal(totals.generatedFaces, 64);
+  const shared = { asset_id: "shared", generation_config: { starts: Array(Math.floor(SCENE_LIMITS.generatedInstances / 2) + 1).fill([0, 0, 0]) } };
+  const sharedBundle = { geometryPayloads: [shared], geometryAssets: [
+    { id: "shared", format: "tuyau_subpoint_glyphs" }, { id: "shared", format: "tuyau_subpoint_glyphs" }
+  ] };
+  assert.throws(() => validateSceneBudget(sharedBundle), /generatedInstances/);
+  assert.throws(() => createThreeSceneGraph(sharedBundle), /generatedInstances/);
+  assert.throws(() => validateSceneBudget({ geometryAssets: [{ id: "subpoints", format: "tuyau_subpoint_glyphs",
+    generation_config: { starts: Array(SCENE_LIMITS.instances + 1).fill([0, 0, 0]), radial_segments: 16 }
+  }] }), /instances/);
+});
+
+test("line-load arrows count as instances and generated geometry before rendering", () => {
+  const config = { arrow_starts: [[0, 0, 0], [1, 0, 0]], arrow_ends: [[0, 0, 1], [1, 0, 1]], show_badge: false };
+  const asset = { id: "comb", format: "line_load_comb", generation_config: config };
+  const totals = validateSceneBudget({ geometryAssets: [asset] });
+  assert.equal(totals.points, 4);
+  assert.equal(totals.instances, 2);
+  assert.equal(totals.generatedVertices, 1026);
+  assert.equal(createThreeSceneGraph({ geometryAssets: [asset] }).renderedObjectCount, 1);
+  const count = Math.floor(SCENE_LIMITS.generatedFaces / 512) + 1;
+  const arrows = Array(count).fill([0, 0, 0]);
+  assert.throws(() => createThreeSceneGraph({ geometryAssets: [{ ...asset, generation_config: {
+    ...config, arrow_starts: arrows, arrow_ends: arrows, crest_points: arrows
+  } }] }), /generatedVertices|generatedFaces/);
+  assert.equal(validateSceneBudget({ geometryAssets: [{ ...asset, generation_config: {
+    ...config, crest_points: Array(10).fill([0, 0, 0])
+  } }] }).points, 14);
+});
+
+test("label strings and cumulative texture pixels reject before allocating canvases", () => {
+  const asset = { id: "label", format: "label", generation_config: { text: "Review", position: [0, 0, 0], height: 1 } };
+  let allocated = 0;
+  const canvasFactory = () => { allocated++; return { width: 0, height: 0, getContext: () => ({
+    measureText: text => ({ width: text.length * 32 }), fillRect() {}, fillText() {}
+  }) }; };
+  assert.equal(createThreeSceneGraph({ geometryAssets: [asset] }, { canvasFactory }).renderedObjectCount, 1);
+  allocated = 0;
+  const text = "x".repeat(SCENE_LIMITS.labelCharacters);
+  const oversized = { ...asset, generation_config: { ...asset.generation_config, text: text + "x" } };
+  assert.throws(() => createThreeSceneGraph({ geometryAssets: [oversized] }, { canvasFactory }), /labelCharacters/);
+  const count = Math.floor(SCENE_LIMITS.texturePixels / textTextureSize(text).pixels) + 1;
+  assert.throws(() => createThreeSceneGraph({ geometryAssets: Array.from({ length: count }, (_, id) => ({
+    ...asset, id: `label:${id}`, generation_config: { ...asset.generation_config, text }
+  })) }, { canvasFactory }), /texturePixels/);
+  assert.equal(allocated, 0);
+  assert.throws(() => validateSceneBudget({ geometryAssets: [{ id: "force", format: "vector",
+    generation_config: { badge_text: text + "x" } }] }), /labelCharacters/);
+});
+
+test("actual text dimensions and generated badges cannot exceed the reserved pixel budget", () => {
+  assert.throws(() => textTextureSize("Review", 10000), /reserved dimensions/);
+  assert.throws(() => textTextureSize("Review", 100, 100, { pixels: SCENE_LIMITS.texturePixels - 1 }), /texturePixels/);
+  const canvas = { width: 0, height: 0, getContext: () => ({ measureText: () => ({ width: 10000 }) }) };
+  const graph = createThreeSceneGraph({ geometryAssets: [{ id: "label", format: "label",
+    generation_config: { text: "Review", position: [0, 0, 0], height: 1 } }] }, { canvasFactory: () => canvas });
+  assert.equal(graph.renderedObjectCount, 0);
+  assert.match(graph.diagnostics[0].message, /reserved dimensions/);
+  assert.equal(canvas.width, 0);
+  assert.equal(canvas.height, 0);
+});
+
+test("hidden assets retain receiving and per-asset hard limits", () => {
+  const hidden = (generation_config, format = "mesh") => ({ geometryAssets: [{
+    id: "hidden", object_ids: ["hidden"], format, generation_config
+  }], visibleObjectIds: [] });
+  assert.throws(() => createThreeSceneGraph(hidden({ vertices: Array(SCENE_LIMITS.points + 1).fill([0, 0, 0]) })), /points/);
+  assert.throws(() => createThreeSceneGraph(hidden({ starts: Array(SCENE_LIMITS.instances + 1).fill([0, 0, 0]) }, "tuyau_subpoint_glyphs")), /instances/);
+  assert.throws(() => createThreeSceneGraph(hidden({ points: Array(257).fill([0, 0, 0]) }, "tube")), /tubePoints/);
+  assert.throws(() => createThreeSceneGraph(hidden({ points: Array(171).fill([0, 0, 0]) }, "tube")), /tubularSegments/);
+  assert.throws(() => createThreeSceneGraph(hidden({ text: "x".repeat(257) }, "label")), /labelCharacters/);
+  assert.throws(() => createThreeSceneGraph(hidden({ badge_text: "x".repeat(257), show_badge: false }, "vector")), /labelCharacters/);
+});
+
+test("loading exclusive geometry states budgets only the renderer's selected allocation", async () => {
+  const states = ["physical", "visual"];
+  const scene = { scene_id: "exclusive", objects: states.map(id => ({
+    id: `object:${id}`, kind: "element", metadata: { geometry_state_id: id }
+  })), overlays: states.map(id => ({ id, kind: "geometry_state",
+    data: { id, purpose: id === "physical" ? "engineering" : "visualization" }
+  })), geometry_assets: states.map(id => ({ id, format: "polyline", object_ids: [`object:${id}`],
+    generation_config: { geometry_state_id: id, points: Array.from({ length: Math.floor(SCENE_LIMITS.generatedVertices / (2 * 512)) + 1 }, (_, x) => [x, 0, 0]) }
+  })) };
+  const bundle = await loadSceneBundleFromUrl("/exclusive", async url => new Response(JSON.stringify(
+    url.endsWith("scene.json") ? scene : {})));
+  assert.throws(() => validateSceneBudget(bundle), /generatedVertices|generatedFaces/);
+  const state = createViewerState(bundle);
+  assert.equal(state.activeGeometryStateId, "physical");
+  const physical = createThreeSceneGraph(state);
+  assert.equal(physical.renderedObjectCount, 1);
+  assert.ok(physical.objectsByObjectId.has("object:physical"));
+  disposeThreeSceneGraph(physical);
+  const next = { ...state, activeGeometryStateId: "visual" };
+  next.visibleObjectIds = getVisibleObjectIds(next);
+  const visual = createThreeSceneGraph(next);
+  assert.equal(visual.renderedObjectCount, 1);
+  assert.ok(visual.objectsByObjectId.has("object:visual"));
+  disposeThreeSceneGraph(visual);
+});
+
+test("revealing hidden excessive textures rejects before the first canvas allocation", () => {
+  const text = "x".repeat(SCENE_LIMITS.labelCharacters);
+  const count = Math.floor(SCENE_LIMITS.texturePixels / textTextureSize(text).pixels) + 1;
+  const state = { visibleObjectIds: [], geometryAssets: Array.from({ length: count }, (_, id) => ({
+    id: `label:${id}`, format: "label", object_ids: [`object:${id}`],
+    generation_config: { text, position: [id, 0, 0], height: 1 }
+  })) };
+  let canvases = 0;
+  const options = { canvasFactory: () => { canvases++; } };
+  const hidden = createThreeSceneGraph(state, options);
+  assert.equal(hidden.renderedObjectCount, 0);
+  disposeThreeSceneGraph(hidden);
+  assert.throws(() => createThreeSceneGraph({ ...state,
+    visibleObjectIds: state.geometryAssets.flatMap(asset => asset.object_ids)
+  }, options), /texturePixels/);
+  assert.equal(canvases, 0);
 });

@@ -19,11 +19,46 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 from scripts import prepare_release
+from scripts.build_browser_runtime import browser_runtime_archive
 from scripts.release_candidate import changed_paths, create_candidate_tree
 from scripts.verify_release_wheel import _install_wheel
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(scope="module")
+def release_source(tmp_path_factory):
+    """One clean candidate tree; reuse dependencies and keep builds off source."""
+    temporary = tmp_path_factory.mktemp("release-source")
+    overlay_paths = changed_paths(ROOT)
+    tree = create_candidate_tree(ROOT, temporary / "candidate.index", overlay_paths)
+    archive = temporary / "source.tar"
+    subprocess.run(["git", "archive", "--format=tar", "-o", archive, tree], cwd=ROOT, check=True)
+    snapshot = temporary / "source"
+    snapshot.mkdir()
+    with tarfile.open(archive) as source:
+        forbidden = {".scratch", ".tmp", ".build", ".cache", ".venv", "node_modules", "build", "dist"}
+        assert not any(forbidden.intersection(Path(member.name).parts) for member in source.getmembers())
+        source.extractall(snapshot, filter="data")
+    archive.unlink()
+    # The archive's older baked runtime roster can omit newly added modules.
+    (snapshot / "tuba/visualization/_viewer/tuba-browser.zip").write_bytes(browser_runtime_archive(ROOT))
+    dependencies = (ROOT / "viewer" / "node_modules").resolve()
+    linked = snapshot / "viewer" / "node_modules"
+    if os.name == "nt":
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(linked), str(dependencies)], check=True, capture_output=True)
+    else:
+        linked.symlink_to(dependencies, target_is_directory=True)
+    common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("TUBA_BUILD_PYTHON", sys.executable)
+        patch.setenv("TUBA_BROWSER_RUNTIME_CACHE", os.environ.get("TUBA_BROWSER_RUNTIME_CACHE", str((ROOT / common).resolve().parent / ".cache" / "pyodide")))
+        yield snapshot, tree, overlay_paths
+    if os.name == "nt":
+        linked.rmdir()  # Remove the junction only, never its shared target.
+    else:
+        linked.unlink()
 
 
 def _npm():
@@ -196,10 +231,9 @@ def test_installed_distribution_owns_the_web_viewer():
     assert any(assets.joinpath("assets").glob("*.js"))
 
 
-def test_viewer_production_build_synchronizes_the_python_package():
-    subprocess.run([_npm(), "run", "build"], cwd=ROOT / "viewer", check=True)
-
-    package_root = ROOT / "tuba" / "visualization" / "_viewer"
+def test_viewer_production_build_synchronizes_the_python_package(tmp_path):
+    package_root = tmp_path / "viewer"
+    prepare_release.main(out_dir=package_root)
     referenced_assets = _referenced_viewer_assets(package_root)
     built_assets = {path.name for path in (package_root / "assets").iterdir() if path.is_file()}
 
@@ -214,6 +248,7 @@ def test_viewer_production_build_synchronizes_the_python_package():
         "licenses",
         "profiles.json",
         "tuba-browser.zip",
+        "pyodide",
     }
     source_licenses = ROOT / "viewer" / "public" / "licenses"
     assert {
@@ -304,11 +339,12 @@ def test_release_wheel_dependency_install_reports_uv_failure(monkeypatch, tmp_pa
         _install_wheel(tmp_path / "python", tmp_path / "tuba.whl", tmp_path, {})
 
 
-def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
-    subprocess.run([sys.executable, ROOT / "scripts" / "prepare_release.py"], check=True)
+def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path, release_source):
+    snapshot, _, _ = release_source
+    subprocess.run([sys.executable, snapshot / "scripts" / "prepare_release.py"], check=True)
 
     wheel_dir = tmp_path / "wheel"
-    wheel = _build_wheel(ROOT, wheel_dir)
+    wheel = _build_wheel(snapshot, wheel_dir)
     with zipfile.ZipFile(wheel) as archive:
         packaged = {
             name.removeprefix("tuba/visualization/_viewer/")
@@ -318,8 +354,8 @@ def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
         assert json.loads(archive.read("tuba/visualization/_viewer/bundles.json")) == []
         assert json.loads(archive.read("tuba/visualization/_viewer/profiles.json"))["ok"] is True
     expected = {
-        path.relative_to(ROOT / "tuba" / "visualization" / "_viewer").as_posix()
-        for path in (ROOT / "tuba" / "visualization" / "_viewer").rglob("*")
+        path.relative_to(snapshot / "tuba" / "visualization" / "_viewer").as_posix()
+        for path in (snapshot / "tuba" / "visualization" / "_viewer").rglob("*")
         if path.is_file()
     }
     assert packaged == expected
@@ -432,35 +468,15 @@ def test_candidate_overlay_expands_detected_rename_to_source_and_destination(tmp
     assert "destination.txt" in tree_paths
 
 
-def test_clean_git_index_snapshot_rebuilds_identical_viewer_and_installed_launcher(tmp_path):
-    overlay_paths = changed_paths(ROOT)
-    tree = create_candidate_tree(ROOT, tmp_path / "candidate.index", overlay_paths)
+def test_clean_git_index_snapshot_rebuilds_identical_viewer_and_installed_launcher(tmp_path, release_source):
+    snapshot, tree, overlay_paths = release_source
     assert _candidate_diff_paths(ROOT, tree) == set(overlay_paths)
-    archive = tmp_path / "tracked.tar"
-    subprocess.run(
-        ["git", "archive", "--format=tar", "-o", archive, tree],
-        cwd=ROOT,
-        check=True,
-    )
-    snapshot = tmp_path / "snapshot"
-    snapshot.mkdir()
-    with tarfile.open(archive) as source:
-        source.extractall(snapshot, filter="data")
-
+    subprocess.run([sys.executable, snapshot / "scripts" / "prepare_release.py"], check=True)
     tracked_viewer = _viewer_files(snapshot)
     assert "index.html" in tracked_viewer
     assert any(name.startswith("assets/") and name.endswith(".js") for name in tracked_viewer)
     assert any(name.startswith("assets/") and name.endswith(".css") for name in tracked_viewer)
 
-    subprocess.run(
-        [_npm(), "ci", "--ignore-scripts"],
-        cwd=snapshot / "viewer",
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
     subprocess.run([sys.executable, snapshot / "scripts" / "prepare_release.py"], check=True)
     rebuilt_viewer = _viewer_files(snapshot)
     assert rebuilt_viewer == tracked_viewer

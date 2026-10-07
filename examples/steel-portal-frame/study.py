@@ -31,6 +31,7 @@ from tuba.analysis.staged_run import stage_runs
 from tuba.project import load_project
 from tuba.project.solve import solve_project
 from tuba.reporting import build_engineering_review
+from tuba.reporting.csv_cells import spreadsheet_cell
 from tuba.visualization import (
     SceneBuildOptions,
     SceneRequest,
@@ -96,7 +97,7 @@ def write_section_forces(path: Path, rows: list[dict]) -> Path:
     with target.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows({key: spreadsheet_cell(value) for key, value in row.items()} for row in rows)
     return target
 
 
