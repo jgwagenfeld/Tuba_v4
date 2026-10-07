@@ -3,7 +3,13 @@ from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
+import hashlib
+import json
+import tarfile
 
+import pytest
+
+from scripts import build_browser_runtime
 from scripts.build_browser_runtime import browser_runtime_archive
 
 
@@ -80,3 +86,44 @@ def test_browser_preview_builds_a_scene_without_gmsh():
     )
     result = subprocess.run([sys.executable, "-c", script], cwd=root, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr[-2000:]
+
+
+def test_pyodide_assets_verify_core_and_dependency_closure(tmp_path, monkeypatch):
+    wheels = {name: name.encode() for name in ("numpy", "jsonschema", "schema-specifications")}
+    lock = {"packages": {name: {
+        "file_name": name + ".whl", "sha256": hashlib.sha256(data).hexdigest(),
+        "depends": ["schema_specifications"] if name == "jsonschema" else [],
+    } for name, data in wheels.items()}}
+    output = BytesIO()
+    with tarfile.open(fileobj=output, mode="w:bz2") as archive:
+        for name in ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"):
+            data = json.dumps(lock).encode() if name == "pyodide-lock.json" else name.encode()
+            member = tarfile.TarInfo("pyodide/" + name)
+            member.size = len(data)
+            archive.addfile(member, BytesIO(data))
+    core = output.getvalue()
+    downloads = []
+
+    def download(url, destination, digest):
+        data = core if url == build_browser_runtime.PYODIDE_CORE_URL else wheels[destination.stem]
+        assert hashlib.sha256(data).hexdigest() == digest
+        downloads.append(destination.name)
+        return data
+
+    monkeypatch.setattr(build_browser_runtime, "PYODIDE_CORE_SHA256", hashlib.sha256(core).hexdigest())
+    monkeypatch.setattr(build_browser_runtime, "_verified_download", download)
+    assets = build_browser_runtime.pyodide_assets(tmp_path)
+    assert set(downloads) == {"core.tar.bz2", "numpy.whl", "jsonschema.whl", "schema-specifications.whl"}
+    assert set(json.loads(assets["pyodide-lock.json"])["packages"]) == set(wheels)
+    assert json.loads(assets["runtime-manifest.json"])["sha256"]["numpy.whl"] == hashlib.sha256(wheels["numpy"]).hexdigest()
+
+
+def test_pyodide_download_rejects_tampered_cache_and_upstream(tmp_path, monkeypatch):
+    destination = tmp_path / "pyodide.mjs"
+    destination.write_bytes(b"tampered cache")
+    response = BytesIO(b"tampered upstream")
+    response.url = "https://upstream.example/runtime"
+    monkeypatch.setattr(build_browser_runtime, "urlopen", lambda *_args, **_kwargs: response)
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        build_browser_runtime._verified_download(response.url, destination, hashlib.sha256(b"approved").hexdigest())
+    assert destination.read_bytes() == b"tampered cache"

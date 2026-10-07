@@ -41,7 +41,7 @@ const SHOOTER = join(REPO_ROOT, "viewer", "scripts", "gallery-thumbnails.mjs");
 // Pages build - so everyone working locally saw bare title chips and the copy
 // nobody could see drifted unnoticed. The dev server asks the same module.
 let cachedCatalog;
-const python = [
+const python = process.env.TUBA_BUILD_PYTHON || [
     join(REPO_ROOT, ".venv", "Scripts", "python.exe"),
     join(REPO_ROOT, ".venv", "bin", "python"),
     process.platform === "win32" ? "python" : "python3"
@@ -104,6 +104,7 @@ function shootMissingThumbnails() {
 
 function bundleManifest() {
   let profiles;
+  let building = false;
   function profilePayload() {
     if (profiles !== undefined) return profiles;
     const run = spawnSync(python, [join(REPO_ROOT, "scripts", "build_profile_catalog.py")], {
@@ -121,7 +122,9 @@ function bundleManifest() {
   };
   return {
     name: "tuba-bundle-manifest",
+    configResolved(config) { building = config.command === "build"; },
     transformIndexHtml(html) {
+      if (building) html = html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />`);
       return html.replace(/\r\n/g, "\n");
     },
     configureServer(server) {
@@ -178,6 +181,17 @@ function bundleManifest() {
 
 function browserRuntime() {
   let payload;
+  const runtimeDir = join(REPO_ROOT, ".build", "pyodide");
+  let runtimeReady = false;
+  function runtimeAssets() {
+    if (!runtimeReady) {
+      const result = spawnSync(python, [join(REPO_ROOT, "scripts", "build_browser_runtime.py"), "--pyodide-output", runtimeDir], { encoding: "utf8", timeout: 300_000 });
+      if (result.status !== 0) throw new Error(`Pyodide runtime build failed: ${result.error?.message ?? result.stderr}`);
+      runtimeReady = true;
+    }
+    const manifest = JSON.parse(readFileSync(join(runtimeDir, "runtime-manifest.json"), "utf8"));
+    return [...Object.keys(manifest.sha256), "runtime-manifest.json"];
+  }
   function archive() {
     const result = spawnSync(python, [join(REPO_ROOT, "scripts", "build_browser_runtime.py")], { maxBuffer: 16 * 1024 * 1024 });
     if (result.status !== 0) throw new Error(`Browser runtime build failed: ${result.stderr}`);
@@ -186,9 +200,20 @@ function browserRuntime() {
   return {
     name: "tuba-browser-runtime",
     // Read the source archive's input list before Vite clears the output directory.
-    buildStart() { payload = archive(); },
-    generateBundle() { this.emitFile({ type: "asset", fileName: "tuba-browser.zip", source: payload }); },
+    buildStart() { payload = archive(); runtimeAssets(); },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "tuba-browser.zip", source: payload });
+      for (const name of runtimeAssets()) {
+        this.emitFile({ type: "asset", fileName: `pyodide/${name}`, source: readFileSync(join(runtimeDir, name)) });
+      }
+    },
     configureServer(server) {
+      server.middlewares.use("/pyodide", (request, response, next) => {
+        const name = (request.url ?? "").split("?")[0].replace(/^\//, "");
+        if (!runtimeAssets().includes(name)) return next();
+        response.setHeader("content-type", name.endsWith(".wasm") ? "application/wasm" : name.endsWith(".mjs") || name.endsWith(".js") ? "text/javascript" : "application/octet-stream");
+        createReadStream(join(runtimeDir, name)).pipe(response);
+      });
       server.middlewares.use("/tuba-browser.zip", (_request, response) => {
         response.setHeader("content-type", "application/zip");
         response.end(archive());

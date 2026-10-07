@@ -65,12 +65,12 @@ def test_blocking_clash_preserves_evidence_on_every_surface(tmp_path, monkeypatc
         try:
             request = Request(studio.base_url + 'api/solve', method='POST',
                               data=json.dumps({'force': force}).encode(),
-                              headers={'Content-Type': 'application/json'})
+                              headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + studio.access_token})
             with urlopen(request, timeout=10) as response:
                 assert response.status == 202
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
-                with urlopen(studio.base_url + 'api/project', timeout=10) as response:
+                with urlopen(Request(studio.base_url + 'api/project', headers={'Authorization': 'Bearer ' + studio.access_token}), timeout=10) as response:
                     info = json.load(response)
                 if not info['solving']:
                     break

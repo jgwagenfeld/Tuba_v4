@@ -441,20 +441,33 @@ class MixedCodeAsterStudyExporter:
         ]
 
     def _write_med_with_gmsh(self, model: TubaModel, path: Path) -> None:
+        from tuba.geometry._native_worker import read_source, run_native
+        source_digests = []
+        for asset in self._existing_step_assets(model):
+            source_digests.append((str(Path(asset.source_path).resolve()), hashlib.sha256(read_source(asset.source_path)).hexdigest()))
+        run_native("legacy_step_mesh", json.dumps(model.to_dict(), allow_nan=False, separators=(",", ":")).encode("utf-8"),
+                   output_path=str(Path(path).resolve()), source_digests=source_digests)
+
+    def _write_med_with_gmsh_native(self, model: TubaModel, path: Path) -> None:
         try:
             import gmsh
         except ImportError as exc:
             raise RuntimeError("gmsh is required to write MED studies from STEP assets.") from exc
 
         name_map = self._group_name_map(model)
+        from tuba.geometry._native_worker import MAX_CAD_ENTITIES, MAX_OUTPUT_BYTES, NativeImportError, read_source
+        from tuba.meshing.step_component import _check_mesh_budget
         try:
             with gmsh_model(gmsh, "tuba_mixed"):
                 volume_tags_by_asset: dict[str, list[int]] = {}
                 known_volume_tags: set[int] = set()
                 for asset in self._existing_step_assets(model):
                     source = Path(asset.source_path)
+                    read_source(source)
                     gmsh.model.occ.importShapes(str(source))
                     gmsh.model.occ.synchronize()
+                    if len(gmsh.model.getEntities()) > MAX_CAD_ENTITIES:
+                        raise NativeImportError("Legacy STEP CAD entity budget exceeded before meshing.")
                     current_volume_tags = {tag for _, tag in gmsh.model.getEntities(3)}
                     volume_tags_by_asset[asset.id] = sorted(current_volume_tags - known_volume_tags)
                     known_volume_tags = current_volume_tags
@@ -486,11 +499,14 @@ class MixedCodeAsterStudyExporter:
                         gmsh.model.addPhysicalGroup(2, [face_tag], name=name_map[port.face_group])
 
                 gmsh.model.mesh.generate(3)
+                _check_mesh_budget()
                 gmsh.write(str(path))
         except Exception as exc:
             raise RuntimeError(f"Failed to write Gmsh MED mesh {path}: {exc}") from exc
         if not path.exists() or path.stat().st_size == 0:
             raise RuntimeError(f"Gmsh MED writer produced an empty file: {path}")
+        if path.stat().st_size > MAX_OUTPUT_BYTES:
+            raise NativeImportError("Native MED mesh exceeds 64 MiB.")
 
     def _region_volume_tags(
         self,

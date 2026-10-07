@@ -14,6 +14,7 @@ def request(launcher, route, body=None, **headers):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     if data is not None:
         headers.setdefault("Content-Type", "application/json")
+    headers.setdefault("Authorization", "Bearer " + launcher.access_token)
     req = Request(launcher.base_url + route.lstrip("/"), data=data, headers=headers)
     try:
         response = urlopen(req, timeout=10)
@@ -58,7 +59,7 @@ def test_open_preserves_project_files_and_reuses_only_the_same_full_root(tmp_pat
         assert len({server.out_dir for server in launcher._studios.values()}) == 2
         assert [entry["path"] for entry in launcher.recent()] == [str(second.resolve()), str(first.resolve())]
         for server in launcher._studios.values():
-            assert server.launcher_url == launcher.base_url
+            assert server.launcher_url == launcher.launch_url
         assert before == {str(path): path.read_bytes() for root in (first, second) for path in root.iterdir() if path.is_file()}
     finally:
         launcher.stop()

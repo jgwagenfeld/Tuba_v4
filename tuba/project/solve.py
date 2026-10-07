@@ -124,7 +124,7 @@ def solve_project(
                 runs[operation] = port.solve_exported_study(model, exported)
             for operation in operations:
                 if operation not in runs:
-                    runs[operation] = import_code_aster_artifacts(model=model, work_dir=folders[operation])
+                    runs[operation] = import_code_aster_artifacts(model=model, work_dir=folders[operation], expected_identity=identities[operation])
             check = settings.check
             if check is not None:
                 check(SimpleNamespace(model=model, namespace=namespace, runs={operation: runs[operation] for operation in operations}))
@@ -133,7 +133,7 @@ def solve_project(
             shutil.rmtree(staging, ignore_errors=True)
         # A solved run was imported from staging, which is gone: read it again from its evidence folder.
         runs = {
-            operation: import_code_aster_artifacts(model=model, work_dir=folders[operation]) if operation in solve else runs[operation]
+            operation: import_code_aster_artifacts(model=model, work_dir=folders[operation], expected_identity=identities[operation]) if operation in solve else runs[operation]
             for operation in operations
         }
     return ProjectSolve(

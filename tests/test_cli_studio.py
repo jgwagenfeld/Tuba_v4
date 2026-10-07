@@ -25,6 +25,8 @@ class IdleServer:
     def __init__(self, *args, **kwargs):
         self.args, self.kwargs = args, kwargs
         self.base_url = "http://127.0.0.1:54321/"
+        self.access_token = "A" * 43
+        self.launch_url = self.base_url + "#tuba_token=" + self.access_token
         self.ws_url = "ws://127.0.0.1:54321/preview/ws"
         self._stop = threading.Event()
         self._stop.set()
@@ -57,7 +59,7 @@ def test_no_project_launches_welcome_and_explicit_folder_keeps_cli_semantics(tmp
     assert studio.args[0] == root.resolve()
     assert studio.args[1].parent == tmp_path / ".build" / "studio"
     assert studio.kwargs["port"] == 0
-    assert studio.launcher_url == direct_launcher.base_url
+    assert studio.launcher_url == direct_launcher.launch_url
     assert direct_launcher.opened == str(root.resolve())
     assert all(server.started and server.stopped for server in IdleServer.instances)
     assert not (root / "study.py").exists()

@@ -18,11 +18,15 @@ from urllib.parse import urlsplit
 from tuba.model import BendGeometry, sample_bend_geometry
 from tuba.reporting.isometry import project_point
 from tuba.reporting.profile_svg import section_svg
+from tuba.reporting.csv_cells import spreadsheet_cell
 
 from tuba.reporting.model import (
     EngineeringReviewError,
     EngineeringReviewPackage,
+    ReportColumn,
     ReportTable,
+    ReviewDiagnostic,
+    ReviewProvenance,
     _json_value,
     _validate_report_table_id,
 )
@@ -345,6 +349,31 @@ def _write_json(path: Path, data: Any) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
+def regenerate_received_review(root: Path) -> None:
+    """Replace received HTML/CSV with passive output rendered by this installed Tuba release."""
+    path = root / "review.json"
+    if not path.exists():
+        if (root / "index.html").exists():
+            raise EngineeringReviewError("Received report HTML requires a valid review.json for regeneration.")
+        return
+    if path.stat().st_size > 32 * 1024**2:
+        raise EngineeringReviewError("Received review.json exceeds 32 MiB.")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload.get("schema_version") != "engineering_review.v1":
+            raise EngineeringReviewError("Unsupported received review schema.")
+        payload["tables"] = tuple(ReportTable(
+            **{**table, "columns": tuple(ReportColumn(**column) for column in table["columns"]),
+               "rows": tuple(table["rows"])}
+        ) for table in payload["tables"].values())
+        payload["provenance"] = tuple(ReviewProvenance(**record) for record in payload.get("provenance", ()))
+        payload["diagnostics"] = tuple(ReviewDiagnostic(**record) for record in payload.get("diagnostics", ()))
+        review = EngineeringReviewPackage(**payload)
+        write_engineering_review(review, root)
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise EngineeringReviewError(f"Invalid received engineering review: {exc}") from exc
+
+
 def _write_table_csv(
     table: ReportTable,
     destination: Path,
@@ -365,7 +394,7 @@ def _write_table_csv(
     stream = StringIO(newline="")
     writer = csv.writer(stream, lineterminator="\n")
     column_ids = [column.id for column in table.columns]
-    writer.writerow(column_ids)
+    writer.writerow([spreadsheet_cell(column_id) for column_id in column_ids])
     for row in table.rows:
         writer.writerow([_csv_value(row.get(column_id)) for column_id in column_ids])
     path.write_text(stream.getvalue(), encoding="utf-8", newline="\n")
@@ -386,7 +415,7 @@ def _csv_value(value: Any) -> Any:
         return ""
     if isinstance(normalized, bool):
         return "true" if normalized else "false"
-    return normalized
+    return spreadsheet_cell(normalized)
 
 
 def _build_manifest(
@@ -437,6 +466,7 @@ def _render_html(
         '<html lang="en">',
         "<head>",
         '<meta charset="utf-8">',
+        '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:; base-uri \'none\'; form-action \'none\'">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{escape(page_title)}</title>",
         "<style>",

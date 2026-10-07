@@ -1,3 +1,5 @@
+import { previewProtocols } from "./localAuth.js";
+import { openReport } from "./reportView.js";
 import {
   lineAtOffset,
   lineCount,
@@ -1705,6 +1707,10 @@ function renderHeader() {
   dom.reportLink.hidden = !currentState.review;
   if (currentState.review) {
     dom.reportLink.href = `${currentBundleUrl}/index.html`;
+    dom.reportLink.onclick = event => {
+      event.preventDefault();
+      void openReport(dom.reportLink.href).catch(error => setStatus(error.message, true));
+    };
     // The report prints stored SI so it stays byte-comparable with the CSVs and
     // review.json beside it; this viewer converts for display. Said on the way
     // out as well as on arrival, because a reader who has already crossed has
@@ -1717,6 +1723,7 @@ function renderHeader() {
     );
   } else {
     dom.reportLink.removeAttribute("href");
+    dom.reportLink.onclick = null;
   }
 }
 
@@ -4971,7 +4978,7 @@ function setErrorStatus(error, context = "") {
 }
 
 function connectLivePreview(wsUrl) {
-  const socket = new WebSocket(wsUrl);
+  const socket = new WebSocket(wsUrl, previewProtocols(wsUrl));
   socket.addEventListener("open", () => setStatus("Live preview connected"));
   socket.addEventListener("message", (event) => {
     void handleLivePreviewEvent(event.data);

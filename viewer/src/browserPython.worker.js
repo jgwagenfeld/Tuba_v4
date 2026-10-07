@@ -1,6 +1,6 @@
 // Python 3.12 matches Tuba's supported interpreter. NumPy here is preview-only:
 // solver identities and engineering results always come from native Code_Aster.
-const INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
+const INDEX_URL = new URL(/* @vite-ignore */ "../pyodide/", import.meta.url).href;
 let python;
 
 self.onmessage = async ({ data: { code, runtimeUrl } }) => {

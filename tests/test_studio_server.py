@@ -3,7 +3,7 @@ import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 _BUILDER_SCRIPT = """from tuba import Model
 
@@ -72,7 +72,7 @@ class TestStudioServer(unittest.TestCase):
         tmpdir = self.enterContext(TemporaryDirectory())
         server = self._start_studio(Path(tmpdir))
 
-        with urlopen(server.base_url + "api/script", timeout=10) as response:
+        with urlopen(Request(server.base_url + "api/script", headers={"Authorization": "Bearer " + server.access_token}), timeout=10) as response:
             from tuba.project.source import read_source
 
             self.assertEqual(json.loads(response.read().decode("utf-8")), {"ok": True, **read_source(server.script_path)})
@@ -93,7 +93,7 @@ class TestStudioServer(unittest.TestCase):
         root = Path(self.enterContext(TemporaryDirectory()))
         script = _SMALL_SCRIPT + '\nmodel.add_ibeam_section("UnusedBeam", profile_name="IPE160")\n'
         server = self._start_studio(root, script=script)
-        with urlopen(server.base_url + "api/profiles", timeout=10) as response:
+        with urlopen(Request(server.base_url + "api/profiles", headers={"Authorization": "Bearer " + server.access_token}), timeout=10) as response:
             payload = json.loads(response.read())
         self.assertTrue(payload["ok"])
         self.assertEqual(len(payload["catalog"]), 400)
@@ -143,7 +143,7 @@ class TestStudioServer(unittest.TestCase):
         browser_code = _SMALL_SCRIPT.replace("StudioStart", "UnsavedBrowserEdit")
         body = {"code": browser_code, "expected_revision": loaded["source_revision"]}
         request = Request(server.base_url + "api/script", data=json.dumps(body).encode(),
-                          headers={"Content-Type": "application/json"}, method="POST")
+                          headers={"Content-Type": "application/json", "Authorization": "Bearer " + server.access_token}, method="POST")
         with self.assertRaises(HTTPError) as failure:
             urlopen(request, timeout=10)
         self.assertEqual(failure.exception.code, 409)
@@ -164,7 +164,7 @@ class TestStudioServer(unittest.TestCase):
             if revision is not None:
                 payload["expected_revision"] = revision
             request = Request(server.base_url + "api/script", data=json.dumps(payload).encode(),
-                              headers={"Content-Type": "application/json"}, method="POST")
+                              headers={"Content-Type": "application/json", "Authorization": "Bearer " + server.access_token}, method="POST")
             with self.assertRaises(HTTPError) as failure:
                 urlopen(request, timeout=10)
             self.assertEqual(failure.exception.code, 400)
@@ -179,7 +179,7 @@ class TestStudioServer(unittest.TestCase):
         from tuba.visualization.preview.server import ProjectStudioServer
 
         server = self._start_studio(Path(self.enterContext(TemporaryDirectory())))
-        with urlopen(server.base_url + "api/project", timeout=10) as response:
+        with urlopen(Request(server.base_url + "api/project", headers={"Authorization": "Bearer " + server.access_token}), timeout=10) as response:
             info = json.loads(response.read())
         self.assertEqual(info["project_root"], str(server.project.root.resolve()))
         self.assertEqual(info["project_id"], project_id(server.project.root))
@@ -250,7 +250,7 @@ class TestStudioServer(unittest.TestCase):
         request = Request(
             server.base_url + "api/script",
             data=json.dumps({"code": code, "expected_revision": server.get_python_script()["source_revision"]}).encode("utf-8"),
-            headers={"Content-Type": "application/json", **headers},
+            headers={"Content-Type": "application/json", "Authorization": "Bearer " + server.access_token, **headers},
             method="POST",
         )
         try:
@@ -301,7 +301,7 @@ class TestStudioServer(unittest.TestCase):
 
         def request(path: str, method: str = "GET", **headers):
             try:
-                with urlopen(Request(server.base_url + path, headers=headers, method=method), timeout=10) as response:
+                with urlopen(Request(server.base_url + path, headers={"Authorization": "Bearer " + server.access_token, **headers}, method=method), timeout=10) as response:
                     return response.status, response.headers, response.read()
             except HTTPError as exc:
                 return exc.code, exc.headers, exc.read()
@@ -322,11 +322,11 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual((status, json.loads(body)["code"]), (200, _SMALL_SCRIPT))
         self.assertIsNone(headers["Access-Control-Allow-Origin"])
 
-        # A loopback dev page (the Vite dev server) may read, bundles included.
+        # Loopback ports do not share browser authority by default.
         status, headers, _body = request("api/script", Origin="http://localhost:5173")
-        self.assertEqual((status, headers["Access-Control-Allow-Origin"]), (200, "http://localhost:5173"))
+        self.assertEqual((status, headers["Access-Control-Allow-Origin"]), (403, None))
         status, headers, _body = request("build/scene.json", Origin="http://127.0.0.1:5173")
-        self.assertEqual((status, headers["Access-Control-Allow-Origin"]), (200, "http://127.0.0.1:5173"))
+        self.assertEqual((status, headers["Access-Control-Allow-Origin"]), (403, None))
 
     def test_studio_websocket_refuses_foreign_pages(self):
         import socket
@@ -345,10 +345,12 @@ class TestStudioServer(unittest.TestCase):
             "Connection: Upgrade",
             "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
             "Sec-WebSocket-Version: 13",
+            f"Sec-WebSocket-Protocol: tuba-auth.{server.access_token}",
         )
         local = f"Host: 127.0.0.1:{server.port}"
         self.assertIn(b" 403 ", status_line(*upgrade, local, "Origin: http://evil.example"))
-        self.assertIn(b" 101 ", status_line(*upgrade, local, "Origin: http://localhost:5173"))
+        self.assertIn(b" 403 ", status_line(*upgrade, local, "Origin: http://localhost:5173"))
+        self.assertIn(b" 101 ", status_line(*upgrade, local, f"Origin: {server.base_url.rstrip(chr(47))}"))
         # DNS rebinding: a loopback Origin does not excuse a foreign Host on the upgrade.
         self.assertIn(b" 403 ", status_line(*upgrade, f"Host: evil.example:{server.port}", "Origin: http://localhost:5173"))
         # A refusal still answers when Content-Length will not parse.
@@ -359,7 +361,7 @@ class TestStudioServer(unittest.TestCase):
         body. The server closes the connection after every answer, so this reads to the end."""
         import socket
 
-        request = "\r\n".join((request_line, f"Host: 127.0.0.1:{server.port}", *headers)) + "\r\n\r\n"
+        request = "\r\n".join((request_line, f"Host: 127.0.0.1:{server.port}", f"Authorization: Bearer {server.access_token}", *headers)) + "\r\n\r\n"
         with socket.create_connection(("127.0.0.1", server.port), timeout=5) as sock:
             sock.sendall(request.encode("ascii"))
             response = b""
@@ -424,7 +426,7 @@ class TestStudioServer(unittest.TestCase):
 
         def response_to(path: str, **headers):
             try:
-                with urlopen(Request(server.base_url + path, headers=headers), timeout=10) as response:
+                with urlopen(Request(server.base_url + path, headers={"Authorization": "Bearer " + server.access_token, **headers}), timeout=10) as response:
                     return response.status, response.headers
             except HTTPError as exc:
                 exc.close()
@@ -437,9 +439,9 @@ class TestStudioServer(unittest.TestCase):
         }
         self.assertEqual([status for status, _headers in responses.values()], [200, 200, 403])
         expected = {
-            "Cross-Origin-Resource-Policy": ["same-site"],
+            "Cross-Origin-Resource-Policy": ["same-origin"],
             "X-Frame-Options": ["SAMEORIGIN"],
-            "Content-Security-Policy": ["frame-ancestors 'self' http://localhost:* http://127.0.0.1:* vscode-webview: vscode-file:"],
+            "Content-Security-Policy": ["frame-ancestors 'self' vscode-webview: vscode-file:"],
         }
         for name, (_status, headers) in responses.items():
             self.assertEqual({header: headers.get_all(header) for header in expected}, expected, name)
@@ -561,7 +563,7 @@ class TestStudioServer(unittest.TestCase):
         handshake = (
             f"GET /preview/ws HTTP/1.1\r\nHost: 127.0.0.1:{server.port}\r\n"
             "Upgrade: websocket\r\nConnection: Upgrade\r\n"
-            "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+            f"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: tuba-auth.{server.access_token}\r\n\r\n"
         ).encode("ascii")
         with socket.create_connection(("127.0.0.1", server.port), timeout=5) as sock:
             sock.sendall(handshake)

@@ -99,7 +99,7 @@ def test_corrupt_or_ambiguous_archives_are_refused(tmp_path, monkeypatch, change
     assert not (tmp_path / "working").exists()
 
 
-def test_workspace_helpers_travel_with_the_project(tmp_path, monkeypatch):
+def test_workspace_helpers_require_explicit_source_and_destination_approval(tmp_path, monkeypatch):
     # Gallery projects import shared helpers from their own workspace
     # (examples/<project> -> examples.code_aster_artifact_review); those come along.
     workspace = tmp_path / "workspace"
@@ -112,8 +112,15 @@ def test_workspace_helpers_travel_with_the_project(tmp_path, monkeypatch):
                                    + "\nfrom examples.shared import VALUE\nassert VALUE == 2.5\n", encoding="utf-8")
     monkeypatch.syspath_prepend(str(workspace))
     archive = tmp_path / "demo.tgz"
-    manifest = package.export_project_package(root, archive)
+    with pytest.raises(ValueError, match="outside this project"):
+        package.export_project_package(root, archive)
+    assert not archive.exists()
+    manifest = package.export_project_package(root, archive, external_sources={
+        "examples/shared.py": workspace / "examples" / "shared.py",
+        "examples/deeper.py": workspace / "examples" / "deeper.py",
+    })
     assert {"examples/shared.py", "examples/deeper.py"} <= {record["path"] for record in manifest["files"]}
+    assert all("external_source" in record for record in manifest["files"] if record["path"].startswith("examples/"))
 
     monkeypatch.setattr(sys, "path", [entry for entry in sys.path if entry != str(workspace)])
     monkeypatch.chdir(tmp_path)

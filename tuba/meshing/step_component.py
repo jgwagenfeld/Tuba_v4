@@ -18,6 +18,8 @@ from tuba.meshing.policy import has_mesh_policy, has_legacy_refinements, resolve
 from tuba.meshing.quality import mesh_review
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map
+from tuba.geometry._native_worker import (MAX_CAD_ENTITIES, MAX_FACES, MAX_VERTICES,
+    MAX_OUTPUT_BYTES, NativeImportError, read_source, run_native)
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,22 @@ def mesh_step_model(model, output_path, *, max_element_size=None, line_segments=
 
 
 def build_step_component_mesh(model, output_path, *, region=None, max_element_size=None, line_modelisation=None, line_segments=None, mesh_policy=None):
+    """Native CAD reopening/meshing is isolated for Python, Studio and compiler callers."""
+    source_digests = []
+    for asset in model.cad_assets.values():
+        if asset.source_format.upper() in {"STEP", "STP"}:
+            source_digests.append((str(Path(asset.source_path).resolve()), hashlib.sha256(read_source(asset.source_path)).hexdigest()))
+    data = json.dumps(model.to_dict(), allow_nan=False, separators=(",", ":")).encode("utf-8")
+    generated = run_native("step_mesh", data, output_path=str(Path(output_path).resolve()),
+        region=region.to_dict() if region is not None else None, max_element_size=max_element_size,
+        line_modelisation=line_modelisation, line_segments=line_segments,
+        source_digests=source_digests,
+        mesh_policy={"data": mesh_policy._data, "samples": mesh_policy._samples} if mesh_policy is not None else None)
+    return GeneratedStepComponentMesh(AnalysisMesh.from_dict(generated["analysis_mesh"]),
+        {key: tuple(value) for key, value in generated["groups"].items()}, generated["gmsh_version"], generated["settings"])
+
+
+def _build_step_component_mesh_native(model, output_path, *, region=None, max_element_size=None, line_modelisation=None, line_segments=None, mesh_policy=None):
     """Regenerate all regions and named patches; never replay OCC entity tags.
 
     The legacy single-region keywords remain accepted. Registered shells and
@@ -131,7 +149,7 @@ def build_step_component_mesh(model, output_path, *, region=None, max_element_si
         source = Path(asset.source_path)
         if asset.source_format.upper() not in {"STEP", "STP"} or source.suffix.lower() not in {".step", ".stp"}:
             raise ValueError("Solved imported solids require a STEP file.")
-        digest = "sha256:" + hashlib.sha256(source.read_bytes()).hexdigest()
+        digest = "sha256:" + hashlib.sha256(read_source(source)).hexdigest()
         if asset.content_digest != digest:
             raise ValueError("STEP source changed since import; reimport and review its interfaces.")
         key = getattr(solid, "id", "legacy")
@@ -172,6 +190,8 @@ def build_step_component_mesh(model, output_path, *, region=None, max_element_si
                 asset = assets[solid.id]
                 imported = gmsh.model.occ.importShapes(str(sources[solid.id][0]))
                 gmsh.model.occ.synchronize()
+                if len(gmsh.model.getEntities()) > MAX_CAD_ENTITIES:
+                    raise NativeImportError("STEP analysis CAD entity budget exceeded before meshing.")
                 volumes = tuple(tag for dim, tag in imported if dim == 3)
                 if not volumes:
                     raise ValueError("STEP analysis component contains no CAD solid.")
@@ -279,6 +299,7 @@ def build_step_component_mesh(model, output_path, *, region=None, max_element_si
             entity_sources.update({(1,tag):f"element:{id}" for id,tag in line_entities.items()})
             with gmsh_policy(gmsh,policy,entity_sources,face_bindings=face_bindings) as bound:
                 gmsh.model.mesh.generate(3 if solids else 2)
+                _check_mesh_budget()
                 # Sample while finite CAD bindings are alive; this is requested
                 # sizing evidence, independent of result artifacts.
                 size_preview = bound.preview()
@@ -334,8 +355,10 @@ def build_step_component_mesh(model, output_path, *, region=None, max_element_si
             _write_exact_med(temporary, mesh, set(node_groups), name_map)
             if not temporary.is_file() or not temporary.stat().st_size:
                 raise RuntimeError("Gmsh produced an empty mixed MED mesh.")
+            if temporary.stat().st_size > MAX_OUTPUT_BYTES:
+                raise NativeImportError("Native MED mesh exceeds 64 MiB.")
             for source,digest in sources.values():
-                if "sha256:"+hashlib.sha256(source.read_bytes()).hexdigest() != digest:
+                if "sha256:"+hashlib.sha256(read_source(source)).hexdigest() != digest:
                     raise ValueError("STEP source changed during meshing; reimport it.")
             temporary.replace(output)
             settings={"element_family":"TETRA10" if solids else "TRI3","element_order":2 if solids else 1,
@@ -369,6 +392,7 @@ def _point_nodes(entity,node_id):
 
 
 def _readback(model,output,regions,raw_entities,descriptions,line_entities,node_entities,node_groups,solid_entities):
+    _check_mesh_budget()
     tags,coordinates,_=gmsh.model.mesh.getNodes()
     if not np.isfinite(coordinates).all() or len(set(map(int,tags))) != len(tags):
         raise RuntimeError("Mixed mesh contains non-finite or duplicate node coordinates/tags.")
@@ -444,6 +468,15 @@ def _readback(model,output,regions,raw_entities,descriptions,line_entities,node_
     # optional native NUM/NOM tags. Normalize only after all Gmsh quality checks.
     mesh = _normalize_med_ordinals(mesh)
     return mesh,mesh.groups
+
+
+def _check_mesh_budget():
+    tags, coordinates, _ = gmsh.model.mesh.getNodes()
+    if len(tags) > MAX_VERTICES or len(coordinates) > MAX_VERTICES * 3:
+        raise NativeImportError("Native analysis mesh vertex budget exceeded before Python expansion.")
+    _, blocks, _ = gmsh.model.mesh.getElements()
+    if sum(len(block) for block in blocks) > MAX_FACES:
+        raise NativeImportError("Native analysis mesh element budget exceeded before Python expansion.")
 
 
 def _med_cell_family(nodes,source):

@@ -3,7 +3,7 @@ import io
 import json
 import tarfile
 from urllib.error import HTTPError
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 from urllib.request import Request, urlopen
 import zipfile
 import pytest
@@ -24,7 +24,7 @@ def test_package_upload_export_and_local_request_guards(tmp_path, archive_format
     try:
         def upload(headers=None):
             request = Request(launcher.base_url + "api/projects/import", data=archive.read_bytes(), headers={
-                "Content-Type": "application/octet-stream", "X-Project-Destination": quote(str(destination)), **(headers or {})})
+                "Authorization": "Bearer " + launcher.access_token, "Content-Type": "application/octet-stream", "X-Project-Destination": quote(str(destination)), **(headers or {})})
             try:
                 return urlopen(request, timeout=20)
             except HTTPError as exc:
@@ -40,9 +40,18 @@ def test_package_upload_export_and_local_request_guards(tmp_path, archive_format
         with upload() as response:
             assert response.status == 400
         studio_url = opened["viewer_url"].split("?", 1)[0]
-        with urlopen(studio_url + "api/package/preview?results=0", timeout=20) as response:
-            assert json.loads(response.read())["file_count"] == 2
-        with urlopen(studio_url + "api/package/export?results=0&format=" + archive_format, timeout=20) as response:
+        token = parse_qs(urlsplit(opened["viewer_url"]).fragment)["tuba_token"][0]
+        def studio_request(route, *, body=None, headers=None):
+            request = Request(studio_url + route, data=json.dumps(body).encode() if body is not None else None,
+                              headers={"Authorization": "Bearer " + token, "Content-Type": "application/json", **(headers or {})})
+            try:
+                return urlopen(request, timeout=20)
+            except HTTPError as exc:
+                return exc
+        with studio_request("api/package/preview?results=0") as response:
+            preview = json.loads(response.read())
+            assert preview["file_count"] == 2
+        with studio_request("api/package/export", body={"operation_nonce": preview["operation_nonce"], "results": False, "format": archive_format}) as response:
             assert response.headers.get_content_type() == ("application/gzip" if archive_format == "tgz" else "application/zip")
             assert suffix in response.headers["Content-Disposition"]
             payload = io.BytesIO(response.read())
@@ -54,16 +63,16 @@ def test_package_upload_export_and_local_request_guards(tmp_path, archive_format
                     assert bundle.read("project/model.py") == (source / "model.py").read_bytes()
         for route, origin, expected in [("preview?results=1", None, 400), ("preview?results=2", None, 400),
                                         ("export?results=0", "https://foreign.invalid", 403),
-                                        ("export?format=unknown", None, 400), ("export?format=tgz&format=zip", None, 400)]:
+                                        ("export?format=unknown", None, 405), ("export?format=tgz&format=zip", None, 405)]:
             try:
-                response = urlopen(Request(studio_url + "api/package/" + route, headers={"Origin": origin} if origin else {}), timeout=20)
+                response = studio_request("api/package/" + route, headers={"Origin": origin} if origin else {})
             except HTTPError as exc:
                 response = exc
             with response:
                 assert response.status == expected
         (destination / "model.py").write_text("model = None\n")
         try:
-            response = urlopen(studio_url + "api/package/preview?results=1", timeout=20)
+            response = studio_request("api/package/preview?results=1")
         except HTTPError as exc:
             response = exc
         with response:

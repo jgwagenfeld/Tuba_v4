@@ -90,7 +90,7 @@ class StudioProjectModeTest(unittest.TestCase):
         return server, project
 
     def _get(self, server, path: str) -> dict:
-        with urlopen(server.base_url + path, timeout=10) as response:
+        with urlopen(Request(server.base_url + path, headers={"Authorization": "Bearer " + server.access_token}), timeout=10) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def _post(self, server, path: str, payload: dict | None = None, **headers):
@@ -99,7 +99,7 @@ class StudioProjectModeTest(unittest.TestCase):
         request = Request(
             server.base_url + path,
             data=json.dumps(payload or {}).encode("utf-8"),
-            headers={"Content-Type": "application/json", **headers},
+            headers={"Content-Type": "application/json", "Authorization": "Bearer " + server.access_token, **headers},
             method="POST",
         )
         try:

@@ -1,13 +1,109 @@
 """Package the real Python geometry code for the static gallery's browser worker."""
 
 from io import BytesIO
+import argparse
+import hashlib
+import json
+import os
 from pathlib import Path
+import re
 import subprocess
 import sys
+import tarfile
 import tomllib
+from urllib.request import urlopen
+from uuid import uuid4
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
+PYODIDE_VERSION = "0.27.7"
+# GitHub's authenticated release API: pyodide/pyodide/releases/tags/0.27.7.
+# The core archive authenticates its package lock; every wheel is checked against it.
+PYODIDE_CORE_SHA256 = "9bc8f127db6c590b191b9aee754022cb41b1a36c7bac233776c11c5ecb541be8"
+PYODIDE_CORE_URL = f"https://github.com/pyodide/pyodide/releases/download/{PYODIDE_VERSION}/pyodide-core-{PYODIDE_VERSION}.tar.bz2"
+PYODIDE_PACKAGE_URL = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
+
+
+def _verified_download(url: str, destination: Path, digest: str) -> bytes:
+    """Never execute or retain an upstream download until its pinned hash matches."""
+    if not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise ValueError("Invalid upstream SHA-256 digest")
+    if destination.is_symlink():
+        raise ValueError(f"Refusing linked runtime cache: {destination}")
+    if destination.exists():
+        data = destination.read_bytes()
+        if hashlib.sha256(data).hexdigest() == digest:
+            return data
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with urlopen(url, timeout=60) as response:
+        if not response.url.startswith("https://"):
+            raise ValueError("Runtime download redirected outside HTTPS")
+        data = response.read(64 * 1024 * 1024 + 1)
+    if len(data) > 64 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != digest:
+        raise ValueError(f"Pyodide download SHA-256 mismatch: {url}")
+    temporary = destination.with_name(f".{destination.name}-{uuid4().hex}")
+    try:
+        temporary.write_bytes(data)
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return data
+
+
+def pyodide_assets(cache: Path | None = None, root: Path = ROOT) -> dict[str, bytes]:
+    """Return release-owned runtime assets; download only at build time."""
+    if cache is None:
+        if os.environ.get("TUBA_BROWSER_RUNTIME_CACHE"):
+            cache = Path(os.environ["TUBA_BROWSER_RUNTIME_CACHE"])
+        elif (root / ".git").exists():
+            common = subprocess.check_output(["git", "rev-parse", "--git-common-dir"], cwd=root, text=True).strip()
+            cache = (root / common).resolve().parent / ".cache" / "pyodide"
+        else:
+            cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "tuba" / "pyodide"
+    cache = cache / PYODIDE_VERSION
+    for parent in (cache, *cache.parents):
+        if parent.is_symlink() or (parent.exists() and getattr(parent.lstat(), "st_file_attributes", 0) & 1024):
+            raise ValueError(f"Refusing linked runtime cache: {parent}")
+    core = _verified_download(PYODIDE_CORE_URL, cache / "core.tar.bz2", PYODIDE_CORE_SHA256)
+    assets: dict[str, bytes] = {}
+    with tarfile.open(fileobj=BytesIO(core), mode="r:bz2") as archive:
+        for member in archive.getmembers():
+            # Copy individual regular files; never extract paths or links from a tar.
+            if member.isfile() and Path(member.name).name in {
+                "pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
+            }:
+                assets[Path(member.name).name] = archive.extractfile(member).read()
+    required = {"pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"}
+    if set(assets) != required:
+        raise ValueError("Pinned Pyodide core archive is incomplete")
+    lock = json.loads(assets["pyodide-lock.json"])
+    packages = lock["packages"]
+    selected: dict[str, dict] = {}
+
+    def include(name: str) -> None:
+        name = re.sub(r"[-_.]+", "-", name).lower()
+        if name in selected:
+            return
+        package = packages[name]
+        selected[name] = package
+        for dependency in package["depends"]:
+            include(dependency)
+        filename = package["file_name"]
+        if not re.fullmatch(r"[A-Za-z0-9_.+-]+", filename):
+            raise ValueError("Unsafe Pyodide package filename")
+        assets[filename] = _verified_download(PYODIDE_PACKAGE_URL + filename, cache / filename, package["sha256"])
+
+    for name in ("numpy", "jsonschema"):
+        include(name)
+    # Ship only installed packages: Pyodide cannot fall back to unpinned CDN code.
+    lock["packages"] = selected
+    assets["pyodide-lock.json"] = (json.dumps(lock, sort_keys=True) + "\n").encode()
+    assets["runtime-manifest.json"] = (json.dumps({
+        "version": PYODIDE_VERSION, "core_url": PYODIDE_CORE_URL,
+        "core_sha256": PYODIDE_CORE_SHA256,
+        "sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(assets.items())},
+    }, sort_keys=True, indent=2) + "\n").encode()
+    return assets
 
 
 def browser_runtime_archive(root: Path = ROOT) -> bytes:
@@ -51,4 +147,12 @@ def browser_runtime_archive(root: Path = ROOT) -> bytes:
 
 
 if __name__ == "__main__":
-    sys.stdout.buffer.write(browser_runtime_archive())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pyodide-output", type=Path)
+    args = parser.parse_args()
+    if args.pyodide_output:
+        args.pyodide_output.mkdir(parents=True, exist_ok=True)
+        for name, data in pyodide_assets().items():
+            (args.pyodide_output / name).write_bytes(data)
+    else:
+        sys.stdout.buffer.write(browser_runtime_archive())

@@ -6,11 +6,17 @@ import argparse
 from importlib.resources import files
 import json
 import os
+import socket
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import webbrowser
+
+BUNDLE_CONTENT_SECURITY_POLICY = (
+    "sandbox allow-downloads; default-src 'none'; style-src 'unsafe-inline'; "
+    "img-src 'self' data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+)
 
 
 def viewer_assets_path():
@@ -33,6 +39,14 @@ class _ViewerRequestHandler(SimpleHTTPRequestHandler):
         self.viewer_root = viewer_root
         self.bundle_root = bundle_root
         super().__init__(*args, directory=str(viewer_root), **kwargs)
+
+    def end_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        path = unquote(urlsplit(self.path).path)
+        if path == "/bundle" or path.startswith("/bundle/"):
+            self.send_header("Content-Security-Policy", BUNDLE_CONTENT_SECURITY_POLICY)
+        super().end_headers()
 
     def translate_path(self, path: str) -> str:
         request_path = unquote(urlsplit(path).path)
@@ -67,6 +81,11 @@ class LocalHTTPServer(ThreadingHTTPServer):
     # viewer chunk leaves the page dead until reload.
     request_queue_size = 128
 
+    def server_bind(self) -> None:
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
 
 def create_server(
     bundle_directory: str | Path,
@@ -80,6 +99,8 @@ def create_server(
         raise ValueError(f"Bundle directory does not exist: {bundle_root}")
     scene_path = bundle_root / "scene.json"
     try:
+        if scene_path.stat().st_size > 32 * 1024**2:
+            raise ValueError("Bundle scene.json exceeds the 32 MiB limit.")
         scene = json.loads(scene_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise ValueError(f"Bundle is missing scene.json: {bundle_root}") from exc

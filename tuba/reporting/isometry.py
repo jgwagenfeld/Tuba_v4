@@ -342,13 +342,13 @@ def _svg(data, sheet):
 
 def _csv(rows, fields=None):
     from io import StringIO
+    from tuba.reporting.csv_cells import spreadsheet_cell
     out = StringIO(newline="")
     writer = csv.DictWriter(out, fieldnames=list(rows[0]) if rows else fields, lineterminator="\n")
-    writer.writeheader()
+    writer.writerow({field: spreadsheet_cell(field) for field in writer.fieldnames})
     for row in rows:
         values = {k: json.dumps(v, ensure_ascii=False, sort_keys=True) if isinstance(v,(dict,list)) else v for k,v in row.items()}
-        # CSV quoting does not neutralize spreadsheet formulas in source labels.
-        writer.writerow({k: "'"+v if isinstance(v,str) and v.startswith(('=','+','-','@','\t','\r','\n')) else v for k,v in values.items()})
+        writer.writerow({key: spreadsheet_cell(value) for key, value in values.items()})
     return out.getvalue()
 
 

@@ -36,6 +36,10 @@ def test_viewer_server_serves_packaged_app_and_selected_bundle(tmp_path):
         assert "Tuba Viewer" in urlopen(url, timeout=5).read().decode()
         payload = json.load(urlopen(f"http://127.0.0.1:{server.server_port}/bundle/scene.json", timeout=5))
         assert payload["scene_id"] == "scene:test"
+        response = urlopen(f"http://127.0.0.1:{server.server_port}/bundle/scene.json", timeout=5)
+        assert "sandbox" in response.headers["Content-Security-Policy"]
+        assert "allow-scripts" not in response.headers["Content-Security-Policy"]
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
     finally:
         server.shutdown()
         server.server_close()
@@ -96,3 +100,20 @@ def test_local_server_backlog_holds_two_viewer_tabs_opening_at_once():
     from tuba.visualization.viewer import LocalHTTPServer
 
     assert LocalHTTPServer.request_queue_size >= 64
+
+
+def test_windows_local_server_refuses_hostile_socket_reuse(tmp_path):
+    import os
+    import socket
+    from tuba.visualization.viewer import create_server
+
+    if os.name != "nt":
+        pytest.skip("Windows exclusive socket binding")
+    server, _ = create_server(_bundle(tmp_path), port=0)
+    try:
+        with socket.socket() as other:
+            other.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            with pytest.raises(OSError):
+                other.bind(server.server_address)
+    finally:
+        server.server_close()

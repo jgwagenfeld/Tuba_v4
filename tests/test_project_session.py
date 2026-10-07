@@ -2,6 +2,8 @@
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
+from urllib.parse import urlencode
 
 import pytest
 
@@ -23,6 +25,7 @@ def test_sessions_use_full_paths_and_validate_live_project_nonce(tmp_path):
                 self.send_header("Location", "http://example.com/api/project")
                 self.end_headers()
                 return
+            assert self.headers.get("Authorization") == "Bearer " + self.server.session["access_token"]
             payload = json.dumps(self.server.session).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -41,11 +44,22 @@ def test_sessions_use_full_paths_and_validate_live_project_nonce(tmp_path):
         old = register_studio(first, url)
         server.session = old
         assert studio_session(first) == old
+        pointer = first / ".tuba" / "studio.json"
+        original = pointer.read_text(encoding="utf-8")
+        assert old["access_token"] not in original and "tuba_token" not in original
+        forged_base = f"http://127.0.0.1:{server.server_port + 1}/"
+        public = json.loads(original)
+        public.update(base_url=forged_base, viewer_url=forged_base + "?" + urlencode({
+            "bundle": "build", "preview_ws": "ws" + forged_base[4:] + "preview/ws"}))
+        pointer.write_text(json.dumps(public), encoding="utf-8")
+        with patch("urllib.request.OpenerDirector.open", side_effect=AssertionError("Must not send credentials to a changed endpoint")):
+            assert studio_session(first) is None
+        pointer.write_text(original, encoding="utf-8")
         server.redirect = True
         assert studio_session(first) is None
         server.redirect = False
         assert studio_session(second) is None
-        current = register_studio(first, url)
+        current = register_studio(first, url, old["access_token"])
         assert studio_session(first) is None  # the live server still has the previous nonce
         server.session = current
         unregister_studio(first, old["session_id"])
@@ -53,7 +67,7 @@ def test_sessions_use_full_paths_and_validate_live_project_nonce(tmp_path):
         path = first / ".tuba" / "studio.json"
         path.write_text(json.dumps({**current, "viewer_url": "https://example.com/"}), encoding="utf-8")
         assert studio_session(first) is None
-        path.write_text(json.dumps(current), encoding="utf-8")
+        path.write_text(json.dumps({key: value.split("#", 1)[0] if key == "viewer_url" else value for key, value in current.items() if key != "access_token"}), encoding="utf-8")
         server.session = {**current, "project_id": project_id(second)}
         assert studio_session(first) is None
         unregister_studio(first, current["session_id"])

@@ -6,6 +6,11 @@ from pathlib import Path
 import pytest
 
 from scripts import deploy_viewer as deploy
+from tuba.reporting.model import EngineeringReviewPackage
+
+
+def _review(package_id="review:tower"):
+    return json.dumps(EngineeringReviewPackage(package_id, "2026-10-07", "Tower", "", 0, "not_solved", ()).to_dict())
 
 
 def test_complete_review_and_viewer_updates_preserve_the_catalog(tmp_path, monkeypatch):
@@ -21,11 +26,12 @@ def test_complete_review_and_viewer_updates_preserve_the_catalog(tmp_path, monke
     source = tmp_path / "project-review" / "review_scene"
     (source / "artifacts").mkdir(parents=True)
     (source / "scene.json").write_text("{}", encoding="utf-8")
-    (source / "review.json").write_text('{"package_id": "review:tower"}', encoding="utf-8")
+    (source / "review.json").write_text(_review(), encoding="utf-8")
     (source / "index.html").write_text("printable report", encoding="utf-8")
     (source / "artifacts" / "old.csv").write_text("old", encoding="utf-8")
     assert deploy.main(["bundle", str(source.parent), str(web)]) == 0
-    assert (web / "tower" / "index.html").read_text() == "printable report"
+    assert "Tower" in (web / "tower" / "index.html").read_text()
+    assert (source / "index.html").read_text() == "printable report"
     assert json.loads((web / "bundles.json").read_text()) == ["tower"]
 
     rich = [{"id": "tower", "title": "Tower", "downloads": {"project": "downloads/tower.zip"}}]
@@ -46,7 +52,7 @@ def test_complete_review_and_viewer_updates_preserve_the_catalog(tmp_path, monke
     assert (web / "tower" / "index.html").is_file()
     assert not any(path.name.startswith(".") for path in web.iterdir())
 
-    (source / "review.json").write_text('{"package_id": "review:header"}', encoding="utf-8")
+    (source / "review.json").write_text(_review("review:header"), encoding="utf-8")
     deploy.cmd_bundle(source, web)
     assert json.loads((web / "bundles.json").read_text()) == rich + ["header"]
     assert (web / "tower" / "index.html").is_file()
@@ -66,7 +72,7 @@ def test_invalid_input_cannot_overwrite_published_or_unrelated_files(tmp_path):
         with pytest.raises(ValueError):
             deploy.cmd_bundle(source, web)
         assert list(web.iterdir()) == [sentinel]
-    (source / "review.json").write_text('{"package_id": "review:tower"}', encoding="utf-8")
+    (source / "review.json").write_text(_review(), encoding="utf-8")
     catalog = web / "bundles.json"
     for damaged in ("{broken", "{}", '[{"title":"missing id"}]', '["tower", "Tower"]'):
         catalog.write_text(damaged, encoding="utf-8")
@@ -89,7 +95,7 @@ def test_copy_or_catalog_failure_restores_the_previous_bundle(tmp_path, monkeypa
     source, web = tmp_path / "source", tmp_path / "web"
     source.mkdir()
     (source / "scene.json").write_text("{}", encoding="utf-8")
-    (source / "review.json").write_text('{"package_id": "review:tower"}', encoding="utf-8")
+    (source / "review.json").write_text(_review(), encoding="utf-8")
     (source / "index.html").write_text("new report", encoding="utf-8")
     (web / "tower").mkdir(parents=True)
     (web / "tower" / "index.html").write_text("old report", encoding="utf-8")
@@ -121,7 +127,7 @@ def test_symlink_or_windows_junction_is_refused_before_copying(tmp_path):
     web.mkdir()
     outside.mkdir()
     (source / "scene.json").write_text("{}", encoding="utf-8")
-    (source / "review.json").write_text('{"package_id": "review:tower"}', encoding="utf-8")
+    (source / "review.json").write_text(_review(), encoding="utf-8")
     (web / "bundles.json").write_text('["tower"]', encoding="utf-8")
     link = web / "tower"
     if os.name == "nt":
@@ -137,3 +143,18 @@ def test_symlink_or_windows_junction_is_refused_before_copying(tmp_path):
             link.rmdir()
         else:
             link.unlink()
+
+
+def test_received_scripted_report_is_replaced_and_other_active_files_are_refused(tmp_path):
+    source, web = tmp_path / "source", tmp_path / "web"
+    source.mkdir()
+    (source / "scene.json").write_text("{}", encoding="utf-8")
+    (source / "review.json").write_text(_review(), encoding="utf-8")
+    (source / "index.html").write_text("<script>window.attack=1</script>", encoding="utf-8")
+    deploy.cmd_bundle(source, web)
+    assert "<script>" not in (web / "tower" / "index.html").read_text(encoding="utf-8")
+    assert "Content-Security-Policy" in (web / "tower" / "index.html").read_text(encoding="utf-8")
+    (source / "extra.html").write_text("<script>window.attack=2</script>", encoding="utf-8")
+    with pytest.raises(ValueError, match="active browser content"):
+        deploy.cmd_bundle(source, web)
+    assert not (web / "tower" / "extra.html").exists()

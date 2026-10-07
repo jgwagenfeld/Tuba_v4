@@ -10,6 +10,7 @@ from typing import Any
 from tuba.analysis.results import ResultState, result_state_from_fea_results
 from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
+from tuba.analysis.provenance import SolverInputIdentity
 from tuba.solver.aster_sidecar import load_and_attest_artifact_chain
 from tuba.solver.code_aster_runtime import (
     execution_trust,
@@ -21,12 +22,15 @@ def import_code_aster_artifacts(
     model: Any,
     work_dir: str | Path,
     study: AnalysisStudy | None = None,
+    expected_identity: SolverInputIdentity | None = None,
     allow_unverified: bool = False,
 ) -> AnalysisRun:
     """Import Code_Aster results; historical unattested data requires explicit opt-in."""
     root = Path(work_dir)
     diagnostics: list[dict[str, Any]] = []
     loaded_study, analysis_mesh, _, attestation = load_and_attest_artifact_chain(model, root, study=study)
+    if expected_identity is not None and loaded_study.solver_input_identity != expected_identity:
+        raise ValueError("Code_Aster artifact identity differs from the current model or study.")
     if attestation is None and not allow_unverified:
         raise ValueError(
             "Code_Aster artifact import requires a validated solve attestation; "

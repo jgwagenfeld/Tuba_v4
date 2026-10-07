@@ -27,7 +27,7 @@ from tuba.visualization.viewer import viewer_assets_path
 
 _SHELL_NAMES = {
     "assets", "licenses", "downloads", "gallery", "index.html", "favicon.svg",
-    "profiles.json", "bundles.json", "tuba-browser.zip",
+    "profiles.json", "bundles.json", "tuba-browser.zip", "pyodide",
 }
 
 
@@ -101,6 +101,12 @@ def _publish_tree(source: Path, destination: Path, *, catalog: list | None = Non
         staged, backup = work / "new", work / "old"
         shutil.copytree(source, staged)
         if catalog is not None:
+            from tuba.reporting.export import regenerate_received_review
+
+            regenerate_received_review(staged)
+            for path in staged.rglob("*"):
+                if path.is_file() and path.suffix.lower() in {".html", ".htm", ".xhtml", ".svg", ".js", ".mjs", ".cjs", ".xml", ".xsl"} and path != staged / "index.html":
+                    raise ValueError(f"Received bundle contains active browser content: {path.relative_to(staged)}.")
             (work / "catalog.json").write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
         if destination.exists():
             destination.replace(backup)

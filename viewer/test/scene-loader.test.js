@@ -625,13 +625,14 @@ test("large URL bundles bound active geometry reads, preserve every payload, and
     requested += 1;
     active += 1;
     peak = Math.max(peak, active);
-    return { ok: true, json: async () => {
+    return new Response(new ReadableStream({ async start(controller) {
       // Count the body read as active too, and complete in a different order.
       await new Promise((resolve) => setTimeout(resolve, index % 3));
       active -= 1;
-      if (fail && index === 3) throw new Error("broken geometry JSON");
-      return { asset_id: `asset-${index}`, value: index };
-    } };
+      if (fail && index === 3) { controller.error(new Error("broken geometry JSON")); return; }
+      controller.enqueue(new TextEncoder().encode(JSON.stringify({ asset_id: `asset-${index}`, value: index })));
+      controller.close();
+    } }));
   };
   const bundle = await loadSceneBundleFromUrl("/large", fetcher);
   assert.equal(peak, 16);

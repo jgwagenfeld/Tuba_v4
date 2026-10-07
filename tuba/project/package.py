@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import stat
+import struct
 import sys
 import sysconfig
 import tarfile
@@ -32,6 +33,10 @@ FORMAT = "tuba.project-package.v1"
 MAX_ARCHIVE_BYTES = 2 * 1024**3
 MAX_EXPANDED_BYTES = 4 * 1024**3
 MAX_FILES = 20000
+MAX_PATH_BYTES = 1024
+MAX_PATH_DEPTH = 32
+MAX_TOTAL_PATH_BYTES = 8 * 1024**2
+MAX_CENTRAL_DIRECTORY_BYTES = 32 * 1024**2
 PACKAGE_SUFFIXES = (".tubaproject", ".tar.gz", ".tgz", ".zip")
 _EXCLUDED = {".git", ".tuba", ".build", ".scratch", ".tmp", ".cache", ".worktrees", ".agents",
              ".venv", "venv", "env", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache",
@@ -44,6 +49,8 @@ _PRIVATE = (".pem", ".key", ".p12", ".pfx", ".env", ".secret")
 def _portable(name: str) -> str:
     if not isinstance(name, str) or not name or "\\" in name:
         raise ValueError(f"Invalid portable path: {name!r}.")
+    if len(name.encode("utf-8")) > MAX_PATH_BYTES or name.count("/") >= MAX_PATH_DEPTH:
+        raise ValueError("Package path exceeds the encoded length or component depth limit.")
     for part in name.split("/"):
         try:
             operation_folder_name(part)
@@ -99,13 +106,13 @@ def _result_files(root: Path) -> list[str]:
     return sorted(files)
 
 
-def _inventory(root: Path, include_results: bool) -> tuple[dict, dict[str, Path]]:
-    """The manifest, and where each packaged file is read from (workspace helpers live outside root)."""
+def _inventory(root: Path, include_results: bool, external_sources=None) -> tuple[dict, dict[str, Path]]:
+    """The manifest and project-contained or explicitly approved source files."""
     from tuba import __version__
     load_project(root)
     names = _source_files(root) + (_result_files(root) if include_results else [])
     sources = {name: root / name for name in names}
-    for helper, path in _check_local_imports(root, names).items():
+    for helper, path in _check_local_imports(root, names, external_sources).items():
         if helper in sources:
             raise ValueError(f"Workspace helper {helper} collides with a project file of the same path.")
         sources[helper] = path
@@ -125,7 +132,10 @@ def _inventory(root: Path, include_results: bool) -> tuple[dict, dict[str, Path]
             raise ValueError(f"Package input must be a regular file: {name}.")
         with path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        records.append({"path": name, "size": path.stat().st_size, "sha256": digest})
+        records.append({"path": name, "size": path.stat().st_size, "sha256": digest,
+                        **({"external_source": str(path.resolve())} if not path.resolve().is_relative_to(root) else {})})
+    if sum(len(name.encode("utf-8")) for name in names) > MAX_TOTAL_PATH_BYTES:
+        raise ValueError("Project exceeds the total encoded path limit.")
     total = sum(record["size"] for record in records)
     if total > MAX_EXPANDED_BYTES:
         raise ValueError("Project exceeds the 4 GiB expanded size limit.")
@@ -153,16 +163,21 @@ def _workspace_module(workspaces: list[Path], module: str, names: list[str]) -> 
     return found
 
 
-def _check_local_imports(root: Path, names: list[str]) -> dict[str, Path]:
-    """Refuse foreign imports/absolute inputs; collect helpers from the project's own workspace.
-
-    A project inside a workspace on ``sys.path`` (a gallery project under ``examples/``
-    importing ``examples.<helper>``) brings those helper modules along at their module
-    path, scanned the same way. Code from anywhere else is refused. Never executes source.
+def _check_local_imports(root: Path, names: list[str], external_sources=None) -> dict[str, Path]:
+    """Refuse out-of-project imports unless each source and archive path is explicitly approved.
 
     ponytail: static imports only; dynamic imports and computed paths remain the
     author's responsibility. A sandboxed dependency recorder would cover those.
     """
+    approved = {}
+    for name, path in (external_sources or {}).items():
+        _portable(name)
+        source = Path(path).resolve()
+        if (_excluded(Path(name)) or _excluded(source) or not source.is_file()
+                or Path(path).is_symlink() or any(parent.is_symlink() or getattr(parent, "is_junction", lambda: False)()
+                                                for parent in Path(path).absolute().parents)):
+            raise ValueError(f"External package source must be a non-sensitive regular file: {name}.")
+        approved[name] = source
     installed = [Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve(),
                  Path(sysconfig.get_path("stdlib")).resolve()]
     workspaces = [workspace for workspace in (Path(entry or ".").resolve() for entry in sys.path)
@@ -194,6 +209,8 @@ def _check_local_imports(root: Path, names: list[str]) -> dict[str, Path]:
                     if not found:
                         raise ValueError(f"{name} imports workspace code outside this project: {module}. Move the helper into the project before sharing.")
                     for helper, helper_path in found.items():
+                        if approved.get(helper) != helper_path.resolve():
+                            raise ValueError(f"{name} imports workspace code outside this project: {module}. Explicitly approve {helper_path.resolve()} as {helper}, or move it into the project.")
                         if helper not in helpers:
                             helpers[helper] = helper_path
                             if helper.endswith(".py"):
@@ -208,12 +225,12 @@ def _check_local_imports(root: Path, names: list[str]) -> dict[str, Path]:
     return helpers
 
 
-def plan_project_package(root: str | Path, *, include_results: bool = False) -> dict:
+def plan_project_package(root: str | Path, *, include_results: bool = False, external_sources=None) -> dict:
     """Return the manifest, including uncompressed size. Results must be current and verified."""
     from tuba.project.claim import claim_solve
     root = Path(root).resolve()
     with claim_solve(root) if include_results else nullcontext():
-        return _inventory(root, include_results)[0]
+        return _inventory(root, include_results, external_sources)[0]
 
 
 def package_suffix(path: str | Path) -> str | None:
@@ -221,7 +238,7 @@ def package_suffix(path: str | Path) -> str | None:
     return next((suffix for suffix in PACKAGE_SUFFIXES if Path(path).name.casefold().endswith(suffix)), None)
 
 
-def export_project_package(root: str | Path, output: str | Path, *, include_results: bool = False) -> dict:
+def export_project_package(root: str | Path, output: str | Path, *, include_results: bool = False, external_sources=None) -> dict:
     """Write ZIP (.tubaproject/.zip) or TGZ (.tgz/.tar.gz); never overwrite a package."""
     from tuba.project.claim import claim_solve
     root, output = Path(root).resolve(), Path(output).resolve()
@@ -232,7 +249,7 @@ def export_project_package(root: str | Path, output: str | Path, *, include_resu
         raise FileExistsError(f"Package already exists: {output}.")
     output.parent.mkdir(parents=True, exist_ok=True)
     with claim_solve(root) if include_results else nullcontext():
-        manifest, sources = _inventory(root, include_results)
+        manifest, sources = _inventory(root, include_results, external_sources)
         with tempfile.TemporaryDirectory(prefix="tuba-package-", dir=output.parent) as temporary:
             archive = Path(temporary) / ("package.tgz" if suffix in {".tgz", ".tar.gz"} else "package.zip")
             raw_manifest = (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
@@ -249,7 +266,7 @@ def export_project_package(root: str | Path, output: str | Path, *, include_resu
                     for record in manifest["files"]:
                         bundle.write(sources[record["path"]], "project/" + record["path"])
             inspect_project_package(archive)
-            if manifest != _inventory(root, include_results)[0]:
+            if manifest != _inventory(root, include_results, external_sources)[0]:
                 raise ValueError("Project changed during export; retry after saving and solving.")
             with output.open("xb") as destination, archive.open("rb") as source:
                 try:
@@ -268,9 +285,15 @@ def _open_package(archive: Path):
         raise ValueError("Package exceeds the 2 GiB archive limit.")
     try:
         if zipfile.is_zipfile(archive):
+            _preflight_zip(archive)
             with zipfile.ZipFile(archive) as bundle:
                 entries = []
+                path_bytes = 0
                 for info in bundle.infolist():
+                    _portable(info.filename.rstrip("/") if info.is_dir() else info.filename)
+                    path_bytes += len(info.filename.encode("utf-8"))
+                    if path_bytes > MAX_TOTAL_PATH_BYTES:
+                        raise ValueError("Package exceeds the total encoded path limit.")
                     mode = stat.S_IFMT(info.external_attr >> 16)
                     if (mode not in {0, stat.S_IFREG, stat.S_IFDIR} or info.flag_bits & 1
                             or mode == stat.S_IFDIR and not info.is_dir() or info.is_dir() and info.file_size):
@@ -281,7 +304,12 @@ def _open_package(archive: Path):
             with _PackageGzip(archive, "rb") as compressed, tarfile.open(fileobj=compressed, mode="r:") as bundle:
                 entries = []
                 expanded = 0
+                path_bytes = 0
                 for info in bundle:
+                    _portable(info.name.rstrip("/") if info.isdir() else info.name)
+                    path_bytes += len(info.name.encode("utf-8"))
+                    if path_bytes > MAX_TOTAL_PATH_BYTES:
+                        raise ValueError("Package exceeds the total encoded path limit.")
                     if (not (info.isfile() or info.isdir()) or getattr(info, "sparse", None) is not None
                             or info.isdir() and info.size):
                         raise ValueError(f"Package contains a link, special or sparse entry: {info.name}.")
@@ -301,6 +329,59 @@ def _open_package(archive: Path):
     except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, zlib.error,
             EOFError, KeyError, UnicodeError, NotImplementedError) as exc:
         raise ValueError(f"Invalid ZIP/TGZ project package: {exc}") from exc
+
+
+def _preflight_zip(archive: Path) -> None:
+    """Bound eager ZIP metadata allocation, including ZIP64, before ZipFile constructs entries."""
+    with archive.open("rb") as source:
+        size = archive.stat().st_size
+        source.seek(max(0, size - 65557))
+        tail = source.read(65557)
+        offset = tail.rfind(b"PK\x05\x06")
+        if offset < 0 or len(tail) - offset < 22:
+            raise ValueError("Invalid ZIP end record.")
+        _, disk, directory_disk, disk_count, count, directory_bytes, directory_offset, comment = struct.unpack_from("<4s4H2LH", tail, offset)
+        if disk or directory_disk or disk_count != count or offset + 22 + comment != len(tail):
+            raise ValueError("Invalid or multi-disk ZIP end record.")
+        end_offset = max(0, size - 65557) + offset
+        if end_offset >= 20:
+            source.seek(end_offset - 20)
+            locator = source.read(20)
+            if locator.startswith(b"PK\x06\x07"):
+                _, zip64_disk, zip64_offset, disks = struct.unpack("<4sLQL", locator)
+                if zip64_disk or disks != 1 or zip64_offset > end_offset - 76:
+                    raise ValueError("Invalid ZIP64 locator.")
+                source.seek(zip64_offset)
+                record = source.read(56)
+                if len(record) != 56 or not record.startswith(b"PK\x06\x06"):
+                    raise ValueError("Invalid ZIP64 end record.")
+                _, record_size, _, _, disk, directory_disk, disk_count, count, directory_bytes, directory_offset = struct.unpack("<4sQ2H2L4Q", record)
+                if record_size > 4096 or disk or directory_disk or disk_count != count:
+                    raise ValueError("Invalid or over-budget ZIP64 end record.")
+        if count > 2 * MAX_FILES + 1 or directory_bytes > MAX_CENTRAL_DIRECTORY_BYTES:
+            raise ValueError("ZIP central directory exceeds the entry or metadata size limit.")
+        if directory_offset + directory_bytes > end_offset:
+            raise ValueError("Invalid ZIP central directory bounds.")
+        source.seek(directory_offset)
+        actual_count = path_bytes = 0
+        directory_end = directory_offset + directory_bytes
+        while source.tell() < directory_end:
+            header = source.read(46)
+            if len(header) != 46 or not header.startswith(b"PK\x01\x02"):
+                raise ValueError("Invalid ZIP central directory entry.")
+            name_bytes, extra_bytes, comment_bytes = struct.unpack_from("<3H", header, 28)
+            if name_bytes > MAX_PATH_BYTES or source.tell() + name_bytes + extra_bytes + comment_bytes > directory_end:
+                raise ValueError("ZIP entry exceeds path or directory bounds.")
+            raw_name = source.read(name_bytes)
+            flags = struct.unpack_from("<H", header, 8)[0]
+            _portable(raw_name.decode("utf-8" if flags & 0x800 else "cp437").rstrip("/"))
+            actual_count += 1
+            path_bytes += name_bytes
+            if actual_count > 2 * MAX_FILES + 1 or path_bytes > MAX_TOTAL_PATH_BYTES:
+                raise ValueError("ZIP central directory exceeds the entry or path size limit.")
+            source.seek(extra_bytes + comment_bytes, 1)
+        if actual_count != count:
+            raise ValueError("ZIP central directory entry count differs from its end record.")
 
 
 class _PackageGzip(gzip.GzipFile):

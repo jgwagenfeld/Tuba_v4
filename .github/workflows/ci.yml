@@ -5,19 +5,44 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
+  approved-ref:
+    if: ${{ github.repository == 'jgwagenfeld/Tuba_v4' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.approve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: approve
+        run: python3 scripts/check_workflow_revision.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TUBA_APPROVED_ENVIRONMENTS: code-aster
+
   python:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -31,10 +56,14 @@ jobs:
       - run: git diff --exit-code
 
   ifc-windows:
+    permissions:
+      contents: read
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
       - run: uv sync --extra dev --extra ifc --locked
@@ -46,10 +75,14 @@ jobs:
       - run: git diff --exit-code
 
   notebooks-and-docs:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
       - name: Install Linux graphics runtime
@@ -62,19 +95,23 @@ jobs:
       - run: git diff --exit-code
 
   viewer:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: viewer
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
       # The production catalogue is generated from Tuba's Python section tables.
       - run: uv sync --locked --no-default-groups
         working-directory: .
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -86,16 +123,21 @@ jobs:
       - run: node e2e/exchange-dialog-smoke.mjs
       - run: npm run e2e -- legacy-workflow
       - run: npm run build
+      - run: node scripts/browser-runtime-smoke.mjs
       - run: git diff --exit-code
 
   assembled-pages:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -125,13 +167,17 @@ jobs:
       - run: git diff --exit-code
 
   distribution:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -147,16 +193,23 @@ jobs:
       - run: uv run python scripts/verify_release_wheel.py dist
 
   code-aster-integration:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    needs: approved-ref
+    if: ${{ github.repository == 'jgwagenfeld/Tuba_v4' && github.ref == 'refs/heads/main' && needs.approved-ref.outputs.sha == github.sha }}
     runs-on: [self-hosted, code-aster]
+    environment: code-aster
+    permissions:
+      contents: read
     env:
       TUBA_RUN_CODE_ASTER_INTEGRATION: "1"
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.approved-ref.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -171,10 +224,30 @@ jobs:
       - run: uv run python scripts/check_code_aster_references.py
       - name: Upload numerical qualification report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: code-aster-reference-results
           path: .build/qualification/code-aster-references.xml
           if-no-files-found: warn
       - run: uv run python scripts/refresh_code_aster_gallery.py --all
       - run: uv run python scripts/build_pages.py pages --output .build/code-aster-pages
+      - run: npm run e2e -- pages-catalog --site-root ../.build/code-aster-pages
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/code-aster-pages
+      - run: npm run e2e -- pages-gallery --site-root ../.build/code-aster-pages
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/code-aster-pages
+      - run: npm run e2e:pages
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/code-aster-pages
+      - run: uv run python scripts/check_pages_artifact.py attest --output .build/code-aster-pages
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: code-aster-pages-${{ github.sha }}-${{ github.run_attempt }}
+          path: .build/code-aster-pages
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

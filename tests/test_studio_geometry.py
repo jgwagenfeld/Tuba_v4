@@ -39,7 +39,7 @@ def server(tmp_path):
 
 
 def upload(server, route="preview", body=None, name="A triangle's.stl", options=None, headers=None):
-    headers = {"Content-Type": "application/octet-stream", "X-Geometry-Name": quote(name, safe=""),
+    headers = {"Authorization": "Bearer " + server.access_token, "Content-Type": "application/octet-stream", "X-Geometry-Name": quote(name, safe=""),
                "X-Geometry-Options": json.dumps(options if options is not None else {
                    "id": "reference", "unit_scale_to_m": .001,
                    "placement": {"origin": [2,3,4], "rotation": [1,0,0,0]},
@@ -69,7 +69,7 @@ def test_preview_and_immutable_store_return_actual_geometry_and_quoted_python_wi
     assert upload(server, "store")[1]["path"] == stored["path"]
     assert server.script_path.read_bytes() == before
     assert not server.model.imported_components and not server.model.analysis_regions
-    with urlopen(server.base_url + "api/project") as response:
+    with urlopen(Request(server.base_url + "api/project", headers={"Authorization": "Bearer " + server.access_token})) as response:
         assert json.loads(response.read())["geometry"]["max_upload_bytes"] == 16 * 1024 * 1024
 
 
@@ -93,6 +93,15 @@ def test_upload_origin_limits_and_malformed_geometry_fail_before_store(server):
     assert upload(server, headers={"Content-Type":"text/plain"})[0] == 400
     assert upload(server, "store", body=b"invalid STL")[0] == 422
     assert not (server.project.root / "geometry").exists()
+
+
+def test_preview_store_reuses_inspection_and_storage_quota_precedes_parsing(server, monkeypatch):
+    assert upload(server)[0] == 200
+    monkeypatch.setattr("tuba.geometry.stl_reference.inspect_stl_reference", lambda _: pytest.fail("preview must not be reparsed"))
+    assert upload(server, "store")[0] == 200
+    monkeypatch.setattr("tuba.visualization.preview.geometry.MAX_STORED_GEOMETRIES", 1)
+    status, result = upload(server, "store", body=binary_triangle(2))
+    assert status == 422 and "stored geometry exceeds" in result["error"]
 
 
 def wait_for(predicate):

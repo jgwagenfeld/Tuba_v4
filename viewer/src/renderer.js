@@ -3,6 +3,7 @@ import { prescribedDisplacementText, SUPPORT_GROUND_COLOR, supportPartColors } f
 import { sceneStage } from "./workflowState.js";
 import { getUnitSystem } from "./units.js";
 import * as THREE from "three";
+import { tubeTessellation, validateSceneBudget } from "./sceneBudget.js";
 import { relatedSelectionIds, selectionKey } from "./reviewSelection.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
@@ -54,11 +55,6 @@ const REFERENCE_GEOMETRY_OPACITY = 0.32;
 // is reading.
 const SUBPOINT_XRAY_RENDER_ORDER = 520;
 
-// Radial segments for a swept tube whose bundle states none. Matches the budget
-// `tuba/visualization/builders/_helpers.py:sweep_radial_segments` sweeps real
-// element assets to, so the two display surfaces facet a section identically.
-const DEFAULT_TUBE_RADIAL_SEGMENTS = 16;
-
 export const STANDARD_VIEW_DIRECTIONS = {
   iso: [1, -1, 0.65],
   positiveX: [1, 0, 0],
@@ -73,6 +69,7 @@ export const WEBGL2_UNAVAILABLE = "viewer.webgl2_unavailable";
 const isInspectionDiagnosticSource = source => ["tuba.interface_mapping", "tuba.analysis_mesh.review"].includes(source);
 
 export function createThreeSceneGraph(sceneState, options = {}) {
+  validateSceneBudget(sceneState);
   // Built for the uncut model. Cut view culls whole objects through state, and
   // a graph built without them could not show them again while a handle is
   // dragged outward; updateSceneGraphVisibility hides them instead, and the
@@ -1508,6 +1505,7 @@ export function applyVisualDeformationScale(root, state, options = {}) {
 }
 
 function createTube(asset, config, format) {
+  const { tubularSegments, radialSegments } = tubeTessellation(config);
   const points = readPoints(config.points);
   if (points.length < 2) {
     return invalidAsset(asset, "Tube assets require at least two points.");
@@ -1522,12 +1520,10 @@ function createTube(asset, config, format) {
   const basePoints = readPoints(config.base_points);
   const frameCurve = basePoints.length === points.length ? new THREE.CatmullRomCurve3(basePoints) : curve;
   if (frameCurve !== curve) curve.computeFrenetFrames = (segments, closed) => frameCurve.computeFrenetFrames(segments, closed);
-  const tubularSegments = Math.max(8, points.length * 12);
   // Faceting comes from the bundle, which owns the section and states the budget
   // it swept to. The fallback matches that budget so a tube with no config - a
   // deformed envelope, a hand-built fixture - is not drawn at a different
   // resolution than a real one.
-  const radialSegments = Math.max(6, Math.min(48, Math.floor(Number(config.radial_segments) || DEFAULT_TUBE_RADIAL_SEGMENTS)));
   const outer = new THREE.Mesh(
     new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false),
     materialForAsset(asset, config, { transparent: format === "tube_envelope" && config.envelope_type !== "insulation" })

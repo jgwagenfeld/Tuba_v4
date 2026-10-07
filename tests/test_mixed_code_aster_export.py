@@ -396,19 +396,19 @@ def test_step_geometry_and_boundary_guards(tmp_path, fault):
 
 
 def test_step_source_change_during_meshing_blocks_publication(tmp_path, monkeypatch):
-    import tuba.meshing.step_component as step_mesher
+    import tuba.geometry._native_worker as worker
     from test_code_aster_step_component_reference import build_step_reference
 
     model, _, tip = build_step_reference(tmp_path, mesh_size=0.012)
     model.define_load_case("Force", gravity=False).add_nodal_force(tip, force=[1000, 0, 0])
     source = Path(model.cad_assets["component_asset"].source_path)
-    original = step_mesher._write_exact_med
+    original = worker.shutil.copyfile
 
     def write_and_change_source(*args, **kwargs):
         original(*args, **kwargs)
         source.write_text(source.read_text() + "\n")
 
-    monkeypatch.setattr(step_mesher, "_write_exact_med", write_and_change_source)
+    monkeypatch.setattr(worker.shutil, "copyfile", write_and_change_source)
     with pytest.raises(ValueError, match="changed during meshing"):
         MixedCodeAsterStudyExporter().export_analysis_study(model, "Force", tmp_path)
     assert not (tmp_path / "study.med").exists()

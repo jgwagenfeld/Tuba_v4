@@ -152,6 +152,10 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
             artifact_dir = study_artifact_dir(project.root, operations)
         else:
             report = verify_project(project, namespace)
+            if artifact_dir is not None:
+                from tuba.project.study import import_study_evidence
+
+                import_study_evidence(namespace, settings, artifact_dir)
     except (ValueError, SolveBusy) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -159,6 +163,10 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
         print(f"warning: {warning}", file=sys.stderr)
     if settings.build_review is None:
         parser.error(f"{args.study} defines no build_review(namespace, output, ...).")
-    root = settings.build_review(namespace, args.output, artifact_dir=artifact_dir)
+    try:
+        root = settings.build_review(namespace, args.output, artifact_dir=artifact_dir)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(root)
     return 0

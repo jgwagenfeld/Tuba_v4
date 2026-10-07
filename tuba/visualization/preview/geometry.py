@@ -15,6 +15,8 @@ from tuba.mixed import normalize_placement, transform_point
 
 
 MAX_GEOMETRY_BYTES = 16 * 1024 * 1024
+MAX_STORED_GEOMETRY_BYTES = 256 * 1024 * 1024
+MAX_STORED_GEOMETRIES = 64
 
 
 def upload_options(name: str, options: str):
@@ -68,7 +70,45 @@ def _inspection(metadata):
             "closed_surface": not (boundary or nonmanifold or degenerate)}
 
 
-def geometry_upload(project_root, output_root, route, body, options):
+def _geometry_store_target(project_root, body, suffix, digest):
+    project_root = Path(project_root).resolve()
+    directory = project_root / "geometry"
+    if directory.is_symlink() or (directory.exists() and directory.resolve().parent != project_root):
+        raise ValueError("Project geometry directory must remain inside the project.")
+    target = directory / (digest + suffix)
+    if target.is_symlink() or target.resolve().parent != directory.resolve():
+        raise ValueError("Geometry target must remain inside the project geometry directory.")
+    files = list(directory.iterdir()) if directory.exists() else []
+    if any(path.is_symlink() for path in files):
+        raise ValueError("Stored geometry must not contain links.")
+    if not target.exists() and (len(files) >= MAX_STORED_GEOMETRIES or sum(path.stat().st_size for path in files if path.is_file()) + len(body) > MAX_STORED_GEOMETRY_BYTES):
+        raise ValueError("Project stored geometry exceeds 64 sources or 256 MiB.")
+    return project_root, directory, target
+
+
+def _store_geometry(project_root, body, suffix, digest):
+    project_root, directory, target = _geometry_store_target(project_root, body, suffix, digest)
+    directory.mkdir(exist_ok=True)
+    try:
+        with target.open("xb") as file:
+            file.write(body)
+    except FileExistsError:
+        if target.stat().st_size != len(body) or target.read_bytes() != body:
+            raise ValueError("Stored geometry digest does not match its immutable source bytes.")
+    return target.relative_to(project_root).as_posix()
+
+
+def _stored_result(result, project_root, body, suffix, digest, identity, scale, placement):
+    relative = _store_geometry(project_root, body, suffix, digest)
+    method = "import_stl" if suffix == ".stl" else "import_step"
+    return {**result, "path": relative, "python": (
+        "from pathlib import Path\n"
+        f"model.{method}(str(Path(__file__).resolve().parent / {relative!r}), "
+        f"id={identity!r}, unit_scale_to_m={scale!r}, placement={placement!r})"
+    )}
+
+
+def geometry_upload(project_root, output_root, route, body, options, *, cached=None):
     """Inspect actual bytes and optionally store them; never mutate a model script."""
     name, suffix, identity, scale, placement = options
     if route not in {"preview", "store"} or not isinstance(body, bytes) or not body:
@@ -78,6 +118,11 @@ def geometry_upload(project_root, output_root, route, body, options):
     output_root = Path(output_root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(body).hexdigest()
+    if route == "store":
+        _geometry_store_target(project_root, body, suffix, digest)
+    if cached is not None:
+        return (_stored_result(cached, project_root, body, suffix, digest, identity, scale, placement)
+                if route == "store" else dict(cached))
     with TemporaryDirectory(prefix="geometry-preview-", dir=output_root) as temporary:
         source = Path(temporary) / ("source" + suffix)
         source.write_bytes(body)
@@ -118,25 +163,5 @@ def geometry_upload(project_root, output_root, route, body, options):
                   "bounds_m": [min(point[i] for point in placed) for i in range(3)]
                               + [max(point[i] for point in placed) for i in range(3)]}
         if route == "store":
-            project_root = Path(project_root).resolve()
-            directory = project_root / "geometry"
-            if directory.is_symlink() or (directory.exists() and directory.resolve().parent != project_root):
-                raise ValueError("Project geometry directory must remain inside the project.")
-            directory.mkdir(exist_ok=True)
-            target = directory / (digest + suffix)
-            if target.is_symlink() or target.resolve().parent != directory.resolve():
-                raise ValueError("Geometry target must remain inside the project geometry directory.")
-            try:
-                with target.open("xb") as file:
-                    file.write(body)
-            except FileExistsError:
-                if target.stat().st_size != len(body) or target.read_bytes() != body:
-                    raise ValueError("Stored geometry digest does not match its immutable source bytes.")
-            relative = target.relative_to(project_root).as_posix()
-            method = "import_stl" if suffix == ".stl" else "import_step"
-            result.update(path=relative, python=(
-                "from pathlib import Path\n"
-                f"model.{method}(str(Path(__file__).resolve().parent / {relative!r}), "
-                f"id={identity!r}, unit_scale_to_m={scale!r}, placement={placement!r})"
-            ))
+            result = _stored_result(result, project_root, body, suffix, digest, identity, scale, placement)
         return result

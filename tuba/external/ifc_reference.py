@@ -11,6 +11,8 @@ import zipfile
 from pathlib import Path
 
 import numpy as np
+from tuba.geometry._native_worker import (MAX_ENTITIES, MAX_PRODUCTS, MAX_VERTICES, MAX_FACES,
+    MAX_PROPERTY_VALUES, MAX_PROPERTY_DEPTH, NativeImportError, check_source, read_source, run_native)
 
 
 def require_ifc():
@@ -29,7 +31,9 @@ def safe_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_. -]", "_", name.replace("/", "_").replace("\\", "_"))[:80].strip(" .") or "reference.ifc"
 
 
-def open_bytes(data: bytes):
+def _open_bytes_native(data: bytes):
+    """Internal worker parser; public extract/convert APIs return plain bounded data."""
+    check_source(data)
     if not data or not data.lstrip().startswith(b"ISO-10303-21"):
         raise ValueError("Invalid IFC STEP file")
     ifc = require_ifc()
@@ -42,7 +46,26 @@ def open_bytes(data: bytes):
             raise ValueError("Invalid IFC STEP file") from exc
     if file is None or not file.by_type("IfcProject"):
         raise ValueError("IFC project is missing")
+    validate_file_budget(file)
     return file
+
+
+def validate_file_budget(file):
+    if sum(1 for _ in file) > MAX_ENTITIES or len(file.by_type("IfcProduct")) > MAX_PRODUCTS:
+        raise NativeImportError("IFC entity/product budget exceeded before geometry extraction.")
+    properties = file.by_type("IfcProperty") + file.by_type("IfcPhysicalQuantity")
+    if len(properties) > MAX_PROPERTY_VALUES:
+        raise NativeImportError("IFC property budget exceeded before property expansion.")
+    for prop in properties:
+        pending = [(prop, 0)]
+        count = 0
+        while pending:
+            item, depth = pending.pop()
+            count += 1
+            if depth > MAX_PROPERTY_DEPTH or count > MAX_PROPERTY_VALUES:
+                raise NativeImportError("IFC property depth/value budget exceeded before property expansion.")
+            children = (getattr(item, "HasProperties", ()) or ()) + (getattr(item, "HasQuantities", ()) or ())
+            pending.extend((child, depth + 1) for child in children)
 
 
 def _axis(file, product, scale):
@@ -104,11 +127,15 @@ def _unit_name(file):
     return str(unit.Name or "declared IFC length unit")
 
 
-def _json_safe(value):
+def _json_safe(value, budget=None, depth=0):
+    budget = [0] if budget is None else budget
+    budget[0] += 1
+    if depth > MAX_PROPERTY_DEPTH or budget[0] > MAX_PROPERTY_VALUES:
+        raise NativeImportError("IFC cumulative property depth/value budget exceeded.")
     if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items() if key != "id"}
+        return {str(key): _json_safe(item, budget, depth + 1) for key, item in value.items() if key != "id"}
     if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
+        return [_json_safe(item, budget, depth + 1) for item in value]
     if isinstance(value, float):
         return value if math.isfinite(value) else None
     if isinstance(value, (str, int, bool)) or value is None:
@@ -117,12 +144,20 @@ def _json_safe(value):
 
 
 def extract(data: bytes, name: str = "reference.ifc") -> tuple[dict, dict]:
+    """Inspect IFC in an OS-bounded child, including geometry and properties."""
+    preview, meshes = run_native("ifc_extract", data, name=name)
+    return preview, meshes
+
+
+def _extract_native(data: bytes, name: str = "reference.ifc") -> tuple[dict, dict]:
     ifc = require_ifc()
-    file = open_bytes(data)
+    file = _open_bytes_native(data)
     scale = _unit_scale(file)
     settings = ifc.geom.settings()
     settings.set(settings.USE_WORLD_COORDS, True)
     products, warnings, meshes, seen = [], [], {}, set()
+    vertex_count = face_count = 0
+    property_budget = [0]
     for product in file.by_type("IfcProduct"):
         if not product.GlobalId:
             continue
@@ -135,20 +170,27 @@ def extract(data: bytes, name: str = "reference.ifc") -> tuple[dict, dict]:
         if product.Representation is not None:
             try:
                 shape = ifc.geom.create_shape(settings, product)
+                raw_vertices, raw_faces = shape.geometry.verts, shape.geometry.faces
+                vertex_count += len(raw_vertices) // 3
+                face_count += len(raw_faces) // 3
+                if vertex_count > MAX_VERTICES or face_count > MAX_FACES:
+                    raise NativeImportError("IFC cumulative vertex/face budget exceeded before Python mesh expansion.")
                 # Default IfcOpenShell tessellation already returns SI metres.
-                vertices = np.asarray(shape.geometry.verts, dtype=float).reshape((-1, 3)).tolist()
-                faces = np.asarray(shape.geometry.faces, dtype=int).reshape((-1, 3)).tolist()
+                vertices = np.asarray(raw_vertices, dtype=float).reshape((-1, 3)).tolist()
+                faces = np.asarray(raw_faces, dtype=int).reshape((-1, 3)).tolist()
                 if vertices and faces and np.isfinite(vertices).all():
                     coords = np.asarray(vertices)
                     bounds = np.r_[coords.min(axis=0), coords.max(axis=0)].tolist()
                     meshes[guid] = {"vertices": vertices, "faces": faces, "bounds_m": bounds}
+            except NativeImportError:
+                raise
             except Exception:
                 pass
         if bounds is None:
             warnings.append({"guid": guid, "reason": "No supported tessellated geometry"})
         if reason:
             warnings.append({"guid": guid, "reason": reason})
-        props = _json_safe(ifc.util.element.get_psets(product))
+        props = _json_safe(ifc.util.element.get_psets(product), property_budget)
         products.append({"guid": guid, "ifc_class": product.is_a(), "name": product.Name or "",
                          "bounds_m": bounds, "properties": props, "convertible": axis is not None,
                          "reason": reason})
@@ -165,7 +207,7 @@ def validate_assignment(payload: dict) -> tuple[list[str], dict, dict]:
     if not isinstance(payload, dict) or set(payload) != {"reference_id", "guids", "material", "section"}:
         raise ValueError("Expected reference_id, guids, material and section")
     guids, material, section = payload["guids"], payload["material"], payload["section"]
-    if not isinstance(guids, list) or not guids or any(not isinstance(g, str) or not g for g in guids) or len(set(guids)) != len(guids):
+    if not isinstance(guids, list) or not guids or len(guids) > MAX_PRODUCTS or any(not isinstance(g, str) or not g for g in guids) or len(set(guids)) != len(guids):
         raise ValueError("Select distinct IFC GUIDs")
     for obj, keys in ((material, {"name", "E_pa", "nu", "rho_kg_m3"}),
                       (section, {"name", "outer_diameter_m", "wall_thickness_m"})):
@@ -183,7 +225,15 @@ def validate_assignment(payload: dict) -> tuple[list[str], dict, dict]:
 def convert_pipes(source: str | Path, guids: list[str], material: dict, section: dict):
     """Build a fresh unsolved model from selected, validated IFC axes."""
     from tuba.model import TubaModel
-    file = open_bytes(Path(source).read_bytes())
+    validate_assignment({"reference_id": "conversion", "guids": guids, "material": material, "section": section})
+    model = TubaModel.from_dict(run_native("ifc_convert", read_source(source), guids=guids, material=material, section=section))
+    model.project_name = Path(source).stem
+    return model
+
+
+def _convert_pipes_native(source: str | Path, guids: list[str], material: dict, section: dict):
+    from tuba.model import TubaModel
+    file = _open_bytes_native(read_source(source))
     scale = _unit_scale(file)
     model = TubaModel(project_name=Path(source).stem)
     model.add_material(material["name"], E=material["E_pa"], nu=material["nu"], rho=material["rho_kg_m3"])

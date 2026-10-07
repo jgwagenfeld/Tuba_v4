@@ -300,7 +300,13 @@ def _publish_downloads(viewer_root: Path, gallery: Any) -> None:
     (destination / f"{gallery.id}.ifc").unlink(missing_ok=True)
     archive = destination / f"{gallery.id}.zip"
     archive.unlink(missing_ok=True)
-    export_project_package(project, archive)
+    export_project_package(project, archive, external_sources={
+        name: ROOT / name for name in (
+            "examples/code_aster_artifact_review.py",
+            "examples/autoroute_expansion_loop.py",
+            "examples/imported_component_mixed_system.py",
+        )
+    })
     try:
         from tuba.external.ifc import IfcExporter
         from tuba.project import load_project

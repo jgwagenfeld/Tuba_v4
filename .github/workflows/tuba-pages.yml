@@ -1,34 +1,88 @@
 name: Tuba Project Page
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       update_snapshots:
-        description: Re-record the Pages screenshot baselines on this runner and upload them
+        description: Re-record screenshot baselines on this hosted runner and upload them (never deploy)
         type: boolean
         default: false
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  approved-ref:
+    if: ${{ github.repository == 'jgwagenfeld/Tuba_v4' && github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')) || (github.event_name == 'workflow_dispatch' && inputs.update_snapshots)) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.approve.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: approve
+        run: python3 scripts/check_workflow_revision.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          TUBA_APPROVED_ENVIRONMENTS: ${{ github.event_name == 'workflow_run' && 'github-pages' || '' }}
+
+  artifact:
+    needs: approved-ref
+    if: ${{ github.event_name == 'workflow_run' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.approved-ref.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: code-aster-pages-${{ needs.approved-ref.outputs.sha }}-${{ github.event.workflow_run.run_attempt }}
+          path: _site
+      - name: Verify the exact solver-produced, browser-tested artifact
+        env:
+          SOURCE_SHA: ${{ needs.approved-ref.outputs.sha }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: python3 scripts/check_pages_artifact.py verify --output _site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: _site
+          include-hidden-files: true
+
+  snapshots:
+    needs: approved-ref
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.approved-ref.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -38,51 +92,37 @@ jobs:
       - run: uv sync --group docs --extra code-aster-rmed --extra ifc --locked
       - run: npm ci
         working-directory: viewer
-      # build_pages.py photographs every gallery card with Playwright, so the
-      # browser has to exist before the build, not just before the e2e steps.
       - run: npx playwright install --with-deps chromium
         working-directory: viewer
-      - run: uv run python scripts/build_pages.py pages --output _site
-      - run: npm run e2e -- pages-catalog --site-root ../_site
+      - run: uv run python scripts/build_pages.py pages --output .build/pages-snapshots
+      - run: npm run e2e -- pages-catalog --site-root ../.build/pages-snapshots
         working-directory: viewer
         env:
-          TUBA_PAGES_SITE_ROOT: ../_site
-      - run: npm run e2e -- pages-gallery --site-root ../_site
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-snapshots
+      - run: npm run e2e -- pages-gallery --site-root ../.build/pages-snapshots
         working-directory: viewer
         env:
-          TUBA_PAGES_SITE_ROOT: ../_site
-      - run: npm run e2e:pages ${{ inputs.update_snapshots && '-- --update-snapshots' || '' }}
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-snapshots
+      - run: npm run e2e:pages -- --update-snapshots
         working-directory: viewer
         env:
-          TUBA_PAGES_SITE_ROOT: ../_site
-      # The visual baselines are only correct when they were rendered here: a
-      # container's software GL differs from this runner's by a few percent,
-      # which is far more than the tolerance the check allows. Re-recording is
-      # a maintenance run, so the images are published rather than committed by
-      # the workflow - download them and commit them.
-      - if: ${{ inputs.update_snapshots }}
-        uses: actions/upload-artifact@v7
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-snapshots
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: pages-snapshots-linux
           path: viewer/e2e/snapshots/pages-artifact.spec.js/linux
           if-no-files-found: error
-      # Create the Pages site on the first run so no manual repository setting
-      # is required; the workflow already holds the pages: write permission.
-      - uses: actions/configure-pages@v6
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: _site
-          include-hidden-files: true
 
   deploy:
-    needs: build
-    if: ${{ github.ref == 'refs/heads/main' && !inputs.update_snapshots }}
+    needs: [approved-ref, artifact]
+    if: ${{ github.event_name == 'workflow_run' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

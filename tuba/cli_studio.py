@@ -63,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-dir", type=Path, default=Path(".tuba") / "studio",
                         help="Launcher recent folders and bundles (default: .tuba/studio in the current folder)")
     parser.add_argument("--extract-to", type=Path, help="New working folder for a ZIP/TGZ package (default: beside the package, without its extension)")
+    parser.add_argument("--dev-origin", help="Explicit exact HTTP loopback development origin permitted to access this Studio")
     args = parser.parse_args(argv)
 
     if args.host not in {"127.0.0.1", "localhost"}:
@@ -93,14 +94,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         out_dir = Path(args.out_dir).resolve() if args.out_dir else project_bundle_dir(Path(".build") / "studio", project)
         launcher = StudioLauncher(args.state_dir, host=args.host, port=0)
-        server = ProjectStudioServer(project, out_dir, host=args.host, port=args.port)
+        server = ProjectStudioServer(project, out_dir, host=args.host, port=args.port, allowed_dev_origin=args.dev_origin)
     else:
         server = StudioLauncher(args.state_dir, host=args.host, port=args.port,
                                 out_dir=Path(args.out_dir) if args.out_dir else None)
     try:
         if launcher is not None:
             launcher.start()
-            server.launcher_url = launcher.base_url
+            server.launcher_url = launcher.launch_url
         try:
             server.start()
         except OSError as exc:
@@ -119,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # The viewer opens on the live model; Review switches to the review bundle.
-        url = viewer_url(server) if project is not None else server.base_url
+        url = viewer_url(server) if project is not None else server.launch_url
         print("=" * 60)
         print("  TUBA PIPING STUDIO")
         print("=" * 60)

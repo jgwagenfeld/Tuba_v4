@@ -5,6 +5,9 @@ import "@fontsource/ibm-plex-mono/latin-600.css";
 import "@fontsource/ibm-plex-mono/latin-700.css";
 import "./styles.css";
 import { renderGallery, renderGalleryUnavailable, shouldShowGallery } from "./gallery.js";
+import { initializeLocalAuth } from "./localAuth.js";
+
+initializeLocalAuth();
 
 // The gallery and the review are two different front doors, and they were
 // bundled as one. main.js statically imported app.js, which statically imports

@@ -103,6 +103,12 @@ computed paths remain the author's responsibility; open an extracted copy to
 verify custom projects. Install additional Python dependencies separately.
 The Tuba installation does not supply a source checkout's `examples` package.
 
+Developer/gallery builds can explicitly approve a mapping of archive-relative
+names to absolute helper files through `external_sources` on
+`plan_project_package`/`export_project_package`. Every referenced external helper
+must be named; the planned inventory records its external source. Ordinary
+Studio and CLI exports use the project-contained default.
+
 Resolve local assets from the script's location so moving the folder works:
 
 ```python

@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from tuba.visualization.preview.server import ProjectStudioServer
 from tuba.project import run_model_script
+from tuba.studio_launcher import viewer_url
 
 
 VIEWER = ROOT / "viewer"
@@ -43,11 +44,16 @@ def main() -> None:
         fixture.write_bytes(data)
         server = ProjectStudioServer(project, scratch / "out", port=0).start()
         try:
-            subprocess.run([
-                "node", str(VIEWER / "e2e/ifc-exchange-smoke.mjs"),
-                f"{server.base_url}?bundle=build&preview_ws={server.ws_url}",
-                str(fixture), pipe_guid, fitting_guid, str(scratch),
-            ], cwd=VIEWER, check=True, timeout=180)
+            try:
+                browser = subprocess.run([
+                    "node", str(VIEWER / "e2e/ifc-exchange-smoke.mjs"),
+                    viewer_url(server),
+                    str(fixture), pipe_guid, fitting_guid, str(scratch),
+                ], cwd=VIEWER, timeout=180)
+            except subprocess.TimeoutExpired:
+                raise RuntimeError("IFC browser check timed out.") from None
+            if browser.returncode:
+                raise RuntimeError("IFC browser check failed; see browser diagnostics above.")
             with ZipFile(scratch / "converted.zip") as archive:
                 assert archive.read("source.ifc") == data
                 assert {"model.py", "README.md"} <= set(archive.namelist())

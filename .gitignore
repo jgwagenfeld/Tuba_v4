@@ -121,6 +121,7 @@ notebooks/advanced_piping_rack.ifc
 
 # Vite build scratch output
 /.tmp/
+/tuba/visualization/_viewer/pyodide/
 
 # Generated results from the authored imported-geometry project
 /examples/imported-geometry-studio/evidence/

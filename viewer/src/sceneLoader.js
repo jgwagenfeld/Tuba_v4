@@ -3,6 +3,35 @@ import { colorChannelOf, sceneStage, visibilityPresetForStage } from "./workflow
 import { createColoringState, getActiveField } from "./coloring.js";
 import { contactColoringActive } from "./resultReview.js";
 import { selectedInterfaceMappingIds } from "./interfaceMappings.js";
+import { SCENE_LIMITS, SceneBudgetError, readBoundedJson, validateJsonBudget, validateSceneBudget } from "./sceneBudget.js";
+
+let parser;
+let nextId = 0;
+const pending = new Map();
+function parseJson(bytes, remaining) {
+  if (typeof Worker === "undefined") {
+    const budget = { values: SCENE_LIMITS.values - remaining };
+    const value = validateJsonBudget(JSON.parse(new TextDecoder().decode(bytes)), budget);
+    return { value, values: budget.values - (SCENE_LIMITS.values - remaining) };
+  }
+  parser ??= new Worker(new URL("./sceneBudgetWorker.js", import.meta.url), { type: "module" });
+  parser.onmessage = ({ data }) => {
+    const entry = pending.get(data.id);
+    if (!entry) return;
+    pending.delete(data.id);
+    if (data.error) entry.reject(new SceneBudgetError(data.error));
+    else entry.resolve({ value: data.value, values: data.values });
+  };
+  parser.onerror = () => {
+    for (const entry of pending.values()) entry.reject(new SceneBudgetError("JSON worker failed."));
+    pending.clear(); parser.terminate(); parser = null;
+  };
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    parser.postMessage({ id, bytes, remaining }, [bytes.buffer]);
+  });
+}
 
 // Only reached now when a review was asked for, when a folder holds a single
 // bundle, or when the viewer is embedded: a multi-bundle landing page shows the
@@ -39,6 +68,15 @@ function normalizeContactFindings(raw) {
 
 export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis.fetch) {
   const normalized = String(baseUrl).replace(/\/+$/, "");
+  const budget = { bytes: 0 };
+  let parsing = Promise.resolve();
+  const parseDocument = (bytes) => {
+    parsing = parsing.then(() => parseJson(bytes, SCENE_LIMITS.values - (budget.values ?? 0))).then(({ value, values }) => {
+      budget.values = (budget.values ?? 0) + values;
+      return value;
+    });
+    return parsing;
+  };
   const readJson = async (relativePath) => {
     const url = `${normalized}/${relativePath}`;
     const response = await fetcher(url);
@@ -52,7 +90,7 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
           "The bundle URL points to a different application or server."
       );
     }
-    return response.json();
+    return readBoundedJson(response, budget, parseDocument);
   };
   const scene = await readJson("scene.json");
   const objects = Array.isArray(scene.objects) ? scene.objects : await readJson("metadata/objects.json");
@@ -61,9 +99,16 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
   const geometryAssets = Array.isArray(scene.geometry_assets)
     ? scene.geometry_assets
     : await readJson("geometry/geometry_assets.json");
+  validateSceneBudget({ scene, objects, geometryAssets });
   const geometryPayloads = await readGeometryPayloads(scene.geometry_assets ?? geometryAssets, readJson);
+  validateSceneBudget({ scene, objects, geometryAssets, geometryPayloads });
 
-  const reviewResult = await loadOptionalReview(normalized, fetcher);
+  const reviewResult = await loadOptionalReview(normalized, async (url) => {
+    const response = await fetcher(url);
+    if (!response.ok) return response;
+    const value = await readBoundedJson(response, budget, parseDocument);
+    return { ok: true, status: response.status, json: async () => value };
+  });
 
   return {
     scene,
@@ -103,6 +148,7 @@ function manifestGeometryPayload(asset) {
 }
 
 export function createViewerState(bundle) {
+  validateSceneBudget(bundle);
   const scene = bundle.scene;
   const sourceObjects = scene.objects?.length ? scene.objects : bundle.objects ?? [];
   const insulatedRefs = new Set(sourceObjects

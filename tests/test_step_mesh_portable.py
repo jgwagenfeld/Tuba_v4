@@ -62,14 +62,14 @@ def test_step_native_entry_points_explicitly_import_mm(tmp_path, monkeypatch, op
 
     if operation == "import":
         monkeypatch.setattr(step_analysis_importer, "gmsh_model", capture_options)
-        call = lambda: step_analysis_importer.StepAnalysisImporter().import_component(model, source, id="solid")
+        call = lambda: step_analysis_importer.StepAnalysisImporter()._parse_native(source, id="solid")
     else:
         importer = step_analysis_importer.StepAnalysisImporter()
         importer.record_component_from_metadata(model, source_path=source,
             component_id="solid", asset_id="asset", content_digest=importer._compute_digest(source))
         region = SimpleNamespace(owner=EntityRef("component", "solid"), element_order=2)
         monkeypatch.setattr(step_component, "gmsh_model", capture_options)
-        call = lambda: step_component.build_step_component_mesh(model, tmp_path / "source.med",
+        call = lambda: step_component._build_step_component_mesh_native(model, tmp_path / "source.med",
             region=region, max_element_size=0.01, line_modelisation="TUYAU_3M")
     with pytest.raises(RuntimeError, match="native entry intercepted"):
         call()

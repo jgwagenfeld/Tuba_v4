@@ -1,4 +1,5 @@
 import io
+import hashlib
 import http.client
 import json
 import shutil
@@ -110,6 +111,29 @@ def test_large_coordinate_axis_body_mismatch_is_rejected(tmp_path):
         convert_pipes(source, [guid], MATERIAL, SECTION)
 
 
+def test_reference_preview_cache_and_retained_quota_precede_native_reparse(tmp_path, monkeypatch):
+    project = tmp_path / "quota-project"
+    project.mkdir()
+    (project / "model.py").write_text("from tuba import Model\nmodel=Model('Quota')\n")
+    server = ProjectStudioServer(project, tmp_path / "quota-out", port=0)
+    calls = []
+    def inspected(data, name="reference.ifc"):
+        calls.append(data)
+        return ({"sha256": hashlib.sha256(data).hexdigest(), "name": name, "products": [], "warnings": []}, {})
+    monkeypatch.setattr("tuba.external.ifc_reference.extract", inspected)
+    monkeypatch.setattr(server, "_republish_ifc", lambda: ("build/", "review/"))
+    source = b"ISO-10303-21;first"
+    assert server.ifc_request("preview", source)[0] == 200
+    assert server.ifc_request("attach", source)[0] == 201
+    assert calls == [source]
+    for index in range(7):
+        assert server.ifc_request("attach", f"ISO-10303-21;{index}".encode())[0] == 201
+    count = len(calls)
+    status, result = server.ifc_request("attach", b"ISO-10303-21;over-budget")
+    assert status == 422 and "retained reference budget" in result["error"]
+    assert len(calls) == count
+
+
 def test_studio_preview_attach_restart_remove_and_boundaries(tmp_path):
     data, guid, _ = fixture_bytes()
     project = tmp_path / "project"
@@ -126,7 +150,7 @@ def test_studio_preview_attach_restart_remove_and_boundaries(tmp_path):
 
     def post(server, route, body, content_type="application/octet-stream", **headers):
         req = Request(server.base_url + "api/ifc/" + route, body,
-                      headers={"Content-Type": content_type, **headers}, method="POST")
+                      headers={"Authorization": "Bearer " + server.access_token, "Content-Type": content_type, **headers}, method="POST")
         try:
             with urlopen(req) as response:
                 return response.status, json.loads(response.read())
@@ -143,6 +167,7 @@ def test_studio_preview_attach_restart_remove_and_boundaries(tmp_path):
         connection = http.client.HTTPConnection("127.0.0.1", server.port)
         connection.putrequest("POST", "/api/ifc/preview")
         connection.putheader("Content-Type", "application/octet-stream")
+        connection.putheader("Authorization", "Bearer " + server.access_token)
         connection.putheader("Content-Length", str(16777217))
         connection.endheaders()
         response = connection.getresponse()
@@ -169,19 +194,19 @@ def test_studio_preview_attach_restart_remove_and_boundaries(tmp_path):
         request = Request(server.base_url + "api/ifc/convert",
                           json.dumps({"reference_id": identity, "guids": [guid],
                                       "material": MATERIAL, "section": SECTION}).encode(),
-                          headers={"Content-Type": "application/json"}, method="POST")
+                          headers={"Authorization": "Bearer " + server.access_token, "Content-Type": "application/json"}, method="POST")
         with urlopen(request) as response:
             assert response.headers["Content-Type"] == "application/zip"
             with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
                 assert archive.read("source.ifc") == data
-        with urlopen(server.base_url + "api/ifc/export") as response:
+        with urlopen(Request(server.base_url + "api/ifc/export", headers={"Authorization": "Bearer " + server.access_token})) as response:
             assert response.headers["Content-Type"] == "application/x-step"
             assert ifc.file.from_string(response.read().decode()).by_type("IfcProject")
     finally:
         server.stop()
     server = start()
     try:
-        with urlopen(server.base_url + "api/project") as response:
+        with urlopen(Request(server.base_url + "api/project", headers={"Authorization": "Bearer " + server.access_token})) as response:
             assert json.load(response)["ifc"]["references"][0]["id"] == identity
         assert post(server, "remove", json.dumps({"id": identity}).encode(), "application/json")[0] == 200
         assert not (project / "references" / "ifc" / identity).exists()

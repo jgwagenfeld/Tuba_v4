@@ -6,6 +6,7 @@ import shutil
 from contextlib import contextmanager
 import hashlib
 import json
+import os
 import re
 import tempfile
 import threading
@@ -20,6 +21,8 @@ from tuba.visualization.web_export import write_scene_bundle
 
 if TYPE_CHECKING:
     from tuba.project.study import StudySettings
+
+MAX_REFERENCE_SCENE_BYTES = 32 * 1024 * 1024
 
 
 class ProjectStudioServer(PreviewServer):
@@ -41,6 +44,7 @@ class ProjectStudioServer(PreviewServer):
         poll_interval_s: float = 0.25,
         debounce_s: float = 0.2,
         solver: Any = None,
+        allowed_dev_origin: str | None = None,
     ) -> None:
         from tuba.project import load_project
         from tuba.project.freshness import attested_identities
@@ -53,6 +57,7 @@ class ProjectStudioServer(PreviewServer):
             port=port,
             poll_interval_s=poll_interval_s,
             debounce_s=debounce_s,
+            allowed_dev_origin=allowed_dev_origin,
         )
         self.model: TubaModel | None = None
         self.namespace: dict[str, Any] | None = None
@@ -64,6 +69,9 @@ class ProjectStudioServer(PreviewServer):
         self._watched_paths.update(self._study_paths)
         self._study_fingerprints = self._execution_fingerprints(self._study_paths, self.study)
         self._geometry_lock = threading.Lock()
+        # Keep one successful preview, so Store/Attach don't repeat native parsing.
+        self._geometry_preview = None
+        self._ifc_preview = None
         self.review_error: str | None = None
         # review_stale runs on every save, and a review scene can be tens of MB: read its identities
         # once per bundle, here for a bundle left on disk and in _produce_review for each new one.
@@ -113,7 +121,7 @@ class ProjectStudioServer(PreviewServer):
         return tuple(getattr(self.study, "LOAD_CASES", ()) or ())
 
     def _declared_artifact_dir(self) -> Path | None:
-        """study.py's declared ARTIFACT_DIR: the import-only review path needs no solver options."""
+        """study.py's declared ARTIFACT_DIR; evidence still requires current compiler settings."""
         settings = self._study_settings_or_none()
         if settings is not None:
             return settings.artifact_dir
@@ -121,7 +129,7 @@ class ProjectStudioServer(PreviewServer):
         return Path(declared) if declared is not None else None
 
     def _review_builder(self):
-        """The study's review builder; the import-only path does not need valid solver options."""
+        """The study's review builder; imported results must first match current study settings."""
         settings = self._study_settings_or_none()
         builder = settings.build_review if settings is not None else getattr(self.study, "build_review", None)
         if not callable(builder):
@@ -133,7 +141,7 @@ class ProjectStudioServer(PreviewServer):
         from tuba.project.session import register_studio
 
         try:
-            self._studio_session = register_studio(self.project.root, self.base_url)
+            self._studio_session = register_studio(self.project.root, self.base_url, self.access_token)
         except BaseException:
             super().stop()
             raise
@@ -528,6 +536,10 @@ class ProjectStudioServer(PreviewServer):
 
         work = self.out_dir / ".review-work"
         shutil.rmtree(work, ignore_errors=True)
+        settings = self._study_settings()
+        if artifact_dir is not None and settings.operations:
+            from tuba.project.study import import_study_evidence
+            import_study_evidence(namespace, settings, artifact_dir)
         root = self._review_builder()(namespace, work, artifact_dir=artifact_dir)
         self._rewrite_review_references(Path(root))
         identities = attested_identities(Path(root))
@@ -598,7 +610,11 @@ class ProjectStudioServer(PreviewServer):
             return 400, {"ok": False, "error": str(exc)}
         try:
             with self._geometry_lock:
-                return 200, geometry_upload(self.project.root, self.out_dir, route, body, validated)
+                key = (hashlib.sha256(body).hexdigest(), json.dumps(validated, sort_keys=True))
+                cached = self._geometry_preview[1] if self._geometry_preview and self._geometry_preview[0] == key else None
+                result = geometry_upload(self.project.root, self.out_dir, route, body, validated, cached=cached)
+                self._geometry_preview = key, {key: value for key, value in result.items() if key not in {"path", "python"}}
+                return 200, result
         except ImportError as exc:
             return 503, {"ok": False, "error": str(exc)}
         except StepImportError as exc:
@@ -620,11 +636,24 @@ class ProjectStudioServer(PreviewServer):
         return self.project.root / "references" / "ifc"
 
     def _ifc_manifests(self):
+        from tuba.geometry._native_worker import MAX_OUTPUT_BYTES
+        retained = 0
+        vertices = faces = products = 0
         for path in sorted(self._ifc_root.glob("*/manifest.json")):
+            if path.is_symlink() or path.parent.is_symlink():
+                raise ValueError("IFC references must not contain links.")
+            retained += 1
+            if retained > 8 or path.stat().st_size > MAX_OUTPUT_BYTES:
+                raise ValueError("IFC retained references exceed 8 manifests or 64 MiB per manifest.")
             if re.fullmatch(r"[0-9a-f]{64}", path.parent.name) and (path.parent / "source.ifc").is_file():
                 try:
                     manifest = json.loads(path.read_text(encoding="utf-8"))
                     if manifest["preview"]["sha256"] == path.parent.name:
+                        products += len(manifest["preview"]["products"])
+                        vertices += sum(len(mesh["vertices"]) for mesh in manifest["meshes"].values())
+                        faces += sum(len(mesh["faces"]) for mesh in manifest["meshes"].values())
+                        if products > 10000 or vertices > 500000 or faces > 500000:
+                            raise RuntimeError("IFC retained product/vertex/face budget exceeded.")
                         yield path.parent.name, manifest
                 except (OSError, ValueError, KeyError):
                     continue
@@ -667,8 +696,25 @@ class ProjectStudioServer(PreviewServer):
     def _merge_ifc_references(self, scene):
         from tuba.external.ifc_reference import merge_reference
 
+        merged = False
         for identity, manifest in self._ifc_manifests():
             merge_reference(scene, identity, manifest)
+            merged = True
+        if merged:
+            from tuba.visualization.web_export import _manifest_generation_config, _relative_geometry_uri
+            if len(scene.objects) > 10000 or len(scene.geometry_assets) > 10000:
+                raise ValueError("IFC merged scene object/asset budget exceeds 10000.")
+            payload = scene.to_dict()
+            for asset in payload["geometry_assets"]:
+                asset["uri"] = _relative_geometry_uri(asset["id"]) if asset["format"] == "tuyau_subpoint_glyphs" else ""
+                asset["generation_config"] = _manifest_generation_config(asset)
+                asset["hash"] = "sha256:" + "0" * 64
+            size = 0
+            for chunk in json.JSONEncoder(indent=2, sort_keys=True, allow_nan=False).iterencode(payload):
+                # write_scene_bundle writes text; Windows expands LF to CRLF.
+                size += len(chunk.encode("utf-8")) + (chunk.count("\n") if os.name == "nt" else 0)
+                if size > MAX_REFERENCE_SCENE_BYTES:
+                    raise ValueError("IFC merged scene JSON exceeds the 32 MiB receiving limit before publication.")
 
     def _rewrite_review_references(self, root: Path) -> None:
         from tuba.visualization.scene import VisualizationScene
@@ -713,21 +759,41 @@ class ProjectStudioServer(PreviewServer):
         try:
             require_ifc()
             if route == "preview":
-                preview, _ = extract(body or b"", name)
+                preview, meshes = extract(body or b"", name)
+                self._ifc_preview = preview["sha256"], preview, meshes
                 return 200, {"ok": True, "preview": preview}
             if route == "attach":
-                preview, meshes = extract(body or b"", name)
-                identity = preview["sha256"]
+                from tuba.geometry._native_worker import check_source, write_bounded_json
+                check_source(body or b"")
+                identity = hashlib.sha256(body).hexdigest()
                 target = self._ifc_root / identity
+                manifests = list(self._ifc_manifests())
+                if target.is_symlink():
+                    raise ValueError("IFC references must not contain links.")
                 if target.is_dir():
                     return 200, {"ok": True, "reference": self._ifc_summary(identity, json.loads((target / "manifest.json").read_text(encoding="utf-8"))),
                                  "build_url": f"{self.base_url}build/", "review_url": f"{self.base_url}review/"}
+                if len(manifests) >= 8:
+                    raise ValueError("IFC retained reference budget exceeds 8 references.")
+                if self._ifc_preview and self._ifc_preview[0] == identity:
+                    _, preview, meshes = self._ifc_preview
+                else:
+                    preview, meshes = extract(body or b"", name)
+                all_manifests = [manifest for _, manifest in manifests] + [{"preview": preview, "meshes": meshes}]
+                if (len(all_manifests) > 8
+                        or sum(len(manifest["preview"]["products"]) for manifest in all_manifests) > 10000
+                        or sum(len(mesh["vertices"]) for manifest in all_manifests for mesh in manifest["meshes"].values()) > 500000
+                        or sum(len(mesh["faces"]) for manifest in all_manifests for mesh in manifest["meshes"].values()) > 500000):
+                    raise ValueError("IFC retained reference/product/vertex/face budget exceeded.")
                 self._ifc_root.mkdir(parents=True, exist_ok=True)
                 with tempfile.TemporaryDirectory(dir=self._ifc_root) as temp:
                     folder = Path(temp)
                     (folder / "source.ifc").write_bytes(body)
                     manifest = {"preview": preview, "meshes": meshes}
-                    (folder / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                    write_bounded_json(folder / "manifest.json", manifest)
+                    retained = sum(path.stat().st_size for path in self._ifc_root.glob("*/*") if path.is_file())
+                    if retained > 512 * 1024 * 1024:
+                        raise ValueError("IFC project reference storage exceeds 512 MiB.")
                     folder.rename(target)
                 try:
                     build_url, review_url = self._republish_ifc()

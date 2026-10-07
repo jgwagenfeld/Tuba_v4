@@ -10,6 +10,7 @@ from typing import Any
 
 from tuba.meshing._gmsh import gmsh_model
 from tuba.mixed import CadAsset, ImportedComponent, Port, normalize_placement, transform_axis, transform_point
+from tuba.geometry._native_worker import MAX_CAD_ENTITIES, MAX_FACES, MAX_VERTICES, NativeImportError, read_source, run_native
 
 try:
     import gmsh  # type: ignore
@@ -90,42 +91,22 @@ class StepAnalysisImporter:
         if gmsh is None:
             raise StepImportError("gmsh is required to import STEP files for mixed analysis.")
 
-        digest = self._compute_digest(path)
-        with gmsh_model(gmsh, f"tuba_step_{id}", options={
-            "Geometry.OCCTargetUnit": "MM", "Mesh.ElementOrder": 1, "Mesh.RecombineAll": 0,
-        }):
-            imported = gmsh.model.occ.importShapes(str(path))
-            gmsh.model.occ.synchronize()
-            if not any(dim == 3 for dim, _ in imported):
-                raise StepImportError("STEP import contains no closed solid volume.")
-            faces = self._describe_faces(imported)
-            ports = []
-            if interfaces is not None:
-                for name, selector in interfaces.items():
-                    face = self._select_face(faces, selector)
-                    if face["type"] != "Plane":
-                        raise StepImportError(f"Interface {name!r} must select a planar face.")
-                    ports.append(self._port_payload(face, f"{id}_{name}", f"G_{id}_{name}", "confirmed"))
-            else:
-                for face in faces:
-                    if face["shape"] in {"circular_face", "annular_face"}:
-                        index = len(ports)
-                        ports.append(self._port_payload(face, f"{id}_port_candidate_{index}", f"G_{id}_PORT_{index}", "detected"))
-            pressure_faces = [self._select_face(faces, selector) for selector in pressure_surfaces or []]
-            if len({face["gmsh_face_tag"] for face in pressure_faces}) != len(pressure_faces):
-                raise StepImportError("Pressure surface selections must not repeat a face.")
-            pressure = [self._selector(face) for face in pressure_faces]
-            if any(port["id"] in model.mesh_groups for port in ports if port["status"] == "confirmed"):
-                raise ValueError("STEP interface mesh group id already exists.")
-            metadata = self._tessellate(faces)
-            metadata["analysis_import_version"] = 1
-            metadata["mesh_size"] = mesh_size
-            metadata["interface_mesh_sizes"] = local_sizes
-            for port in ports:
-                port["position"] = transform_point(port["position"], unit_scale_to_m, placement)
-                port["axis"] = transform_axis(port["axis"], placement)
-                port["radius"] *= unit_scale_to_m
-                port["metadata"]["inner_radius_m"] *= unit_scale_to_m
+        data = read_source(path)
+        digest = f"sha256:{hashlib.sha256(data).hexdigest()}"
+        try:
+            metadata, ports, pressure = run_native("step", data, id=id, interfaces=interfaces, pressure_surfaces=pressure_surfaces)
+        except NativeImportError as exc:
+            raise StepImportError(str(exc)) from exc
+        if any(port["id"] in model.mesh_groups for port in ports if port["status"] == "confirmed"):
+            raise ValueError("STEP interface mesh group id already exists.")
+        metadata["analysis_import_version"] = 1
+        metadata["mesh_size"] = mesh_size
+        metadata["interface_mesh_sizes"] = local_sizes
+        for port in ports:
+            port["position"] = transform_point(port["position"], unit_scale_to_m, placement)
+            port["axis"] = transform_axis(port["axis"], placement)
+            port["radius"] *= unit_scale_to_m
+            port["metadata"]["inner_radius_m"] *= unit_scale_to_m
 
         if self._compute_digest(path) != digest:
             raise StepImportError("STEP source changed during import; retry with a stable source file.")
@@ -149,6 +130,39 @@ class StepAnalysisImporter:
                 model.add_mesh_group(id=port["id"], owner=f"port:{port['id']}", solver_name=port["face_group"], dimension=2,
                     metadata={"face_selector": port["metadata"]["face_selector"]})
         return component
+
+    def _parse_native(self, path, *, id, interfaces=None, pressure_surfaces=None):
+        """Only called inside the bounded disposable import worker."""
+        if gmsh is None:
+            raise StepImportError("gmsh is required to import STEP files for mixed analysis.")
+        with gmsh_model(gmsh, f"tuba_step_{id}", options={
+            "Geometry.OCCTargetUnit": "MM", "Mesh.ElementOrder": 1, "Mesh.RecombineAll": 0,
+        }):
+            imported = gmsh.model.occ.importShapes(str(path))
+            gmsh.model.occ.synchronize()
+            if len(gmsh.model.getEntities()) > MAX_CAD_ENTITIES:
+                raise StepImportError(f"STEP exceeds {MAX_CAD_ENTITIES} CAD entities before tessellation.")
+            if not any(dim == 3 for dim, _ in imported):
+                raise StepImportError("STEP import contains no closed solid volume.")
+            faces = self._describe_faces(imported)
+            ports = []
+            if interfaces is not None:
+                for name, selector in interfaces.items():
+                    face = self._select_face(faces, selector)
+                    if face["type"] != "Plane":
+                        raise StepImportError(f"Interface {name!r} must select a planar face.")
+                    ports.append(self._port_payload(face, f"{id}_{name}", f"G_{id}_{name}", "confirmed"))
+            else:
+                for face in faces:
+                    if face["shape"] in {"circular_face", "annular_face"}:
+                        index = len(ports)
+                        ports.append(self._port_payload(face, f"{id}_port_candidate_{index}", f"G_{id}_PORT_{index}", "detected"))
+            pressure_faces = [self._select_face(faces, selector) for selector in pressure_surfaces or []]
+            if len({face["gmsh_face_tag"] for face in pressure_faces}) != len(pressure_faces):
+                raise StepImportError("Pressure surface selections must not repeat a face.")
+            pressure = [self._selector(face) for face in pressure_faces]
+            metadata = self._tessellate(faces)
+        return metadata, ports, pressure
 
     def record_component_from_metadata(
         self, model, *, source_path: str | Path, component_id: str, asset_id: str,
@@ -324,13 +338,20 @@ class StepAnalysisImporter:
 
     @staticmethod
     def _tessellate(cad_faces) -> dict[str, Any]:
+        if len(cad_faces) > MAX_CAD_ENTITIES:
+            raise StepImportError("STEP CAD face budget exceeded before tessellation.")
         gmsh.model.mesh.generate(2)
+        elements = gmsh.model.mesh.getElements(2)
+        if sum(len(block) for block in elements[1]) > MAX_FACES:
+            raise StepImportError(f"STEP exceeds {MAX_FACES} display triangles before Python mesh expansion.")
         tags, coordinates, _ = gmsh.model.mesh.getNodes()
+        if len(tags) > MAX_VERTICES or len(coordinates) > MAX_VERTICES * 3:
+            raise StepImportError(f"STEP exceeds {MAX_VERTICES} display vertices before Python mesh expansion.")
         points = [list(map(float, coordinates[index:index+3])) for index in range(0, len(coordinates), 3)]
         index_by_tag = {int(tag): index for index, tag in enumerate(tags)}
         faces = []
         face_index_by_tag = {}
-        for element_type, element_tags, nodes in zip(*gmsh.model.mesh.getElements(2)):
+        for element_type, element_tags, nodes in zip(*elements):
             _, dim, _, count, _, primary = gmsh.model.mesh.getElementProperties(element_type)
             if dim != 2 or primary != 3:
                 raise StepImportError("STEP display tessellation must contain triangular faces.")
@@ -374,4 +395,4 @@ class StepAnalysisImporter:
 
     @staticmethod
     def _compute_digest(path: Path) -> str:
-        return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+        return f"sha256:{hashlib.sha256(read_source(path)).hexdigest()}"

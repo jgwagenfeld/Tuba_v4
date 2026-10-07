@@ -446,3 +446,12 @@ test("a disposition whose subject has vanished is still in the record", () => {
   assert.equal(entry.subject_kind, "issue");
   assert.equal(entry.title, null);
 });
+
+test("CSV text formulas with whitespace and control prefixes are inert while numbers stay numeric", () => {
+  for (const text of ["=1+1", "+SUM(A1)", "-1+2", "@SUM(A1)", " \t=1", "\0 \r@SUM(A1)", "\u2003+1"]) {
+    const csv = reviewRecordCsv({ dispositions: [{ comment: text, transition_count: -12.5 }] });
+    assert.ok(csv.includes(`'${text}`), text);
+    assert.ok(csv.includes(",-12.5,"));
+    assert.ok(!csv.includes(",'\u002d12.5,"));
+  }
+});

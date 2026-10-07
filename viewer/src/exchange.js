@@ -79,20 +79,23 @@ export function initExchange(dialog, { project, catalogEntry, reload, trigger, h
       if (!response.ok || !result.ok) throw new Error(result.error || "Project export unavailable.");
       packageStatus.textContent = `${result.file_count} files · ${(result.size_bytes / 1024 / 1024).toFixed(2)} MiB before compression`;
       packageExport.disabled = false;
+      return result.operation_nonce;
     };
     packageResults.addEventListener("change", () => previewPackage().catch(error => { packageStatus.textContent = error.message; }));
     packageExport.addEventListener("click", async () => {
       try {
-        await previewPackage();
-        // Native downloads stream the archive instead of buffering it in JavaScript.
-        const link = document.createElement("a");
-        link.href = `/api/package/export?results=${packageResults.checked ? 1 : 0}&format=${packageFormat?.value ?? "zip"}`;
-        // The successful response supplies the download filename. An export
-        // error opens its JSON message instead of downloading a corrupt package.
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.click();
+        const operationNonce = await previewPackage();
+        packageExport.disabled = true;
+        const format = packageFormat?.value ?? "zip";
+        const response = await fetch("/api/package/export", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operation_nonce: operationNonce, results: packageResults.checked, format })
+        });
+        if (!response.ok) throw new Error((await response.json()).error || "Project export refused.");
+        const filename = response.headers.get("content-disposition")?.match(/filename="([A-Za-z0-9_.-]+)"/)?.[1];
+        download(await response.blob(), filename ?? `project.${format === "tgz" ? "tgz" : "tubaproject"}`);
       } catch (error) { packageStatus.textContent = error.message; }
+      finally { packageExport.disabled = false; }
     });
     packageFormat?.addEventListener("change", () => {
       packageExport.textContent = packageFormat.value === "tgz" ? "Download .tgz" : "Download .tubaproject";

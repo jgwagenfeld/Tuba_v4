@@ -600,10 +600,20 @@ class IfcImporter:
         _require_ifcopenshell()
 
     def import_model(self, file_path: str | Path) -> TubaModel:
+        """Import untrusted IFC with the same bounded worker as reference imports."""
+        from tuba.geometry._native_worker import read_source, run_native
+        from tuba.model import TubaModel
+        model = TubaModel.from_dict(run_native("ifc_model", read_source(file_path)))
+        model.project_name = Path(file_path).stem
+        return model
+
+    def _import_model_native(self, file_path: str | Path) -> TubaModel:
         """Parse an IFC file and extract piping, beams, columns, supports, and obstacles into a TubaModel."""
         from tuba.model import TubaModel, IBeamSection, RectangularSection, BarSection, CableSection, SUPPORT_TYPES
 
         ifc_file = ifcopenshell.open(str(file_path))
+        from tuba.external.ifc_reference import validate_file_budget
+        validate_file_budget(ifc_file)
         model = TubaModel(project_name=Path(file_path).stem)
 
         # Add default material and section specs

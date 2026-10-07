@@ -57,7 +57,9 @@ def bom_to_csv(model: TubaModel) -> str:
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
-    writer.writerows(data["rows"])
+    from tuba.reporting.csv_cells import spreadsheet_cell
+
+    writer.writerows({key: spreadsheet_cell(value) for key, value in row.items()} for row in data["rows"])
     return buffer.getvalue()
 
 

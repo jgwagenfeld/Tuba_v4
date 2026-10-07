@@ -11,12 +11,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlencode, urlsplit
 
+from tuba.local_auth import LocalAccess, capability_url, new_access_token
 from tuba.project import load_project
 from tuba.project.study import study_scaffold
+from tuba.visualization.viewer import LocalHTTPServer
 
 
 def viewer_url(server: Any) -> str:
-    return f"{server.base_url}?{urlencode({'bundle': 'build', 'preview_ws': server.ws_url})}"
+    return capability_url(f"{server.base_url}?{urlencode({'bundle': 'build', 'preview_ws': server.ws_url})}", server.access_token)
 
 
 def local_folder(value: Any) -> Path:
@@ -63,6 +65,8 @@ class StudioLauncher:
         self.out_dir = (out_dir or self.state_dir / "bundles").resolve()
         self.default_folder = Path.cwd().resolve()
         self.host, self.port = host, port
+        self.access_token = new_access_token()
+        self.access = LocalAccess(self.access_token)
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._studios: dict[str, Any] = {}
@@ -72,6 +76,10 @@ class StudioLauncher:
     @property
     def base_url(self) -> str:
         return f"http://{self.host}:{self.port}/"
+
+    @property
+    def launch_url(self) -> str:
+        return capability_url(self.base_url, self.access_token)
 
     def recent(self) -> list[dict[str, Any]]:
         path = self.state_dir / "recent.json"
@@ -126,7 +134,7 @@ class StudioLauncher:
                 url, reused = viewer_url(server), True
             else:
                 server = ProjectStudioServer(project.root, project_bundle_dir(self.out_dir, project.root), host=self.host, port=0)
-                server.launcher_url = self.base_url
+                server.launcher_url = self.launch_url
                 try:
                     server.start()
                 except Exception:
@@ -157,8 +165,12 @@ class StudioLauncher:
             def local_request(self) -> bool:
                 host = self.headers.get("Host", "")
                 allowed = {f"127.0.0.1:{launcher.port}", f"localhost:{launcher.port}"}
-                origin = self.headers.get("Origin")
-                return host in allowed and (origin is None or origin == f"http://{host}") and self.headers.get("Sec-Fetch-Site") != "cross-site"
+                return launcher.access.browser_request(self.headers, host if host in allowed else None,
+                                                       mutate=self.command != "GET",
+                                                       bootstrap=self.command == "GET" and urlsplit(self.path).path == "/")
+
+            def authorized(self) -> bool:
+                return self.local_request() and launcher.access.authenticated(self.headers)
 
             def reply(self, status: int, data: Any, *, html: bool = False) -> None:
                 raw = data.encode("utf-8") if html else json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -167,12 +179,14 @@ class StudioLauncher:
                 self.send_header("Content-Length", str(len(raw)))
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header("Cross-Origin-Resource-Policy", "same-origin")
                 self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
                 self.end_headers()
                 self.wfile.write(raw)
 
             def do_GET(self) -> None:
-                if not self.local_request():
+                if not self.local_request() or (urlsplit(self.path).path != "/" and not self.authorized()):
                     self.reply(403, {"ok": False, "error": "Cross-origin request refused."})
                     return
                 parsed = urlsplit(self.path)
@@ -192,7 +206,7 @@ class StudioLauncher:
                     self.reply(400, {"ok": False, "error": str(exc)})
 
             def do_POST(self) -> None:
-                if not self.local_request():
+                if not self.authorized():
                     # Drain bounded bodies so Windows does not reset the socket before 403 is read.
                     try:
                         length = int(self.headers.get("Content-Length", "0"))
@@ -245,7 +259,7 @@ class StudioLauncher:
                 except Exception as exc:
                     self.reply(500, {"ok": False, "error": f"Project could not open: {exc}"})
 
-        self._httpd = ThreadingHTTPServer((self.host, self.port), Handler)
+        self._httpd = LocalHTTPServer((self.host, self.port), Handler)
         self.port = int(self._httpd.server_address[1])
         self._thread = threading.Thread(target=self._httpd.serve_forever, name="tuba-launcher", daemon=True)
         self._thread.start()
@@ -290,8 +304,11 @@ button,a{font:inherit;color:inherit}button{cursor:pointer;padding:11px 16px;bord
 </main><dialog id="browser" aria-labelledby="browse-title"><div class="dialog-head"><h2 id="browse-title">Choose a local folder</h2><button id="close" aria-label="Close folder browser">Close</button></div>
 <p class="browse-path" id="browse-path"></p><label for="drive">Drive</label><select id="drive"></select><div class="actions"><button id="up">Parent folder</button><button id="choose" class="primary">Use this folder</button></div><ul id="folders"></ul></dialog>
 <script>
+const suppliedToken=new URLSearchParams(location.hash.slice(1)).get('tuba_token');
+if(suppliedToken){sessionStorage.setItem('tuba:access',suppliedToken);history.replaceState(null,'',location.pathname+location.search)}
+const accessToken=sessionStorage.getItem('tuba:access');
 const $=id=>document.getElementById(id);let browsingPath='',defaultFolder='';
-async function request(url,options){const response=await fetch(url,{cache:'no-store',...options});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||`Launcher answered ${response.status}`);return result}
+async function request(url,options){const response=await fetch(url,{cache:'no-store',...options,redirect:'error',headers:{...options?.headers,Authorization:'Bearer '+(accessToken||'')}});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||`Launcher answered ${response.status}`);return result}
 async function recent(){const result=await request('/api/projects');defaultFolder=result.default_folder;$('recent').replaceChildren();for(const entry of result.recent){const li=document.createElement('li'),button=document.createElement('button'),path=document.createElement('span');button.textContent=entry.name+(entry.available?'':' — unavailable');button.disabled=!entry.available;path.className='path';path.textContent=entry.path;button.append(path);button.onclick=()=>openProject('open',entry.path);li.append(button);$('recent').append(li)}if(!result.recent.length)$('recent').textContent='No projects opened yet.'}
 async function openProject(action,path=$('project-path').value){$('status').textContent=action==='new'?'Creating project…':'Opening project…';$('open').disabled=$('new').disabled=true;try{const result=await request('/api/projects/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});$('status').replaceChildren(document.createTextNode('Ready. '));const link=document.createElement('a');link.href=result.viewer_url;link.target='_blank';link.rel='noopener';link.textContent='Open Studio';$('status').append(link);await recent();window.open(result.viewer_url,'_blank','noopener')}catch(error){$('status').textContent=error.message}finally{$('open').disabled=$('new').disabled=false}}
 function suggestPackageFolder(){const file=$('package-file').files[0];if(!file)return;const name=file.name.replace(/\.(tubaproject|zip|tgz|tar\.gz)$/i,'').replace(/[<>:"/\\|?*]/g,'_')||'project';const separator=defaultFolder.includes('\\')?'\\':'/';$('package-folder').value=defaultFolder.replace(/[\\/]+$/,'')+separator+name}

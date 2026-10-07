@@ -328,7 +328,7 @@ function csvCell(value) {
     return csvCell(JSON.stringify(value));
   }
   const raw = String(value);
-  const text = typeof value === "string" && /^(\s*[=+\-@]|[\t\r\n])/.test(raw) ? `'${raw}` : raw;
+  const text = typeof value === "string" && /^([\s\x00-\x1f]*[=+\-@]|[\t\r\n])/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 

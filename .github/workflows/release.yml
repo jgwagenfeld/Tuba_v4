@@ -8,16 +8,46 @@ on:
         required: true
         type: string
 
+permissions: {}
+
 jobs:
-  build:
-    needs: code-aster-integration
+  approved-ref:
+    if: ${{ github.repository == 'jgwagenfeld/Tuba_v4' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.approve.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: approve
+        run: python3 scripts/check_workflow_revision.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TUBA_APPROVED_ENVIRONMENTS: code-aster release
+      - name: Validate requested tag before the privileged runner is scheduled
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python3 scripts/check_release_tag.py tag "$TAG"
+
+  build:
+    needs: [approved-ref, code-aster-integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.approved-ref.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -25,7 +55,6 @@ jobs:
       - name: Install Linux graphics runtime
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
       - run: uv sync --all-extras --locked
-      - run: uv run python scripts/check_release_tag.py tag "${{ inputs.tag }}"
       - run: npm ci
         working-directory: viewer
       - run: npm test
@@ -36,21 +65,30 @@ jobs:
       - run: uv build --no-sources
       - run: uvx twine check dist/*
       - run: uv run python scripts/verify_release_wheel.py dist
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: distributions
+          name: distributions-${{ needs.approved-ref.outputs.sha }}
           path: dist/
+          if-no-files-found: error
 
   code-aster-integration:
+    needs: approved-ref
+    if: ${{ github.ref == 'refs/heads/main' && needs.approved-ref.outputs.sha == github.sha }}
     runs-on: [self-hosted, code-aster]
+    environment: code-aster
+    permissions:
+      contents: read
     env:
       TUBA_RUN_CODE_ASTER_INTEGRATION: "1"
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.approved-ref.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -58,11 +96,13 @@ jobs:
       - run: uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked
       - run: npm ci
         working-directory: viewer
+      - run: npx playwright install chromium
+        working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check
       - run: uv run python scripts/check_code_aster_references.py
       - name: Upload numerical qualification report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: code-aster-reference-results
           path: .build/qualification/code-aster-references.xml
@@ -71,22 +111,17 @@ jobs:
       - run: uv run python scripts/build_pages.py pages --output .build/code-aster-pages
 
   tag:
-    needs: build
+    needs: [approved-ref, build]
+    if: ${{ github.ref == 'refs/heads/main' && needs.approved-ref.outputs.sha == github.sha }}
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - name: Create immutable source tag
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
-        run: |
-          git fetch --tags
-          if git rev-parse --verify --quiet "refs/tags/$TAG"; then
-            echo "Tag already exists: $TAG" >&2
-            exit 1
-          fi
-          git tag "$TAG" "$GITHUB_SHA"
-          git push origin "$TAG"
+          SOURCE_SHA: ${{ needs.approved-ref.outputs.sha }}
+        # POST fails if the ref exists; no force-update and no stored Git credentials.
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SOURCE_SHA"

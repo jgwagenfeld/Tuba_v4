@@ -12,7 +12,6 @@ import base64
 import hashlib
 import json
 import mimetypes
-import os
 import re
 import shutil
 import socket
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
+from tuba.local_auth import LocalAccess, new_access_token
 from tuba.visualization.viewer import LocalHTTPServer, viewer_assets_path
 
 
@@ -75,6 +75,7 @@ class PreviewServer:
         port: int = 8765,
         poll_interval_s: float = 0.25,
         debounce_s: float = 0.2,
+        allowed_dev_origin: str | None = None,
     ) -> None:
         self.script_path = Path(script_path).resolve()
         self.out_dir = Path(out_dir).resolve()
@@ -82,6 +83,8 @@ class PreviewServer:
         self.port = port
         self.poll_interval_s = poll_interval_s
         self.debounce_s = debounce_s
+        self.access_token = new_access_token()
+        self.access = LocalAccess(self.access_token, allowed_dev_origin=allowed_dev_origin)
         self.broker = PreviewEventBroker()
         self.revision = 0
         self._stop = threading.Event()
@@ -119,6 +122,7 @@ class PreviewServer:
             project_name=getattr(getattr(self, "project", None), "name", None),
             comm_handler=getattr(self, "code_aster_commands", None),
             bound_host=self.host,
+            access=self.access,
         )
         self._httpd = LocalHTTPServer((self.host, self.port), handler)
         self.port = int(self._httpd.server_address[1])
@@ -233,6 +237,7 @@ def _handler_factory(
     mesh_handler: Any = None,
     package_preview_handler: Any = None,
     package_export_handler: Any = None,
+    access: LocalAccess | None = None,
 ):
     # Host names a request may address; the Host check stops DNS rebinding.
     local_hosts = {"127.0.0.1", "localhost", "::1", bound_host.lower()}
@@ -240,15 +245,26 @@ def _handler_factory(
         viewer_root = Path(viewer_assets_path()).resolve()
     except Exception:
         viewer_root = None
+    access = access or LocalAccess(new_access_token())
+    package_lock = threading.Lock()
+    package_nonce = None
 
     class PreviewRequestHandler(BaseHTTPRequestHandler):
         server_version = "TubaPreview/0.1"
+
+        def setup(self) -> None:
+            super().setup()
+            self.connection.settimeout(10)
 
         def log_message(self, _format: str, *_args: Any) -> None:
             return
 
         def do_OPTIONS(self) -> None:
-            if not self._may_serve():
+            # Browser preflights carry header names, not their credential values.
+            dev_preflight = (access.allowed_dev_origin is not None and
+                             self.headers.get("Origin") == access.allowed_dev_origin and
+                             access.browser_request(self.headers, self._local_host()))
+            if not dev_preflight and not self._may_serve():
                 self._refuse()
                 return
             self.send_response(204)
@@ -262,35 +278,10 @@ def _handler_factory(
                 return
             parsed = urlparse(self.path)
             if parsed.path in {"/api/package/preview", "/api/package/export"} and package_export_handler is not None:
-                if not self._same_origin():
-                    self._refuse()
-                    return
-                streaming = False
-                try:
-                    options = parse_qs(parsed.query, keep_blank_values=True)
-                    if (set(options) - {"results", "format"} or options.get("results", ["0"]) not in (["0"], ["1"])
-                            or options.get("format", ["zip"]) not in (["zip"], ["tgz"])):
-                        raise ValueError("Package takes results=0|1 and format=zip|tgz.")
-                    include_results = options.get("results") == ["1"]
-                    archive_format = options.get("format", ["zip"])[0]
-                    if parsed.path.endswith("/preview"):
-                        self._json_response(200, package_preview_handler(include_results))
-                    else:
-                        with package_export_handler(include_results, archive_format) as path, path.open("rb") as source:
-                            streaming = True
-                            self.send_response(200)
-                            self._response_headers()
-                            self.send_header("Content-Type", "application/gzip" if archive_format == "tgz" else "application/zip")
-                            self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
-                            self.send_header("Content-Length", str(path.stat().st_size))
-                            self.send_header("Cache-Control", "no-store")
-                            self.end_headers()
-                            shutil.copyfileobj(source, self.wfile)
-                except Exception as exc:
-                    if streaming:
-                        self.close_connection = True
-                    else:
-                        self._json_response(400, {"ok": False, "error": str(exc)})
+                if parsed.path.endswith("/export"):
+                    self._json_response(405, {"ok": False, "error": "Package creation requires authenticated POST."})
+                else:
+                    self._package_request(parsed, export=False)
                 return
             if parsed.path in {"/api/mesh", "/api/mesh/convergence"} and mesh_handler is not None:
                 self._json_response(200, mesh_handler.status())
@@ -360,6 +351,9 @@ def _handler_factory(
                 self._refuse()
                 return
             parsed = urlparse(self.path)
+            if parsed.path == "/api/package/export" and package_export_handler is not None:
+                self._package_request(parsed, export=True)
+                return
             if parsed.path in ("/api/geometry/preview", "/api/geometry/store") and geometry_handler is not None:
                 try:
                     size = int(self.headers.get("Content-Length", ""))
@@ -500,6 +494,57 @@ def _handler_factory(
             self.end_headers()
             self.wfile.write(data)
 
+        def _package_request(self, parsed, *, export: bool) -> None:
+            nonlocal package_nonce
+            if not package_lock.acquire(blocking=False):
+                self._json_response(409, {"ok": False, "error": "Another package operation is running."})
+                return
+            streaming = False
+            try:
+                if export:
+                    length = self._content_length()
+                    if (length is None or not 0 < length <= 4096 or parsed.query
+                            or self.headers.get("Transfer-Encoding")
+                            or self.headers.get_content_type() != "application/json"):
+                        self.close_connection = True
+                        raise ValueError("Package export takes a JSON preview nonce, results and format.")
+                    payload = json.loads(self.rfile.read(length))
+                    if (not isinstance(payload, dict) or set(payload) != {"operation_nonce", "results", "format"}
+                            or not isinstance(payload["results"], bool) or payload["format"] not in {"zip", "tgz"}):
+                        raise ValueError("Package export takes a JSON preview nonce, results and format.")
+                    if (package_nonce is None or payload["operation_nonce"] != package_nonce[0]
+                            or payload["results"] != package_nonce[1] or time.monotonic() > package_nonce[2]):
+                        self._json_response(409, {"ok": False, "error": "Preview the project again before exporting."})
+                        return
+                    package_nonce = None
+                    archive_format = payload["format"]
+                    with package_export_handler(payload["results"], archive_format) as path, path.open("rb") as source:
+                        streaming = True
+                        self.send_response(200)
+                        self._response_headers()
+                        self.send_header("Content-Type", "application/gzip" if archive_format == "tgz" else "application/zip")
+                        self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
+                        self.send_header("Content-Length", str(path.stat().st_size))
+                        self.send_header("Cache-Control", "no-store")
+                        self.end_headers()
+                        shutil.copyfileobj(source, self.wfile)
+                else:
+                    options = parse_qs(parsed.query, keep_blank_values=True)
+                    if set(options) - {"results"} or options.get("results", ["0"]) not in (["0"], ["1"]):
+                        raise ValueError("Package preview takes results=0|1.")
+                    include_results = options.get("results") == ["1"]
+                    result = package_preview_handler(include_results)
+                    nonce = new_access_token()
+                    package_nonce = (nonce, include_results, time.monotonic() + 60)
+                    self._json_response(200, {**result, "operation_nonce": nonce})
+            except Exception as exc:
+                if streaming:
+                    self.close_connection = True
+                else:
+                    self._json_response(400, {"ok": False, "error": str(exc)})
+            finally:
+                package_lock.release()
+
         def _ifc_response(self, route: str, response: tuple[int, Any]) -> None:
             status, result = response
             if isinstance(result, bytes):
@@ -520,50 +565,38 @@ def _handler_factory(
             self.end_headers()
             self.wfile.write(data)
 
+        def _public_asset(self, raw_path: str) -> Path | None:
+            relative = unquote(raw_path).lstrip("/") or "index.html"
+            if viewer_root is None or (relative != "index.html" and not relative.startswith("assets/")):
+                return None
+            candidate = (viewer_root / relative).resolve()
+            return candidate if candidate.is_relative_to(viewer_root) and candidate.is_file() else None
+
         def _serve_file(self, raw_path: str) -> None:
-            relative = unquote(raw_path.lstrip("/"))
-            if not relative:
-                relative = "index.html"
-
-            # Root index.html always serves the packaged 3D Web Studio viewer when
-            # available; every other path resolves as bytes from out_dir, then viewer_root.
-            if relative == "index.html" and viewer_root is not None and (viewer_root / "index.html").is_file():
-                target = (viewer_root / "index.html").resolve()
+            relative = unquote(raw_path).lstrip("/") or "index.html"
+            public = self._public_asset(raw_path)
+            # Anonymous bootstrap can only read packaged code, never an out_dir shadow.
+            if public is not None and (relative == "index.html" or not access.authenticated(self.headers)):
+                target = public
             else:
-                target = (out_dir / relative).resolve()
-                if not (os.path.commonpath([str(out_dir), str(target)]) == str(out_dir) and target.is_file()):
-                    # Prefix fallback: e.g. /code-aster-review/scene.json -> scene.json
-                    if "/" in relative:
-                        stripped = relative.split("/", 1)[1]
-                        cand = (out_dir / stripped).resolve()
-                        if os.path.commonpath([str(out_dir), str(cand)]) == str(out_dir) and cand.is_file():
-                            target = cand
-                    if not target.is_file():
-                        # Sub-bundle fallback: e.g. /scene.json -> out_dir/build/scene.json
-                        for sub in ("build", "review"):
-                            cand_sub = (out_dir / sub / relative).resolve()
-                            if os.path.commonpath([str(out_dir), str(cand_sub)]) == str(out_dir) and cand_sub.is_file():
-                                target = cand_sub
-                                break
-                    if not target.is_file():
-                        if viewer_root is not None:
-                            candidate = (viewer_root / relative).resolve()
-                            if os.path.commonpath([str(viewer_root), str(candidate)]) == str(viewer_root) and candidate.is_file():
-                                target = candidate
-                            else:
-                                self.send_response(404)
-                                self._response_headers()
-                                self.end_headers()
-                                return
-                        else:
-                            self.send_response(404)
-                            self._response_headers()
-                            self.end_headers()
-                            return
-
+                candidates = [out_dir / relative]
+                if "/" in relative:
+                    candidates.append(out_dir / relative.split("/", 1)[1])
+                candidates.extend(out_dir / sub / relative for sub in ("build", "review"))
+                target = next((candidate.resolve() for candidate in candidates
+                               if candidate.resolve().is_relative_to(out_dir) and candidate.is_file()), None)
+                if target is None and viewer_root is not None:
+                    candidate = (viewer_root / relative).resolve()
+                    if candidate.is_relative_to(viewer_root) and candidate.is_file():
+                        target = candidate
+            if target is None:
+                self.send_response(404)
+                self._response_headers()
+                self.end_headers()
+                return
             data = target.read_bytes()
             self.send_response(200)
-            self._response_headers()
+            self._response_headers(bundle=target.is_relative_to(out_dir))
             self.send_header("Content-Type", mimetypes.guess_type(str(target))[0] or "application/octet-stream")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(data)))
@@ -581,6 +614,8 @@ def _handler_factory(
             self.send_header("Upgrade", "websocket")
             self.send_header("Connection", "Upgrade")
             self.send_header("Sec-WebSocket-Accept", accept)
+            if "tuba-preview" in [value.strip() for value in self.headers.get("Sec-WebSocket-Protocol", "").split(",")]:
+                self.send_header("Sec-WebSocket-Protocol", "tuba-preview")
             self.end_headers()
 
             client = _WebSocketClient(self.connection)
@@ -624,24 +659,17 @@ def _handler_factory(
                 hostname = urlparse(f"//{host}").hostname
             except ValueError:
                 return None
-            return host if hostname in local_hosts else None
+            return host if hostname in local_hosts and host == f"{hostname}:{self.server.server_port}" else None
 
         def _same_origin(self) -> bool:
-            """Whether this request may mutate: it addresses a local host name and comes
-            from this server's own page or from a non-browser client (no Origin)."""
-            host = self._local_host()
-            origin = self.headers.get("Origin")
-            return host is not None and (origin is None or origin == f"http://{host}")
+            return (access.browser_request(self.headers, self._local_host(), mutate=True)
+                    and access.authenticated(self.headers))
 
         def _may_serve(self) -> bool:
-            """Whether this request may read: as for a mutation, or from a loopback page
-            (the Vite dev server subscribes and fetches bundles cross-origin)."""
-            return self._same_origin() or (self._local_host() is not None and self._loopback_origin())
-
-        def _loopback_origin(self) -> bool:
-            """Whether Origin is a loopback page, such as the Vite dev server on localhost:5173."""
-            origin = self.headers.get("Origin", "")
-            return re.fullmatch(r"http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?", origin) is not None
+            path = urlparse(self.path).path
+            return (access.browser_request(self.headers, self._local_host(), bootstrap=path in {"/", "/index.html"}) and
+                    (access.authenticated(self.headers, websocket=path == "/preview/ws")
+                     or self._public_asset(path) is not None))
 
         def _content_length(self) -> int | None:
             """The request's Content-Length, 0 when absent; None when it will not parse, is negative, or
@@ -655,40 +683,34 @@ def _handler_factory(
         def _refuse(self) -> None:
             # A header that will not parse, or a body too large to drain, still gets its 403.
             length = self._content_length() or 0
-            if length > 0:
+            if 0 < length <= 8192:
                 # Drain the body: closing with unread input resets the connection
                 # before the client reads the 403.
                 self.rfile.read(length)
+            self.close_connection = True
             self.send_response(403)
             self._response_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"ok": False, "error": "cross-origin request refused"}).encode("utf-8"))
 
-        def _response_headers(self) -> None:
-            # Sent with every response this handler writes, except the WebSocket route's own (its 400 and
-            # the 101 upgrade) and stdlib send_error pages, for three purposes:
-            # - CORS only for loopback pages (the Vite dev server fetches bundles cross-origin), never
-            #   "*", which let any web page read model.py. Vary on every response, so a cached answer
-            #   without the header is not reused for a loopback page.
-            # - No cross-site embedding: another site cannot load a response through <img>, <script> or
-            #   <link>. CORP binds only no-cors loads, so a loopback page's CORS fetches still work.
-            # - No framing by another site, which could trick a click on Solve or a save. Allowed framers:
-            #   the studio itself, localhost and 127.0.0.1 pages on any port, and the VS Code desktop app,
-            #   so the studio can sit in an IDE preview pane such as Simple Browser. [::1] pages may read
-            #   through CORS but cannot frame: CSP host sources cannot name IPv6 literals. frame-ancestors
-            #   must match every ancestor, not only the parent: Simple Browser frames the studio from a
-            #   vscode-webview: page, which sits inside the window's vscode-file: page, so both schemes
-            #   are listed. Neither admits a website. X-Frame-Options is for legacy browsers only: where
-            #   CSP is supported, a frame-ancestors directive overrides it.
-            self.send_header("Vary", "Origin")
-            if self._loopback_origin():
-                self.send_header("Access-Control-Allow-Origin", self.headers["Origin"])
-                self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
-            self.send_header("Cross-Origin-Resource-Policy", "same-site")
+        def _response_headers(self, *, bundle: bool = False) -> None:
+            self.send_header("Vary", "Origin, Sec-Fetch-Site")
+            if access.allowed_dev_origin is not None and self.headers.get("Origin") == access.allowed_dev_origin:
+                self.send_header("Access-Control-Allow-Origin", access.allowed_dev_origin)
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-IFC-Name, X-Geometry-Name, X-Geometry-Options")
+                self.send_header("Access-Control-Expose-Headers", "Content-Disposition")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("X-Frame-Options", "SAMEORIGIN")
-            self.send_header("Content-Security-Policy", "frame-ancestors 'self' http://localhost:* http://127.0.0.1:* vscode-webview: vscode-file:")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            if bundle:
+                from tuba.visualization.viewer import BUNDLE_CONTENT_SECURITY_POLICY
+                policy = BUNDLE_CONTENT_SECURITY_POLICY
+            else:
+                policy = "frame-ancestors 'self' vscode-webview: vscode-file:"
+            self.send_header("Content-Security-Policy", policy)
 
     return PreviewRequestHandler
 

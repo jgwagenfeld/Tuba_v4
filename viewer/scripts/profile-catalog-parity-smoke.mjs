@@ -106,7 +106,11 @@ async function externalStudioReload(page, name) {
   await drawer.locator("[data-profiles-list] button").filter({ hasText: name }).click();
   await expect(drawer.locator("[data-profiles-definition-note]")).toHaveText(`Defined at model.py:${line}`);
   // Another client can rebuild the same disposable project while its dialog is open.
-  const response = await page.request.post(new URL("/api/script", page.url()).href, { data: { code: `\n${code}` } });
+  const url = new URL("/api/script", page.url()).href;
+  const token = await page.evaluate(() => sessionStorage.getItem("tuba:access"));
+  const headers = { Authorization: `Bearer ${token}` };
+  const snapshot = await (await page.request.get(url, { headers })).json();
+  const response = await page.request.post(url, { headers, data: { code: `\n${code}`, expected_revision: snapshot.source_revision } });
   assert.ok(response.ok(), await response.text());
   assert.equal((await response.json()).ok, true);
   await expect(drawer).not.toBeVisible();

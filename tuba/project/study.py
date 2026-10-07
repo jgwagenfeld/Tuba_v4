@@ -138,25 +138,22 @@ def cases_literal(cases: list[str]) -> str:
 def build_study_review(namespace, output, *, scene_id, title, artifact_dir=None, force=False) -> Path:
     """Review every operation of a managed study using installed Tuba code and attested evidence."""
     from tuba.analysis import create_operating_geometry_state, create_visual_deformed_geometry_state
-    from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
     from tuba.analysis.staged_run import stage_runs
     from tuba.project import load_project
-    from tuba.project.solve import solve_project
+    from tuba.project.solve import solve_project, verify_project
     from tuba.reporting import build_engineering_review
     from tuba.visualization import SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 
     project = load_project(Path(namespace["__file__"]).parent)
-    operations = project.load_settings().operations
+    settings = project.load_settings()
+    operations = settings.operations
     if not operations:
         raise ValueError("study.py defines no LOAD_CASES: add the load case to solve.")
     model = namespace["model"]
+    verify_project(project, namespace)
     runs = (
         solve_project(project, namespace, force=force).runs
-        if artifact_dir is None else {
-            case: import_code_aster_artifacts(
-                model=model, work_dir=Path(artifact_dir) / case if len(operations) > 1 else Path(artifact_dir)
-            ) for case in operations
-        }
+        if artifact_dir is None else import_study_evidence(namespace, settings, artifact_dir)
     )
     for run in runs.values():
         run.validate_for_publication(model)
@@ -174,6 +171,32 @@ def build_study_review(namespace, output, *, scene_id, title, artifact_dir=None,
     review = build_engineering_review(model, analysis_runs=records, package_id=f"review:{project.name}", created_at=solved_at)
     write_engineering_review_with_scene(review, root, scene=scene, title=title, source=namespace["__file__"])
     return root
+
+
+def import_study_evidence(namespace, settings: StudySettings, artifact_dir: str | Path):
+    """Import only evidence for this study's current inputs, then run its engineering checks."""
+    from types import SimpleNamespace
+    from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+    from tuba.project.evidence import evidence_verdict
+    from tuba.project.freshness import expected_identity
+
+    model = namespace["model"]
+    folders = {case: Path(artifact_dir) / case if len(settings.operations) > 1 else Path(artifact_dir)
+               for case in settings.operations}
+    identities = {}
+    for case, folder in folders.items():
+        identity = expected_identity(model, case, solver_options=settings.solver_options,
+                                     volume_export=settings.volume_export)
+        identities[case] = identity
+        verdict = evidence_verdict(folder, identity)
+        if not verdict.reusable:
+            reason = verdict.state.reason if verdict.state.status != "verified" else "solver inputs differ from the current model or study"
+            raise ValueError(f"Imported evidence for {case!r} is not current verified Code_Aster evidence: {reason}.")
+    runs = {case: import_code_aster_artifacts(model=model, work_dir=folder, expected_identity=identities[case])
+            for case, folder in folders.items()}
+    if settings.check is not None:
+        settings.check(SimpleNamespace(model=model, namespace=namespace, runs=runs))
+    return runs
 
 
 def study_scaffold(project_name: str, cases: list[str]) -> str:

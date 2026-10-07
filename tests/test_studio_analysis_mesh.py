@@ -30,7 +30,7 @@ def wait_job(server):
 def request(server, path="/api/mesh", method="GET", payload=None):
     request = Request(server.base_url.rstrip("/") + path, method=method,
                       data=json.dumps(payload).encode() if payload is not None else None,
-                      headers={"Content-Type":"application/json", "Origin":server.base_url.rstrip("/")})
+                      headers={"Content-Type":"application/json", "Authorization": "Bearer " + server.access_token, "Origin":server.base_url.rstrip("/")})
     try:
         response = urlopen(request)
     except HTTPError as failure:

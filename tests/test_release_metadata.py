@@ -98,7 +98,7 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert 'python-version: ["3.11", "3.12", "3.13", "3.14"]' in ci
     assert "uv sync --group docs --extra course --extra dev --locked" in ci
     python_steps = ci_jobs["python"]["steps"]
-    assert any(step.get("uses") == "actions/setup-node@v7" for step in python_steps)
+    assert any(step.get("uses") == "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020" for step in python_steps)
     assert any(step.get("run") == "npm ci" and step.get("working-directory") == "viewer" for step in python_steps)
     assert "uv run python -m pytest" in ci
     assert "uv run python -m pytest" in release
@@ -108,7 +108,8 @@ def test_ci_and_release_workflows_cover_local_release_gates():
         assert "xvfb-run -a uv run python -m pytest" in workflow
         assert "xvfb-run -a uv run python scripts/check_notebooks.py" in workflow
     assert "scripts/check_release_tag.py" in release
-    assert 'tag "${{ inputs.tag }}"' in release
+    assert 'TAG: ${{ inputs.tag }}' in release
+    assert 'tag "$TAG"' in release
     assert "TUBA_RUN_CODE_ASTER_INTEGRATION: \"1\"" in ci
     assert "scripts/check_code_aster_references.py" in ci
 
@@ -122,7 +123,7 @@ def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
 
     assert job["runs-on"] == "windows-latest"
     assert any(
-        step.get("uses") == "astral-sh/setup-uv@v10.2.0"
+        step.get("uses") == "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
         and step.get("with", {}).get("python-version") == "3.14"
         for step in job["steps"]
     )
@@ -148,11 +149,11 @@ def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
     assert code_aster["env"]["TUBA_RUN_CODE_ASTER_INTEGRATION"] == "1"
     assert "uv run python -m tuba.solver.code_aster_doctor --check" in commands
     assert "uv run python scripts/check_code_aster_references.py" in commands
-    assert jobs["build"]["needs"] == "code-aster-integration"
-    assert jobs["tag"]["needs"] == "build"
+    assert jobs["build"]["needs"] == ["approved-ref", "code-aster-integration"]
+    assert jobs["tag"]["needs"] == ["approved-ref", "build"]
     assert jobs["tag"]["permissions"]["contents"] == "write"
     tag_commands = [step["run"] for step in jobs["tag"]["steps"] if "run" in step]
-    assert any('git push origin "$TAG"' in command for command in tag_commands)
+    assert any('gh api --method POST' in command and 'sha="$SOURCE_SHA"' in command for command in tag_commands)
     assert "publish" not in jobs
     release_text = (ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
@@ -174,7 +175,7 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
         steps = job["steps"]
         commands = [step["run"] for step in steps if "run" in step]
 
-        assert any(step.get("uses") == "actions/setup-node@v7" for step in steps)
+        assert any(step.get("uses") == "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020" for step in steps)
         assert "uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked" in commands
         assert any(
             step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
@@ -223,114 +224,30 @@ def _only_step_index(steps, predicate):
     return matches[0]
 
 
-def test_pages_deploys_only_the_verified_single_owner_artifact():
-    source = (ROOT / ".github" / "workflows" / "tuba-pages.yml").read_text(
-        encoding="utf-8"
-    )
+def test_pages_deploys_only_the_solver_produced_exact_revision_artifact():
+    source = (ROOT / ".github/workflows/tuba-pages.yml").read_text(encoding="utf-8")
     workflow = yaml.safe_load(source)
-    assert workflow["jobs"]["deploy"]["if"] == "${{ github.ref == 'refs/heads/main' && !inputs.update_snapshots }}"
-    steps = workflow["jobs"]["build"]["steps"]
-    commands = [step["run"] for step in steps if "run" in step]
-
-    build = "uv run python scripts/build_pages.py pages --output _site"
-    assert source.count(build) == 1
-    assert "uv sync --group docs --extra code-aster-rmed --extra ifc --locked" in commands
-    assert any(
-        step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
-        for step in steps
-    )
-    assert any(
-        step.get("uses") == "astral-sh/setup-uv@v10.2.0"
-        and step.get("with", {}).get("python-version") == "3.14"
-        for step in steps
-    )
-    assert any(
-        step.get("uses") == "actions/setup-node@v7"
-        and step.get("with", {}).get("node-version") == 24
-        for step in steps
-    )
-
-    setup_uv = _only_step_index(
-        steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v10.2.0"
-    )
-    setup_node = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/setup-node@v7"
-    )
-    sync = _only_step_index(
-        steps,
-        lambda step: step.get("run")
-        == "uv sync --group docs --extra code-aster-rmed --extra ifc --locked",
-    )
-    npm = _only_step_index(
-        steps,
-        lambda step: step.get("run") == "npm ci"
-        and step.get("working-directory") == "viewer",
-    )
-    graphics = _only_step_index(
-        steps,
-        lambda step: step.get("run")
-        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1",
-    )
-    build_step = _only_step_index(steps, lambda step: step.get("run") == build)
-    chromium = _only_step_index(
-        steps,
-        lambda step: step.get("run") == "npx playwright install --with-deps chromium",
-    )
-    semantic = _only_step_index(
-        steps, lambda step: "pages-catalog" in step.get("run", "")
-    )
-    visual = _only_step_index(
-        steps, lambda step: step.get("run", "").startswith("npm run e2e:pages")
-    )
-    configure = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/configure-pages@v6"
-    )
-    upload = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/upload-pages-artifact@v5"
-    )
-    assert steps[upload]["with"]["include-hidden-files"] is True  # Preserve .nojekyll.
-    # Re-recording the visual baselines is a maintenance dispatch: it runs the
-    # same check with --update-snapshots and publishes the images for committing,
-    # because only this runner renders them.
-    snapshots = _only_step_index(
-        steps,
-        lambda step: step.get("uses") == "actions/upload-artifact@v7"
-        and step.get("with", {}).get("name") == "pages-snapshots-linux",
-    )
-
-    assert "-- --update-snapshots" in steps[visual]["run"]
-    assert steps[snapshots].get("if") == "${{ inputs.update_snapshots }}"
-    assert (
-        steps[snapshots]["with"]["path"]
-        == "viewer/e2e/snapshots/pages-artifact.spec.js/linux"
-    )
-    assert steps[semantic]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
-    assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
-    assert setup_uv < sync
-    assert setup_node < npm
-    # The browser precedes the build: build_pages.py photographs every gallery card.
-    assert (
-        max(sync, npm, graphics)
-        < chromium
-        < build_step
-        < semantic
-        < visual
-        < snapshots
-        < configure
-        < upload
-    )
-    assert steps[upload]["with"]["path"] == "_site"
-    assert not any(
-        command in source
-        for command in (
-            "cp -R docs/site",
-            "cp -R tuba/visualization/_viewer",
-            "cp -R viewer/public/code-aster-review",
-            "cp -R viewer/public/imported_component_mixed_demo",
-        )
-    )
-    assert "code_aster_doctor" not in source
-    assert "TUBA_RUN_CODE_ASTER_INTEGRATION" not in source
+    jobs = workflow["jobs"]
+    assert workflow["permissions"] == {}
+    assert "workflow_run:" in source and "workflows: [CI]" in source
+    assert "github.event.workflow_run.conclusion == 'success'" in jobs["approved-ref"]["if"]
+    assert "github.event.workflow_run.head_repository.full_name == github.repository" in jobs["approved-ref"]["if"]
+    assert jobs["deploy"]["needs"] == ["approved-ref", "artifact"]
+    assert jobs["deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
+    assert jobs["deploy"]["environment"]["name"] == "github-pages"
+    artifact_steps = jobs["artifact"]["steps"]
+    download = next(step for step in artifact_steps if step.get("uses", "").startswith("actions/download-artifact@"))
+    assert download["with"]["run-id"] == "${{ github.event.workflow_run.id }}"
+    assert download["with"]["name"] == "code-aster-pages-${{ needs.approved-ref.outputs.sha }}-${{ github.event.workflow_run.run_attempt }}"
+    assert any(step.get("run") == "python3 scripts/check_pages_artifact.py verify --output _site" for step in artifact_steps)
+    assert not any("build_pages.py" in step.get("run", "") for step in artifact_steps)
+    assert "configure-pages" not in source  # Repository settings require a separate admin action.
+    snapshot = jobs["snapshots"]
+    assert "inputs.update_snapshots" in snapshot["if"]
+    assert snapshot["permissions"] == {"contents": "read"}
+    assert any(step.get("run") == "npm run e2e:pages -- --update-snapshots" for step in snapshot["steps"])
+    assert any(step.get("with", {}).get("name") == "pages-snapshots-linux" for step in snapshot["steps"])
+    assert not any("upload-pages-artifact" in step.get("uses", "") for step in snapshot["steps"])
 
 
 def test_ci_gates_current_docs_viewer_and_assembled_pages():
@@ -358,10 +275,10 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
     setup_uv = _only_step_index(
-        assembled_steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v10.2.0"
+        assembled_steps, lambda step: step.get("uses") == "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
     )
     setup_node = _only_step_index(
-        assembled_steps, lambda step: step.get("uses") == "actions/setup-node@v7"
+        assembled_steps, lambda step: step.get("uses") == "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
     )
     sync = _only_step_index(
         assembled_steps,
