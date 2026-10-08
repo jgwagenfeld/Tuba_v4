@@ -46,6 +46,10 @@ Two connections serve different purposes:
 For the selected V3 convention, hold global DX, DY, DRX, DRY, DRZ and release DZ:
 
 This convention reproduces an ideal guide with no vertical sliding resistance.
+For the distinction between this rigid mapping and a proposed frictional joint,
+see the [tee lug contact modeling review](tee-lug-contact-modeling-review.md).
+Mixed surface contact remains unsupported; the review describes design and
+qualification requirements.
 
 ```python
 lug = model.add_reference_point("left_lug", position=lug_position_m)
