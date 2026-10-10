@@ -5297,3 +5297,22 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 }
 
 .profile-library-preview a { color: var(--accent); }
+/* Search replay shares the review rail and the existing engineering viewport. */
+.search-replay-panel { display: grid; gap: 0.65rem; font-size: 0.88rem; }
+.search-replay-panel p { margin: 0; overflow-wrap: anywhere; }
+.search-replay-panel select, .search-replay-panel input[type="range"] { width: 100%; min-width: 0; }
+.search-event-nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.search-event-nav button { flex: 1; }
+.search-candidates { display: grid; max-height: 15rem; overflow: auto; gap: 0.2rem; }
+.search-candidates button { text-align: left; }
+.search-candidates button[aria-pressed="true"] { border-left: 4px solid #286578; font-weight: 600; }
+.search-note { color: var(--chrome-text-2); font-size: 0.8rem; }
+.search-replay-panel table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.search-replay-panel th, .search-replay-panel td { padding: 0.3rem; text-align: left; overflow-wrap: anywhere; }
+.search-changed { background: #38414a; }
+.search-check { border-left: 3px solid #82939d; padding: 0.45rem; }
+.search-fail { border-color: #d58166; background: #35252a; }
+.search-unknown { border-color: #ac8728; background: #383025; }
+.search-check p, .search-check a { display: block; margin: 0.4rem 0; }
+.search-check a { color: #8dccdf; }
+.search-details { font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; }

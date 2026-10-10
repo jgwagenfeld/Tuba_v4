@@ -117,3 +117,67 @@ def test_windows_local_server_refuses_hostile_socket_reuse(tmp_path):
                 other.bind(server.server_address)
     finally:
         server.server_close()
+
+
+def _replay_bundle(tmp_path, monkeypatch, *, view='previews/C1', availability='available'):
+    root = tmp_path / 'replay'
+    root.mkdir()
+    (root / 'search_replay.json').write_text(json.dumps({
+        'schema': 'tuba.search.viewer.v1', 'events': [],
+        'candidates': [{'id': 'C1', 'outcome': 'selected', 'attempt_reviews': [],
+                        'preview': {'bundle': view, 'availability': availability}}]}))
+    if view == 'previews/C1' and availability == 'available':
+        scene_dir = root / view
+        scene_dir.mkdir(parents=True)
+        (scene_dir / 'scene.json').write_text('{"objects": []}')
+    assets = tmp_path / 'viewer-assets'
+    assets.mkdir()
+    (assets / 'index.html').write_text('<div data-search-replay></div>')
+    monkeypatch.setenv('TUBA_VIEWER_ASSETS', str(assets))
+    return root
+
+
+def test_viewer_launches_native_search_replay(tmp_path, monkeypatch):
+    from tuba.visualization.viewer import create_server
+    server, url = create_server(_replay_bundle(tmp_path, monkeypatch))
+    try:
+        assert 'search=/bundle/search_replay.json' in url
+        assert 'bundle=/bundle/previews/C1' in url
+    finally:
+        server.server_close()
+
+
+def test_viewer_launches_replay_records_without_a_scene(tmp_path, monkeypatch):
+    from tuba.visualization.viewer import create_server
+    server, url = create_server(_replay_bundle(tmp_path, monkeypatch, view=None, availability='unavailable'))
+    try:
+        assert 'search=/bundle/search_replay.json' in url
+    finally:
+        server.server_close()
+
+
+@pytest.mark.parametrize('view', ['../secret', '%2e%2e/secret', '%252e%252e/secret', 'https://outside/x', 'x\\..\\secret'])
+def test_viewer_replay_default_scene_is_confined(tmp_path, monkeypatch, view):
+    from tuba.visualization.viewer import create_server
+    with pytest.raises(ValueError, match='Unsafe relative replay path'):
+        create_server(_replay_bundle(tmp_path, monkeypatch, view=view))
+
+
+def test_viewer_replay_requires_compatible_assets(tmp_path, monkeypatch):
+    from tuba.visualization.viewer import create_server
+    root = _replay_bundle(tmp_path, monkeypatch)
+    monkeypatch.delenv('TUBA_VIEWER_ASSETS')
+    with pytest.raises(ValueError, match='Replay requires'):
+        create_server(root)
+
+
+@pytest.mark.parametrize('row', [None, 1, 'not a candidate', {'id': 'C1', 'attempt_reviews': [None, 'not a view']}])
+def test_viewer_replay_rejects_malformed_rows_clearly(tmp_path, monkeypatch, row):
+    from tuba.visualization.viewer import create_server
+    root = _replay_bundle(tmp_path, monkeypatch)
+    path = root / 'search_replay.json'
+    manifest = json.loads(path.read_text())
+    manifest['candidates'] = [row]
+    path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match='Malformed search_replay.json'):
+        create_server(root)

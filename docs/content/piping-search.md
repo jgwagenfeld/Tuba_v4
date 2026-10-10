@@ -160,9 +160,80 @@ native IDs remain unambiguous. Inspection/export require no solver or agent.
 Export folders must be new. The manifest references the retained archive and is
 not a self-contained copy; native review bundles are complete handoffs.
 
-M1 provides these records and candidate reviews. Interactive timeline/branch
-playback in the existing viewer, film rendering, richer autorouting strategies
-and learned proposal policies remain [roadmap milestones](../architecture/piping-search-roadmap.md).
+M1 provides these records and candidate reviews. M2 adds interactive replay in
+the existing viewer. Film rendering, richer autorouting strategies and learned
+proposal policies remain [roadmap milestones](../architecture/piping-search-roadmap.md).
+
+## Interactive replay
+
+Export a new viewer package from a retained search without an agent, new solve,
+or execution of the authored project:
+
+```powershell
+python -m tuba.search replay --run-dir D:/tuba-runs/Tuba_v4/search-001 --output D:/tuba-runs/Tuba_v4/search-001/exports/viewer-replay
+python -m tuba.visualization.viewer D:/tuba-runs/Tuba_v4/search-001/exports/viewer-replay --open
+```
+
+The Search history section steps through recorded events and UTC search time.
+Until an evaluation is sealed, only its reference geometry is eligible. Later
+checks and selection decisions do not appear at earlier event positions. Solver
+result-state/increment remains a separate axis. Choose any candidate and sealed
+attempt to inspect its own outcome; an interrupted attempt does not inherit a
+successful retry's selection.
+
+Parents are declared relationships. The parameter grid has independent roots;
+replay does not invent ancestry between successive proposals. The comparison
+selector shows parameter changes between roots or parents. Inspect the reference
+candidate in the same viewport to compare geometry with a stable camera, unit
+system and deformation display scale. Comparable magnitude fields use shared
+ranges from the complete retained archive; these are display ranges, rather
+than observations available to the search at the event cursor. Editing a shared
+range carries it between candidates. Other field/components use native local
+ranges.
+
+Each finding shows the constraint, role, verdict, operation/state, targets,
+measurement, limit and units. Show finding selects the exact native state and
+candidate-local objects; a cold finding opens reference geometry. Collision
+distance, penetration and location retain their native meaning and physical
+scale-1 basis. Evidence links open files inside that attempt's native bundle.
+Missing/damaged evidence disables its result view while preserving the recorded
+historical decision and diagnostics. A historical pass is not requalification of
+damaged evidence.
+
+The package contains `search_replay.json`, the M1 history export, previews and
+complete native per-evaluation review bundles. All candidate records remain,
+including builder failures with no scene. The history manifest still references
+the original archive for files not carried in native review bundles; retain that
+archive for a complete audit. No archive or authored project bytes are modified.
+
+Source-checkout users must select a viewer build that includes M2. Older packaged
+assets are refused with a clear requirement. Use the repository viewer build
+workflow and point `TUBA_VIEWER_ASSETS` at its output:
+
+```powershell
+$env:TUBA_VIEWER_ASSETS = 'D:/path/to/current-viewer-build'
+python -m tuba.visualization.viewer D:/path/to/viewer-replay --open
+```
+
+The measured M2 handoff is
+`D:/tuba-runs/Tuba_v4/search-replay-m2-20261010`: `package/`, a read-only
+`viewer-build/`, `build-viewer.mjs`, `serve.py` and browser screenshots/validation.
+This focused viewer build reuses the existing renderer and npm dependencies; it
+omits the browser-Python authoring payload, which replay does not use. To open it:
+
+```powershell
+$env:TUBA_VIEWER_ASSETS = 'D:/tuba-runs/Tuba_v4/search-replay-m2-20261010/viewer-build'
+python -m tuba.visualization.viewer D:/tuba-runs/Tuba_v4/search-replay-m2-20261010/package --open
+```
+
+M2 validation passed **725 viewer unit checks**, **40 Python checks**, and
+**8 real-archive browser scenarios with zero page errors**. Those scenarios
+covered all 12 candidates, Hot clearance and nozzle-force rejections with native
+downloads/highlights, C0009 selection, its interrupted retry, cold geometry,
+parameter comparison, event causality and delayed/rapid switching. One controlled
+1200 ms response delay exercised UI ordering; it did not alter solver artifacts.
+The real Code_Aster 18.0.12 evidence is from M1's original qualification. M2
+performed no new physics solve.
 
 The [hot-line example](../../examples/piping-search/README.md) provides the
 bounded authored benchmark and opt-in real Code_Aster qualification test.
@@ -214,6 +285,6 @@ was interrupted to repair repeated unrelated cache verification and resumed
 against its unchanged frozen source/configuration; the interruption and both
 logs are retained. Every completed operation used real Code_Aster evidence.
 
-These results qualify this declared benchmark and M1 workflow. Broader routing,
-support/contact physics, piping-standard evaluators, interactive timeline replay
-and film generation remain separate roadmap work.
+These results qualify this declared benchmark and M1 workflow. M2 replay is
+qualified separately above. Broader routing, support/contact physics,
+piping-standard evaluators and film generation remain separate roadmap work.

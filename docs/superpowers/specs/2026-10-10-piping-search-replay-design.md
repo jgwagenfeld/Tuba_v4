@@ -35,6 +35,8 @@ The manifest retains all original events and check/decision records. It also
 retains consistent scalar ranges keyed by field ID and unit for comparable
 magnitude fields. Native copied evidence links are bundle-relative; unavailable
 or non-exported evidence stays explicitly identified as archived evidence.
+Shared ranges are derived from the complete retained archive and labelled as
+presentation aids, not observations available at an early event cursor.
 
 ## Viewer behavior
 

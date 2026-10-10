@@ -1,4 +1,6 @@
 import { previewProtocols } from "./localAuth.js";
+import { loadSearchReplay } from "./searchReplay.js";
+import { initSearchReplay } from "./searchReplayPanel.js";
 import { openReport } from "./reportView.js";
 import {
   lineAtOffset,
@@ -283,7 +285,8 @@ const startupParams = new URLSearchParams(window.location.search);
 const startupConfig = Object.freeze({
   requestedBundle: startupParams.get("bundle"),
   embed: startupParams.get("embed") === "1",
-  previewWebSocketUrl: startupParams.get("preview_ws")
+  previewWebSocketUrl: startupParams.get("preview_ws"),
+  search: startupParams.get("search")
 });
 
 let currentBundle = null;
@@ -293,8 +296,22 @@ let currentState = null;
 let userChoseColor = false;
 let reviewOpened = false;
 let refreshExchange = null;
+let searchManifest = null;
+let searchHasView = false;
+const searchPinnedRanges = new Set();
+const searchRangeOverrides = new Map();
 
 function dispatch(action) {
+  if (searchManifest && ["setLegendRange", "resetLegendScale"].includes(action.type)) {
+    const field = getActiveField(currentState);
+    const key = field && `${field.id}|${field.unit}`;
+    if (key && searchManifest.comparison_ranges?.[key]) {
+      if (action.type === "resetLegendScale") searchRangeOverrides.delete(key);
+      else if (Number.isFinite(Number(action.range?.min)) && Number(action.range?.max) > Number(action.range?.min)) {
+        searchRangeOverrides.set(key, [Number(action.range.min), Number(action.range.max)]);
+      }
+    }
+  }
   closeSelectOther();
   if (["setModelColorBy", "setColorChannel", "setColoringField", "setColoringComponent",
     "setActiveLoadCase", "setActiveResultState", "setActiveGeometryState"].includes(action.type)) {
@@ -456,6 +473,11 @@ async function main() {
   dom.appShell.dataset.embed = String(startupConfig.embed);
   showIdentity(dom.viewerIdentity, "Viewer", __TUBA_VIEWER_BUILD__);
 
+  if (startupConfig.search) {
+    await startSearchReplay();
+    return;
+  }
+
   // The gallery is not handled here any more. main.js reads the catalog, draws
   // the gallery when that is the right landing page, and only then imports this
   // module - so the Three.js viewport is never constructed on the landing path,
@@ -530,6 +552,61 @@ async function main() {
   } catch (error) {
     setErrorStatus(error, "This review could not be opened.");
   }
+}
+
+async function startSearchReplay() {
+  document.body.dataset.view = "review";
+  dom.galleryLink.hidden = true;
+  dom.bundlePicker.hidden = true;
+  dom.buildIdentity.hidden = true;
+  const section = document.querySelector("[data-search-section]");
+  const panel = document.querySelector("[data-search-replay]");
+  section.hidden = false;
+  try {
+    const baseUrl = new URL(startupConfig.search, window.location.href).href;
+    searchManifest = await loadSearchReplay(baseUrl);
+    initSearchReplay(panel, { manifest: searchManifest, baseUrl, showView: showSearchView, highlight: highlightSearchCheck });
+  } catch (error) {
+    panel.textContent = `Search replay unavailable: ${error.message}`;
+    await showSearchView(null, { current: () => true });
+    setStatus("Search replay unavailable", true);
+  }
+}
+
+async function showSearchView(bundleUrl, request) {
+  if (!request.current()) return;
+  const previous = currentState;
+  const empty = createViewerState({ scene: { scene_id: "scene:search:unavailable", objects: [], geometry_assets: [], overlays: [] } });
+  currentState = { ...empty, stage: "review", camera: previous?.camera ?? empty.camera,
+    unitSystem: previous?.unitSystem ?? empty.unitSystem, coloring: previous?.coloring,
+    colorChannel: previous?.colorChannel ?? "results", activeLoadCase: previous?.activeLoadCase,
+    activeResultStateId: previous?.activeResultStateId, visualDeformationScale: previous?.visualDeformationScale ?? 1 };
+  currentBundle = null;
+  selectedObjectId = null;
+  for (const key of ["searchCandidate", "searchAttempt", "searchOperation", "searchResultState"]) dom.canvas.dataset[key] = "";
+  clearBundleSource();
+  setStatus(bundleUrl ? "Loading recorded search view" : "No geometry or verified results at this event");
+  render();
+  if (!bundleUrl) return;
+  const accepted = await loadBundle(bundleUrl, { preserve: true, skipSource: true, accept: request.current });
+  if (!accepted || !request.current()) return;
+  currentBundleUrl = bundleUrl;
+  currentState = { ...currentState, selectedObjectIds: [], hiddenObjectIds: [], isolatedObjectIds: [], stage: "review" };
+  dom.canvas.dataset.searchCandidate = currentBundle.scene.search?.candidate_id ?? "";
+  dom.canvas.dataset.searchAttempt = currentBundle.scene.search?.attempt_id ?? "";
+  setStatus(currentBundle.scene.search?.result_status === "unsolved_preview" ? "Reference geometry · no solver results" : "Recorded native Code_Aster review");
+  render();
+  if (!searchHasView && currentState.objects.length) { viewportRenderer?.resetView(); searchHasView = true; }
+}
+
+function highlightSearchCheck(check) {
+  if (check.operation) dispatch({ type: "setActiveLoadCase", loadCase: check.operation });
+  if (check.result_state_id) dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id });
+  const ids = (check.entity_refs ?? []).map(ref => resolveEntityObjectId(currentState, ref)).filter(Boolean);
+  dispatch({ type: "selectObjects", objectIds: ids });
+  dom.canvas.dataset.searchOperation = currentState.activeLoadCase ?? "cold";
+  dom.canvas.dataset.searchResultState = currentState.activeResultStateId ?? "";
+  render();
 }
 
 async function sourceIdentity(source) {
@@ -675,10 +752,12 @@ async function switchBundle(bundleId, catalog) {
 
 async function loadBundle(bundleUrl, options = {}) {
   stopBrowserPreview();
-  currentBundle = await loadSceneBundleFromUrl(bundleUrl);
+  const nextBundle = await loadSceneBundleFromUrl(bundleUrl);
+  if (options.accept && !options.accept()) return false;
+  currentBundle = nextBundle;
   // A static bundle can show its origin script; a studio owns the live one, so
   // it must not be overwritten by whatever the bundle happens to carry.
-  if (studio.project) {
+  if (studio.project || options.skipSource) {
     clearBundleSource();
   } else {
     await loadBundleSource(bundleUrl);
@@ -704,6 +783,7 @@ async function loadBundle(bundleUrl, options = {}) {
   // preset hid analysis_mesh and results, so a composited
   // geometry/mesh/sub-point/deformed view opened with three of its four bodies
   // switched off.
+  return true;
 }
 
 function render() {
@@ -712,6 +792,16 @@ function render() {
   // chip dropped focus to <body> and the next Tab restarted from the top of the
   // document.
   const focus = captureFocus();
+  if (searchManifest) {
+    const field = getActiveField(currentState);
+    const key = field && `${field.id}|${field.unit}`;
+    const range = searchRangeOverrides.get(key) ?? searchManifest.comparison_ranges?.[key];
+    const ranges = { ...currentState.legendRanges };
+    if (range && getActiveComponent(currentState) === "magnitude" && range[1] > range[0]) {
+      ranges[field.id] = { min: range[0], max: range[1] }; searchPinnedRanges.add(field.id);
+    } else if (field && searchPinnedRanges.has(field.id)) delete ranges[field.id];
+    currentState = { ...currentState, legendRanges: ranges };
+  }
   renderMode();
   renderHeader();
   renderStatusStrip();
@@ -1688,7 +1778,9 @@ function selectFindingsControl() {
 
 function renderHeader() {
   // A studio's live build bundle has no review to name it: show the model, not the scene id.
-  dom.sceneTitle.textContent = (!studio.project && bundleTitles.get(bundleKey(currentBundleUrl)))
+  dom.sceneTitle.textContent = searchManifest
+    ? `${currentBundle?.scene.search?.candidate_id ?? "Search history"} · ${currentState.review?.project_name ?? "Reference geometry"}`
+    : (!studio.project && bundleTitles.get(bundleKey(currentBundleUrl)))
     || (currentState.review?.project_name
       ?? String(currentState.sceneId ?? "").replace(/^scene:/, ""));
   // The picker is the visible title when multiple published examples are available.
@@ -2907,7 +2999,8 @@ function scaleReadout(legend) {
   }
   row.textContent = parts.join(" · ");
   if (overridden) {
-    row.append(" (set by you)");
+    row.append(searchManifest && searchPinnedRanges.has(getActiveField(currentState)?.id)
+      ? " (full archive display range)" : " (set by you)");
   }
   return [row];
 }

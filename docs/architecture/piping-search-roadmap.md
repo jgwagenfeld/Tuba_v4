@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-Status: M1 implemented and qualified on the hot-line example with real Code_Aster. Later milestones remain planned.
+Status: M1 implemented and qualified on the hot-line example with real Code_Aster; M2 interactive replay implemented and validated against its retained native artifacts. M3-M5 remain planned.
 
 Implementation baseline: `7652065e1637e5c7ab102cb2ceb5236a3d4a92b6`
 
@@ -18,6 +18,9 @@ The first implementation is described in
 [the initial implementation plan](../superpowers/plans/2026-10-10-piping-search-history.md).
 This roadmap defines the longer-term direction; its later milestones are separate
 implementation projects.
+
+M2 is documented in [the replay implementation plan](../superpowers/plans/2026-10-10-piping-search-replay.md)
+and [the interactive replay guide](../content/piping-search.md#interactive-replay).
 
 ## Product constraints
 

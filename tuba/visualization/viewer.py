@@ -20,6 +20,58 @@ BUNDLE_CONTENT_SECURITY_POLICY = (
 MAX_SCENE_BYTES = 64 * 1024**2
 
 
+def _relative_replay_path(value):
+    if not isinstance(value, str) or not value:
+        raise ValueError('Unsafe relative replay path')
+    for _ in range(5):
+        decoded = unquote(value)
+        if decoded == value:
+            break
+        value = decoded
+    if any(c in value for c in '\\%:?#') or any(c.isspace() or ord(c) < 32 for c in value) or any(p in ('', '.', '..') for p in value.split('/')):
+        raise ValueError('Unsafe relative replay path')
+    return value
+
+
+def _read_bundle_json(path):
+    try:
+        if path.stat().st_size > MAX_SCENE_BYTES:
+            raise ValueError(f'Bundle {path.name} exceeds the 64 MiB limit.')
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except FileNotFoundError as exc:
+        raise ValueError(f'Bundle is missing {path.name}: {path.parent}') from exc
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise ValueError(f'Bundle {path.name} is malformed: {exc}') from exc
+    if not isinstance(value, dict):
+        raise ValueError(f'Bundle {path.name} must contain a JSON object: {path}')
+    return value
+
+
+def _replay_default(manifest, root):
+    if manifest.get('schema') != 'tuba.search.viewer.v1' or not isinstance(manifest.get('candidates'), list) or not isinstance(manifest.get('events'), list):
+        raise ValueError('Malformed search_replay.json')
+    for row in manifest['candidates']:
+        if not isinstance(row, dict) or not isinstance(row.get('id'), str) or not isinstance(row.get('attempt_reviews', []), list):
+            raise ValueError('Malformed search_replay.json candidate')
+        entries = [*row.get('attempt_reviews', []), row.get('preview')]
+        if any(entry is not None and not isinstance(entry, dict) for entry in entries):
+            raise ValueError('Malformed search_replay.json view')
+    views = []
+    rows = sorted(manifest['candidates'], key=lambda c: c.get('outcome') != 'selected')
+    for row in rows:
+        entries = [*reversed(row.get('attempt_reviews', [])), row.get('preview')]
+        for entry in entries:
+            if entry and entry.get('bundle'):
+                relative = _relative_replay_path(entry['bundle'])
+                if not (root / relative).resolve().is_relative_to(root):
+                    raise ValueError('Unsafe relative replay path')
+                if entry.get('availability') == 'available':
+                    views.append(relative)
+    if views:
+        _read_bundle_json(root / views[0] / 'scene.json')
+    return views[0] if views else None
+
+
 def viewer_assets_path():
     """Return packaged assets, or an explicitly selected source-checkout build."""
     override = os.environ.get("TUBA_VIEWER_ASSETS")
@@ -98,21 +150,17 @@ def create_server(
     bundle_root = Path(bundle_directory).expanduser().resolve()
     if not bundle_root.is_dir():
         raise ValueError(f"Bundle directory does not exist: {bundle_root}")
-    scene_path = bundle_root / "scene.json"
-    try:
-        if scene_path.stat().st_size > MAX_SCENE_BYTES:
-            raise ValueError("Bundle scene.json exceeds the 64 MiB limit.")
-        scene = json.loads(scene_path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise ValueError(f"Bundle is missing scene.json: {bundle_root}") from exc
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Bundle scene.json is malformed: {exc}") from exc
-    if not isinstance(scene, dict):
-        raise ValueError(f"Bundle scene.json must contain a JSON object: {scene_path}")
+    replay_path = bundle_root / 'search_replay.json'
+    is_replay = replay_path.is_file()
+    default_view = _replay_default(_read_bundle_json(replay_path), bundle_root) if is_replay else None
+    if not is_replay:
+        _read_bundle_json(bundle_root / 'scene.json')
 
     viewer_root = Path(viewer_assets_path()).resolve()
     if not (viewer_root / "index.html").is_file():
         raise ValueError(f"Packaged viewer is incomplete: {viewer_root}")
+    if is_replay and 'data-search-replay' not in (viewer_root / 'index.html').read_text(encoding='utf-8'):
+        raise ValueError('Replay requires current viewer assets. Build viewer/ and set TUBA_VIEWER_ASSETS to that output.')
     handler = partial(
         _ViewerRequestHandler,
         viewer_root=viewer_root,
@@ -120,6 +168,10 @@ def create_server(
     )
     server = LocalHTTPServer((host, port), handler)
     url = f"http://{host}:{server.server_port}/?bundle=/bundle"
+    if is_replay:
+        if default_view:
+            url += '/' + default_view
+        url += '&search=/bundle/search_replay.json'
     return server, url
 
 
@@ -134,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             "Guide: docs/content/project-sharing.md (Share and open a project)."
         ),
     )
-    parser.add_argument("bundle_directory", help="Complete extracted scene bundle directory containing scene.json")
+    parser.add_argument("bundle_directory", help="Scene bundle or search replay directory")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true", dest="open_browser")

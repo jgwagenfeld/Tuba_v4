@@ -1,0 +1,84 @@
+import assert from "node:assert/strict";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { chromium } from "@playwright/test";
+
+const [url, output] = process.argv.slice(2);
+if (!url || !output) throw new Error("Usage: node scripts/search-replay-smoke.mjs <viewer-url> <output-dir>");
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-webgl"] });
+const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const errors = [];
+page.on("pageerror", error => errors.push(error.message));
+const checks = [];
+try {
+  await page.goto(url);
+  const panel = page.locator("[data-search-replay]");
+  await panel.waitFor({ state: "visible", timeout: 15000 });
+  await page.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.equal(await panel.locator("[data-search-candidate]").count(), 12);
+  assert.equal(await panel.locator("[data-search-selected]").textContent(), "C0009");
+  checks.push("All 12 proposals present; C0009 selected from recorded decisions");
+  await page.screenshot({ path: join(output, "selected-C0009.png") });
+  for (const [id, constraint] of [["C0005", "operating.clearance"], ["C0007", "pump.nozzle.force"]]) {
+    await panel.locator(`[data-search-candidate="${id}"]`).click();
+    await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+    assert.match(await panel.locator("[data-search-outcome]").textContent(), /rejected constraint/);
+    const failed = panel.locator(`.search-fail[data-search-constraint="${constraint}"]`).first();
+    await failed.waitFor();
+    assert.match(await failed.textContent(), /Hot/);
+    await failed.locator("[data-search-finding]").click();
+    await panel.locator("[data-search-view-status]").filter({ hasText: "Showing the recorded finding" }).waitFor();
+    assert.equal(await page.locator('[data-canvas]').getAttribute('data-search-operation'), 'Hot');
+    assert.match(await page.locator('[data-canvas]').getAttribute('data-search-result-state'), /Hot/);
+    assert.ok(await failed.locator("[data-search-evidence]").count());
+    const evidence = await failed.locator("[data-search-evidence]").first().getAttribute("href");
+    assert.equal((await page.request.get(evidence)).ok(), true);
+    checks.push(`${id}: recorded ${constraint} failure, Hot scope and downloadable native evidence`);
+    await page.screenshot({ path: join(output, `rejected-${id}.png`) });
+  }
+  await panel.locator('[data-search-candidate="C0009"]').click();
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  const attempts = panel.locator("[data-search-attempt]");
+  assert.ok(await attempts.locator("option").count() >= 2);
+  await attempts.selectOption({ index: 0 });
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.doesNotMatch(await panel.locator("[data-search-outcome]").textContent(), /selected/);
+  checks.push("Earlier interrupted C0009 attempt does not inherit later selection");
+  await panel.locator('[data-search-candidate="C0001"]').click();
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.match(await panel.textContent(), /cold collision/);
+  await panel.locator("[data-search-compare]").selectOption("C0009");
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.ok(await panel.locator("[data-search-parameters] .search-changed").count());
+  checks.push("Cold rejection and authored parameter comparison retained");
+  const slider = panel.locator("[data-search-event]");
+  await slider.evaluate(node => { node.value = "0"; node.dispatchEvent(new Event("change", { bubbles: true })); });
+  assert.equal(await panel.locator("[data-search-candidate]").count(), 0);
+  assert.match(await panel.textContent(), /No candidate has been proposed/);
+  checks.push("Before first event: no future candidates or decisions");
+  await panel.locator("[data-search-event]").evaluate(node => { node.value = node.max; node.dispatchEvent(new Event("change", { bubbles: true })); });
+  await panel.locator('[data-search-candidate="C0005"]').click();
+  await panel.locator('[data-search-candidate="C0009"]').click();
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.equal(await panel.locator("[data-search-selected]").textContent(), "C0009");
+  assert.match(await page.locator("[data-scene-title]").textContent(), /C0009/);
+  checks.push("Rapid switches finish with matching candidate heading and scene");
+  await page.route('**/reviews/C0005/**/scene.json', async route => {
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    await route.continue();
+  });
+  await panel.locator('[data-search-candidate="C0005"]').click();
+  await panel.locator('[data-search-candidate="C0009"]').click();
+  await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
+  assert.equal(await page.locator('[data-canvas]').getAttribute('data-search-candidate'), 'C0009');
+  assert.match(await page.locator('[data-scene-title]').textContent(), /C0009/);
+  await page.waitForTimeout(1500);
+  assert.equal(await page.locator('[data-canvas]').getAttribute('data-search-candidate'), 'C0009');
+  checks.push('Delayed older response cannot replace the current candidate');
+  assert.deepEqual(errors, []);
+  await writeFile(join(output, "browser-validation.json"), JSON.stringify({ checks, errors, url }, null, 2));
+  console.log(`${checks.length} real-archive browser assertions passed; zero page errors`);
+} finally {
+  await browser.close();
+}

@@ -22,20 +22,27 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
   let evaluationId = null, referenceId = null, branchOnly = false;
   const requests = latestViewRequest();
   let snapshot, selected, evaluation;
+  let shownView = null;
 
   async function display(view, check = null) {
     const request = requests.next();
     const message = container.querySelector("[data-search-view-status]");
     if (message) message.textContent = view?.availability === "available" ? "Loading recorded view…" : view?.message ?? "No view recorded at this event";
     try {
-      await showView(view?.availability === "available" ? safeReplayUrl(baseUrl, view.bundle) : null, request);
+      const url = view?.availability === "available" ? safeReplayUrl(baseUrl, view.bundle) : null;
+      if (url !== shownView || !url) {
+        shownView = null;
+        await showView(url, request);
+      }
       if (!request.current()) return;
+      shownView = url;
       if (check) highlight(check);
       if (message?.isConnected) message.textContent = view?.availability === "available"
         ? (check ? "Showing the recorded finding" : evaluation ? "Showing this sealed attempt" : "Reference geometry — no solver result")
         : view?.message ?? "No geometry or verified results available";
     } catch (error) {
       if (!request.current()) return;
+      shownView = null;
       await showView(null, request);
       if (message?.isConnected) message.textContent = `View unavailable: ${error.message}`;
     }
@@ -45,6 +52,10 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
   function move(next) { sequence = next; evaluationId = null; render(); }
 
   function render() {
+    const focused = container.contains(document.activeElement) ? document.activeElement : null;
+    const focusLabel = focused?.getAttribute("aria-label");
+    const focusCandidate = focused?.dataset.searchCandidate;
+    const focusText = focused?.tagName === "BUTTON" ? focused.textContent : null;
     snapshot = replayAt(manifest, sequence);
     selected = snapshot.candidates.find(c => c.id === candidateId) ?? snapshot.candidates[0];
     candidateId = selected?.id;
@@ -72,7 +83,8 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
     const branchToggle = element("input"); branchToggle.type = "checkbox"; branchToggle.checked = branchOnly;
     branchToggle.addEventListener("change", () => { branchOnly = branchToggle.checked; render(); });
     branch.prepend(branchToggle); panel.append(branch);
-    const rows = branchOnly ? snapshot.candidates.filter(c => branchIds(snapshot.candidates, candidateId).has(c.id)) : snapshot.candidates;
+    const branchMembers = branchOnly ? branchIds(snapshot.candidates, candidateId) : null;
+    const rows = branchMembers ? snapshot.candidates.filter(c => branchMembers.has(c.id)) : snapshot.candidates;
     const list = element("div", undefined, "search-candidates");
     list.setAttribute("role", "group"); list.setAttribute("aria-label", "Recorded candidates");
     for (const row of rows) {
@@ -81,10 +93,14 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
     }
     panel.append(list);
     if (selected) {
-      const heading = element("h3", selected.id); heading.dataset.searchSelected = candidateId;
+      const heading = element("h2", selected.id); heading.dataset.searchSelected = candidateId;
       const outcome = element("p", `Recorded outcome: ${label(evaluation?.outcome ?? selected.outcome)}`, "search-outcome");
       outcome.dataset.searchOutcome = "";
       panel.append(heading, outcome, element("p", selected.rationale, "search-note"));
+      const missingOperations = (manifest.run.settings?.operations ?? []).filter(op => !evaluation?.completed_operations?.includes(op));
+      if (missingOperations.length) panel.append(element("p", `Required operations not completed in this attempt: ${missingOperations.join(", ")}`, "search-note"));
+      const missingChecks = (manifest.run.check_specs ?? []).filter(spec => spec.required && !evaluation?.checks?.some(check => check.constraint_id === spec.id));
+      if (missingChecks.length) panel.append(element("p", `Required checks not recorded: ${missingChecks.map(spec => spec.id).join(", ")}`, "search-note"));
       panel.append(element("p", "Result state / increment belongs to the solver; it is separate from search event time.", "search-note"));
       const parentLinks = element("div", undefined, "search-parents");
       parentLinks.append(element("span", "Parents: "));
@@ -94,8 +110,9 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       panel.append(parentLinks);
       if (selected.evaluations.length) {
         const attempts = element("select"); attempts.setAttribute("aria-label", "Evaluation attempt"); attempts.dataset.searchAttempt = "";
-        for (const entry of selected.evaluations) {
-          const option = element("option", `${entry.attempt_id} · ${label(entry.status)} · ${label(entry.outcome)}`);
+        for (const [index, entry] of selected.evaluations.entries()) {
+          const option = element("option", `Attempt ${index + 1} · ${label(entry.status)} · ${label(entry.outcome)}`);
+          option.title = `${entry.attempt_id} / ${entry.id}`;
           option.value = entry.id; option.selected = entry.id === evaluationId; attempts.append(option);
         }
         attempts.addEventListener("change", () => { evaluationId = attempts.value; render(); }); panel.append(attempts);
@@ -136,10 +153,13 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
         callout.open = check.verdict === "fail" || check.verdict === "unknown";
         callout.append(element("summary", `${label(check.verdict)} · ${check.constraint_id} · ${check.operation ?? "cold"}`),
           element("p", `${check.required ? "Required" : "Advisory"} · ${check.basis} · ${check.result_state_id ?? "reference geometry"}`),
-          element("p", check.reason_text || label(check.reason_code)), element("p", `Targets: ${(check.entity_refs ?? []).join(", ") || "whole model"}`));
+          element("p", `${check.reason_text ?? ""} (${label(check.reason_code)})`), element("p", `Targets: ${(check.entity_refs ?? []).join(", ") || "whole model"}`));
         if (check.measured_value != null || check.limit != null) callout.append(element("p", `${text(check.measured_value)} ${check.comparator ?? "against"} ${text(check.limit)} ${check.unit ?? ""}`));
         for (const clash of check.details?.clashes ?? []) callout.append(element("p", `Collision at ${text(clash.location)} m; native distance ${text(clash.distance_m)} m; penetration ${text(clash.penetration_m)} m`));
-        if (check.details?.coverage) callout.append(element("p", `Coverage: ${text(check.details.coverage)}`));
+        if (check.details?.coverage) {
+          const coverage = element("details"); coverage.append(element("summary", "Geometry coverage"), element("p", text(check.details.coverage)));
+          callout.append(coverage);
+        }
         callout.append(button("Show finding", () => void display(check.operation ? evaluation.review : selected.preview, check), { searchFinding: check.constraint_id }));
         for (const ref of check.evidence_refs ?? []) {
           if (evaluation.review?.availability === "available" && evaluation.completed_operations?.includes(check.operation)) {
@@ -162,6 +182,9 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       for (const item of manifest.availability_diagnostics) diagnostics.append(element("p", `${item.availability}: ${item.path}`)); panel.append(diagnostics);
     }
     container.replaceChildren(panel);
+    if (focused) [...container.querySelectorAll("input, select, button")].find(node =>
+      focusLabel ? node.getAttribute("aria-label") === focusLabel : focusCandidate ? node.dataset.searchCandidate === focusCandidate :
+      focusText && node.tagName === "BUTTON" && node.textContent === focusText)?.focus({ preventScroll: true });
     void display(evaluation?.review ?? selected?.preview);
   }
   render();

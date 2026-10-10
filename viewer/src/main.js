@@ -34,6 +34,7 @@ function readStartupConfig() {
   const params = new URLSearchParams(window.location.search);
   return {
     requestedBundle: params.get("bundle"),
+    search: params.get("search"),
     embed: params.get("embed") === "1"
   };
 }
@@ -59,10 +60,10 @@ async function bootGalleryOrStudio() {
 
   const gallery = document.querySelector("[data-gallery]");
   const config = readStartupConfig();
-  const showGallery = gallery && shouldShowGallery({ ...config, catalog });
+  const showGallery = gallery && !config.search && shouldShowGallery({ ...config, catalog });
   // A named review is still openable with a broken catalog, so the failure page
   // only speaks when nothing was asked for and the catalog is what is missing.
-  const showFailure = gallery && !showGallery && !config.requestedBundle && catalogError;
+  const showFailure = gallery && !showGallery && !config.requestedBundle && !config.search && catalogError;
 
   if (showGallery || showFailure) {
     document.body.dataset.view = "gallery";
