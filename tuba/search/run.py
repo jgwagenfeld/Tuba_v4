@@ -157,9 +157,11 @@ class EvidenceCache:
     def __init__(self, archive, history):
         self.archive, self.history = archive, history
         self.entries = []
+        self.collected = set()
 
     def collect(self, archive, history):
         events = history.events()
+        builds = {e["candidate_id"]: e["payload"] for e in events if e["kind"] == "candidate.built"}
         qualified = {e["payload"]["attempt_id"] for e in events if e["kind"] == "evaluation.completed"
                      and e["payload"]["status"] == "complete" and not e["payload"]["error_kind"]
                      and all(c["verdict"] != "unknown" for c in e["payload"]["checks"] if c["required"])}
@@ -167,15 +169,20 @@ class EvidenceCache:
             if event["kind"] != "operation.completed" or event["payload"]["attempt_id"] not in qualified:
                 continue
             payload = event["payload"]
+            key = (str(archive.root), event["sequence"])
+            if key in self.collected:
+                continue
             ref = f"attempts/{payload['attempt_id']}/inventory.json"
             folder = archive.path(payload["artifact_dir"])
             self.entries.append({"archive": archive, "inventory_ref": ref, "folder": folder,
                                  "run_id": history.manifest()["run_id"], "candidate_id": event["candidate_id"],
-                                 "attempt_id": payload["attempt_id"], "operation": payload["operation"]})
+                                 "attempt_id": payload["attempt_id"], "operation": payload["operation"],
+                                 "identity": builds[event["candidate_id"]]["solver_identities"][payload["operation"]]})
+            self.collected.add(key)
 
     def find(self, identity):
         for entry in self.entries:
-            if entry["operation"] != identity.load_case:
+            if entry["identity"] != identity.to_dict():
                 continue
             # A damaged/unknown attempt is not a cache hit; keep the original history intact.
             try:
@@ -319,6 +326,10 @@ def run_search(project_root: Path, run_dir: Path, *, resume: bool = False, paren
                     evaluations[event["candidate_id"]] = Evaluation.from_dict(event["payload"])
                 elif event["kind"] == "candidate.decision":
                     decisions[event["candidate_id"]] = Decision.from_dict(event["payload"])
+            if resume:
+                # A repaired runtime gets a fresh attempt; its old failure stays in history.
+                evaluations = {cid: evaluation for cid, evaluation in evaluations.items()
+                               if evaluation.error_kind != "runtime"}
             seen_designs = {data["design_digest"]: cid for cid, data in built.items() if cid in evaluations}
             blocked, stop_reason = False, None
             for candidate in h.candidates():

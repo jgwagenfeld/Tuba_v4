@@ -2,6 +2,11 @@
 
 Autorouting generates and reviews pipe-centerline candidates. It can apply a selected candidate to a model, export Code_Aster studies, and write route reports. Engineering acceptance still requires a real Code_Aster solve and imported result artifacts.
 
+For retained trials with explicit solver/constraint outcomes, see
+[retained piping search](piping-search.md). Its initial bounded grid connects
+authored layout builders to real Code_Aster evaluation, CLI inspection and the
+existing viewer, while preserving the records for later search replay and film.
+
 ![Route candidates between two endpoints around two obstacles, with the selected route applied as pipe.](assets/figures/route_candidates.png)
 
 ## Implementation map

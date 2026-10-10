@@ -36,12 +36,20 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, arc
     try:
         clearance = max((float(s.options.get("clearance_m", 0.0)) for s in loaded.check_specs
                          if s.kind == "cold_clearance"), default=0.0)
-        report = model.verify(clearance_m=clearance, script=loaded.namespace.get("__search_model_script__"))
-        checks.extend(verification_checks(report, loaded.check_specs))
-        history.append("candidate.verified", {"attempt_id": attempt_id, "report": report.to_dict()}, candidate.id)
-        cold_failed = not report.passed or any(c.required and c.verdict == "fail" for c in checks)
+        report = None
+        try:
+            report = model.verify(clearance_m=clearance, script=loaded.namespace.get("__search_model_script__"))
+        except (OSError, sqlite3.Error):
+            raise
+        except Exception as exc:
+            status, error_kind = "failed", f"verification:{type(exc).__name__}"
+            diagnostic = {"exception_class": type(exc).__name__, "message": str(exc)[:4000]}
+        if report is not None:
+            checks.extend(verification_checks(report, loaded.check_specs))
+            history.append("candidate.verified", {"attempt_id": attempt_id, "report": report.to_dict()}, candidate.id)
+        cold_failed = report is None or not report.passed or any(c.required and c.verdict == "fail" for c in checks)
         if cold_failed:
-            status = "not_started"
+            status = "failed" if error_kind else "not_started"
         else:
             for operation in operations:
                 folder = archive.operation_dir(attempt_id, operation)

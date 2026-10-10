@@ -128,6 +128,22 @@ def test_resume_preserves_interruption_and_uses_a_new_attempt(tmp_path):
     assert len(set(attempts)) == 2
 
 
+def test_resume_retries_runtime_blocked_candidate_without_erasing_failure(tmp_path):
+    project = author(tmp_path, values=(100.0,), budget=2)
+    run = tmp_path / "run"
+    class Unavailable:
+        def solve_exported_study(self, model, study):
+            raise RuntimeError("Code_Aster runtime unavailable")
+    blocked = run_search(project, run, solver=Unavailable())
+    assert blocked["blocked"] and blocked["solver_calls"] == 1
+    result = run_search(project, run, resume=True, solver=ReplaySolver(RACK / "evidence"))
+    assert result["selected_candidate_id"] == "C0001" and result["solver_calls"] == 2
+    events = read(run)[1]
+    assert any(e["kind"] == "evaluation.failed" for e in events)
+    attempts = [e["payload"]["attempt_id"] for e in events if e["kind"] == "evaluation.started"]
+    assert len(set(attempts)) == 2
+
+
 def test_missing_required_evaluator_cannot_be_selected(tmp_path):
     project = author(tmp_path, values=(100.0,))
     study = project / "study.py"
@@ -193,3 +209,41 @@ def test_missing_objective_is_visible_and_never_selected(tmp_path, monkeypatch):
     result = run_search(project, tmp_path / "run")
     assert result["selected_candidate_id"] is None and result["solver_calls"] == 0
     assert "objective unavailable" in str(read(tmp_path / "run")[1])
+
+
+def test_benchmark_shoes_hold_lateral_and_vertical_motion():
+    project = load_project(RACK.parent / "piping-search")
+    loaded = load_search(project)
+    model = loaded.build_candidate({"width_m": 2.4, "depth_m": 1.8, "guide_layout": "end_guides"})
+    shoes = [support for support in model.supports if support.type == "custom"]
+    assert len(shoes) == 2
+    assert all(s.restraint().states[:3] == ("free", "fixed", "fixed") for s in shoes)
+    assert len(loaded.settings.operations) == 2
+
+
+@pytest.mark.parametrize("mode", ["deduplicate", "unrelated_identity"])
+def test_cache_indexes_native_identity_before_reading_evidence(tmp_path, monkeypatch, mode):
+    from tuba.project.freshness import expected_identity
+    from tuba.search.artifacts import ArtifactStore
+    from tuba.search.run import EvidenceCache
+    project = author(tmp_path, values=(100.0,))
+    root = tmp_path / "run"
+    run_search(project, root, solver=ReplaySolver(RACK / "evidence"))
+    archive = ArtifactStore(root)
+    with History.open(root / "history.sqlite3", readonly=True) as history:
+        cache = EvidenceCache(archive, history)
+        cache.collect(archive, history)
+        if mode == "deduplicate":
+            cache.collect(archive, history)
+            assert len(cache.entries) == 1
+        else:
+            model = load_project(project).run_model()["model"]
+            identity = expected_identity(model, "Operating", solver_options={"line_segments": 4})
+            reads = []
+            original = archive.verify_inventory
+            def verify(ref):
+                reads.append(ref)
+                return original(ref)
+            monkeypatch.setattr(archive, "verify_inventory", verify)
+            assert cache.find(identity) is None
+            assert reads == []

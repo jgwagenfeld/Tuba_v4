@@ -141,3 +141,16 @@ def test_unverified_native_artifacts_remain_incomplete_and_retained(tmp_path):
         assert result.error_kind is None
         assert decide(result, loaded.check_specs, loaded.settings.operations).outcome == "incomplete"
         assert any(f["path"].endswith("study_execution.json") for f in store.verify_inventory(result.evidence_manifest_ref)["files"])
+
+
+def test_cold_checker_exception_is_recorded_and_sealed(tmp_path, monkeypatch):
+    c, model, loaded, store, h = setup(tmp_path)
+    def fail_verify(**kwargs):
+        raise ValueError("Native reference coverage unavailable")
+    monkeypatch.setattr(model, "verify", fail_verify)
+    with h:
+        result = evaluate_candidate(c, model, loaded, archive=store, history=h)
+        assert result.error_kind == "verification:ValueError"
+        assert decide(result, loaded.check_specs, loaded.settings.operations).outcome == "evaluation_failed"
+        assert store.verify_inventory(result.evidence_manifest_ref)["status"] == "failed"
+        assert h.events()[-1]["kind"] == "evaluation.failed"

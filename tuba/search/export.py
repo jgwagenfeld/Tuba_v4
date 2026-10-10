@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -66,6 +67,20 @@ def _new_output(output_dir):
     return path
 
 
+def _model_artifact(archive, build):
+    path = archive.path(build["model_ref"])
+    if not path.is_file():
+        return {"path": build["model_ref"], "availability": "missing"}
+    entry = archive._entry(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        current = hashlib.sha256(encode(data).encode()).hexdigest()
+    except (ValueError, UnicodeError):
+        current = None
+    return entry | {"availability": "available" if current == build["design_digest"] else "damaged",
+                    "expected_design_digest": build["design_digest"]}
+
+
 def export_history(run_dir: Path, output_dir: Path) -> Path:
     archive = _archive(run_dir)
     snapshot = inspect_history(run_dir)
@@ -96,7 +111,11 @@ def export_history(run_dir: Path, output_dir: Path) -> Path:
                                 ("parameters", f"candidates/{row['id']}/parameters.json")):
             if reference:
                 path = archive.path(reference)
-                row[f"{name}_artifact"] = archive._entry(path) | {"availability": "available"} if path.is_file() else {"path": reference, "availability": "missing"}
+                entry = _model_artifact(archive, row["build"]) if name == "model" else (
+                    archive._entry(path) | {"availability": "available"} if path.is_file() else {"path": reference, "availability": "missing"})
+                row[f"{name}_artifact"] = entry
+                if entry["availability"] != "available":
+                    diagnostics.append({"path": reference, "availability": entry["availability"]})
         for evaluation in row["evaluations"]:
             evaluation["scoped_checks"] = []
             for check in evaluation["checks"]:
@@ -143,6 +162,8 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
     row = snapshot["candidates"][0]
     if not row["build"]:
         raise ValueError("Candidate has no archived geometry to review")
+    if _model_artifact(archive, row["build"])["availability"] != "available":
+        raise ValueError("Candidate geometry integrity check failed")
     model = TubaModel.from_dict(json.loads(archive.path(row["build"]["model_ref"]).read_text(encoding="utf-8")))
     records = row["evaluations"]
     if attempt_id is not None:
@@ -151,6 +172,8 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
         if not records:
             raise ValueError("Unknown candidate attempt")
     evaluation = Evaluation.from_dict(records[-1]) if records else None
+    attempt_decisions = [d for d in row["decisions"] if evaluation is None or d["evaluation_id"] == evaluation.id]
+    outcome = attempt_decisions[-1]["outcome"] if attempt_decisions else "incomplete"
     runs, checks = {}, ()
     if evaluation:
         archive.verify_inventory(evaluation.evidence_manifest_ref)
@@ -170,7 +193,8 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                    operating_clash_results=_clashes(checks, operating=True),
                    volume_export=snapshot["run"]["settings"]["volume_export"], scene_id=f"scene:search:{candidate_id}"))
     metadata = {"run_id": snapshot["run"]["run_id"], "candidate_id": candidate_id,
-                "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": row["outcome"],
+                "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": outcome,
+                "current_candidate_outcome": row["outcome"], "attempt_decisions": attempt_decisions,
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
                 "result_status": "code_aster_results" if staged else "unsolved_preview", "scope": snapshot["run"]["scope"],
                 "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
@@ -193,6 +217,6 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
     review = replace(review, tables=(*review.tables, table))
     source_inventory = archive.verify_inventory(snapshot["run"]["source_manifest_ref"])
     source = archive.path(next(f["path"] for f in source_inventory["files"] if f["logical_name"] == "model.py"))
-    write_engineering_review_with_scene(review, output, scene=scene, title=f"Search candidate {candidate_id}: {row['outcome']}", source=source)
+    write_engineering_review_with_scene(review, output, scene=scene, title=f"Search candidate {candidate_id}: {outcome}", source=source)
     atomic_json(output / "search_review.json", metadata)
     return output / "scene.json"

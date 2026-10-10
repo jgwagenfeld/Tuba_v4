@@ -93,3 +93,32 @@ def test_output_conflict_and_unknown_candidate_are_refused(tmp_path):
     assert (output / "sentinel").read_text() == "preserve"
     with pytest.raises(ValueError, match="candidate"):
         write_candidate_review(run, "absent", tmp_path / "review")
+
+
+def test_changed_archived_geometry_is_diagnosed_and_cannot_be_reviewed(tmp_path):
+    run = completed(tmp_path)
+    row = inspect_history(run, "C0001")["candidates"][0]
+    path = run / row["build"]["model_ref"]
+    data = json.loads(path.read_text())
+    data["name"] = "changed archived geometry"
+    path.write_text(json.dumps(data))
+    payload = json.loads(export_history(run, tmp_path / "export").read_text())
+    assert payload["candidates"][0]["model_artifact"]["availability"] == "damaged"
+    assert any(d["path"] == row["build"]["model_ref"] for d in payload["availability_diagnostics"])
+    with pytest.raises(ValueError, match="geometry integrity"):
+        write_candidate_review(run, "C0001", tmp_path / "review")
+
+
+def test_earlier_failed_attempt_review_keeps_its_own_outcome(tmp_path):
+    project = author(tmp_path, values=(100.0,), budget=2)
+    run = tmp_path / "run"
+    class Unavailable:
+        def solve_exported_study(self, model, study):
+            raise RuntimeError("Code_Aster runtime unavailable")
+    run_search(project, run, solver=Unavailable())
+    old_attempt = inspect_history(run)["candidates"][0]["evaluations"][0]["attempt_id"]
+    run_search(project, run, resume=True, solver=ReplaySolver(RACK / "evidence"))
+    scene = json.loads(write_candidate_review(run, "C0001", tmp_path / "review", attempt_id=old_attempt).read_text())
+    assert scene["search"]["outcome"] == "evaluation_failed"
+    assert scene["search"]["current_candidate_outcome"] == "selected"
+    assert scene["search"]["solved_operations"] == []

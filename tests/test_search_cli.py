@@ -32,3 +32,19 @@ def test_missing_history_and_parser_error_are_invalid_input(tmp_path):
     with pytest.raises(SystemExit) as error:
         main(["run"])
     assert error.value.code == 2
+
+
+def test_inspect_prints_builder_failure_detail(tmp_path, capsys):
+    project = author(tmp_path, values=(100.0,))
+    path = project / "model.py"
+    path.write_text(path.read_text().replace("    return model", '    raise ValueError("Pipe boundary configuration is unsupported")'))
+    # The bound default must still load; inject the failure in proposals only.
+    path.write_text(path.read_text().replace('    raise ValueError("Pipe boundary configuration is unsupported")',
+                       '    if parameters["y"] != 100.0:\n        raise ValueError("Pipe boundary configuration is unsupported")\n    return model'))
+    search = project / "search.py"
+    search.write_text(search.read_text().replace("(100.0,)", "(101.0,)"))
+    run = tmp_path / "run"
+    assert main(["run", str(project), "--run-dir", str(run)]) == 3
+    capsys.readouterr()
+    assert main(["inspect", "--run-dir", str(run), "--candidate", "C0001"]) == 0
+    assert "Pipe boundary configuration is unsupported" in capsys.readouterr().out

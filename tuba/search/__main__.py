@@ -50,8 +50,14 @@ def main(argv=None, *, solver=None) -> int:
                     if args.candidate:
                         print("parameters: " + json.dumps(row["parameters"], allow_nan=False))
                         print("unevaluated operations: " + ", ".join(row["unevaluated_operations"]))
+                        for decision in row["decisions"]:
+                            if decision["details"].get("message"):
+                                print(decision["details"]["message"])
                         for record in row["evaluations"]:
-                            print(f"attempt {record['attempt_id']}  {record['status']}")
+                            print(f"attempt {record['attempt_id']}  {record['status']}  {record['error_kind'] or ''}")
+                            for event in snapshot["events"]:
+                                if event["kind"] == "evaluation.diagnostic" and event["payload"]["attempt_id"] == record["attempt_id"]:
+                                    print(event["payload"]["message"])
                             for check in record["checks"]:
                                 print(render_reason(CheckResult.from_dict(check)))
             return 0
