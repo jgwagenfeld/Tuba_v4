@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import sqlite3
-from types import SimpleNamespace
 from time import monotonic
 import uuid
 
@@ -12,42 +12,7 @@ from tuba.project.evidence import evidence_verdict
 from tuba.project.freshness import export_study
 
 from .contracts import Candidate, CheckResult, Evaluation, LoadedSearch
-
-
-def verification_checks(report, check_specs):
-    checks = []
-    for spec in check_specs:
-        if spec.kind not in {"cold_model", "cold_clearance"}:
-            continue
-        unknown = bool(report.validation_errors) and spec.kind == "cold_clearance"
-        failed = not report.passed if spec.kind == "cold_model" else bool(report.clashes)
-        checks.append(CheckResult(spec.id, "unknown" if unknown else "fail" if failed else "pass",
-                                  spec.required, "cold_geometry", "invalid_model" if report.validation_errors else
-                                  "cold_collision" if failed else "cold_verified", "Cold verification",
-                                  details=report.to_dict()))
-    return tuple(checks)
-
-
-def execution_checks(model, runs, specs, *, user_evaluator=None, candidate_id=None):
-    """Execution gates; Task 5 extends the native constraint adapters."""
-    checks = []
-    for spec in specs:
-        if spec.kind != "evidence_verified":
-            continue
-        for operation in spec.operations:
-            run = runs.get(operation)
-            verified = bool(run and evidence_verdict(run.study.work_dir, run.study.solver_input_identity).reusable)
-            checks.append(CheckResult(spec.id, "pass" if verified else "unknown", spec.required,
-                                      "code_aster", "evidence_verified" if verified else "evidence_unavailable",
-                                      "Native evidence verification", operation=operation,
-                                      result_state_id=run.result_state.id if run else None,
-                                      evidence_refs=(str(Path(run.study.work_dir) / "study_execution.json"),) if run else ()))
-    if user_evaluator is not None:
-        results = user_evaluator(SimpleNamespace(model=model, runs=runs, check_specs=specs, candidate_id=candidate_id))
-        if not isinstance(results, tuple) or any(not isinstance(c, CheckResult) for c in results):
-            raise ValueError("evaluate_search must return a tuple of CheckResult records")
-        checks.extend(results)
-    return tuple(checks)
+from .checks import evaluate_checks, verification_checks
 
 
 def unknown_checks(specs, checks, reason):
@@ -121,7 +86,7 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, arc
         inventory_ref = archive.seal_attempt(attempt_id, status)
         if not cold_failed and status == "complete":
             try:
-                checks.extend(execution_checks(model, runs, loaded.check_specs,
+                checks.extend(evaluate_checks(model, runs, loaded.check_specs,
                               user_evaluator=loaded.user_evaluator, candidate_id=candidate.id))
             except (OSError, sqlite3.Error):
                 raise
@@ -136,6 +101,8 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, arc
         archive.seal_attempt(attempt_id, "interrupted")
         raise
     checks.extend(unknown_checks(loaded.check_specs, checks, "evaluation_interrupted" if cancelled else "check_unavailable"))
+    checks = [replace(check, evidence_refs=tuple(Path(ref).relative_to(archive.root).as_posix()
+              if Path(ref).is_absolute() else ref for ref in check.evidence_refs)) for check in checks]
     evaluation = Evaluation(evaluation_id, candidate.id, attempt_id, status, operations, tuple(runs), tuple(checks), inventory_ref, error_kind)
     if diagnostic:
         history.append("evaluation.diagnostic", {"attempt_id": attempt_id, **diagnostic,
