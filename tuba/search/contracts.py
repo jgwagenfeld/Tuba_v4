@@ -262,8 +262,10 @@ def decide(evaluation: Evaluation, check_specs: tuple[CheckSpec, ...], required_
             checks = [c for c in evaluation.checks if c.constraint_id == spec.id and c.operation == operation]
             if not checks or any(c.verdict == "unknown" for c in checks):
                 missing.append(f"check_incomplete:{spec.id}")
-            if spec.target_refs and not set(spec.target_refs) <= {ref for c in checks for ref in c.entity_refs}:
-                missing.append(f"target_coverage_incomplete:{spec.id}")
+            for state_id in {c.result_state_id for c in checks} or {None}:
+                covered = {ref for c in checks if c.result_state_id == state_id for ref in c.entity_refs}
+                if spec.target_refs and not set(spec.target_refs) <= covered:
+                    missing.append(f"target_coverage_incomplete:{spec.id}")
             for check in checks:
                 if not check.required or (spec.unit and check.unit != spec.unit) or (spec.limit is not None and check.limit != spec.limit):
                     missing.append(f"check_scope_mismatch:{spec.id}")

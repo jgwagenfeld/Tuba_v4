@@ -45,9 +45,9 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, arc
             status, error_kind = "failed", f"verification:{type(exc).__name__}"
             diagnostic = {"exception_class": type(exc).__name__, "message": str(exc)[:4000]}
         if report is not None:
-            checks.extend(verification_checks(report, loaded.check_specs))
+            checks.extend(verification_checks(report, loaded.check_specs, model=model))
             history.append("candidate.verified", {"attempt_id": attempt_id, "report": report.to_dict()}, candidate.id)
-        cold_failed = report is None or not report.passed or any(c.required and c.verdict == "fail" for c in checks)
+        cold_failed = report is None or not report.passed or any(c.required and c.verdict in {"fail", "unknown"} for c in checks)
         if cold_failed:
             status = "failed" if error_kind else "not_started"
         else:

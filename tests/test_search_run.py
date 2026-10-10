@@ -247,3 +247,60 @@ def test_cache_indexes_native_identity_before_reading_evidence(tmp_path, monkeyp
             monkeypatch.setattr(archive, "verify_inventory", verify)
             assert cache.find(identity) is None
             assert reads == []
+
+
+@pytest.mark.parametrize("conflict", [False, True])
+def test_resume_recovers_geometry_published_before_build_event(tmp_path, monkeypatch, conflict):
+    import json
+    project = author(tmp_path, values=(100.0,))
+    root = tmp_path / "run"
+    original = History.append
+    def crash(self, kind, payload, candidate_id=None):
+        if kind == "candidate.built":
+            raise OSError("build recorder interrupted")
+        return original(self, kind, payload, candidate_id)
+    with monkeypatch.context() as patch:
+        patch.setattr(History, "append", crash)
+        with pytest.raises(OSError, match="build recorder"):
+            run_search(project, root, solver=ReplaySolver(RACK / "evidence"))
+    geometry = root / "candidates/C0001/model.json"
+    if conflict:
+        data = json.loads(geometry.read_text())
+        data["name"] = "conflicting preserved geometry"
+        geometry.write_text(json.dumps(data))
+    before = geometry.read_bytes()
+    if conflict:
+        with pytest.raises(ValueError, match="geometry integrity"):
+            run_search(project, root, resume=True, solver=ReplaySolver(RACK / "evidence"))
+    else:
+        result = run_search(project, root, resume=True, solver=ReplaySolver(RACK / "evidence"))
+        assert result["selected_candidate_id"] == "C0001"
+        built = next(e for e in read(root)[1] if e["kind"] == "candidate.built")
+        assert built["payload"]["geometry_recovered"] is True
+    assert geometry.read_bytes() == before
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_resume_restores_missing_terminal_evaluation_decision(tmp_path, monkeypatch, failure):
+    from tuba.search.export import inspect_history
+    project = author(tmp_path, values=(100.0,), limit=0.0)
+    root = tmp_path / "run"
+    class Fail:
+        def solve_exported_study(self, model, study):
+            raise ValueError("solver failure")
+    port = Fail() if failure else ReplaySolver(RACK / "evidence")
+    original = History.append
+    def crash(self, kind, payload, candidate_id=None):
+        if kind == "candidate.decision":
+            raise OSError("decision recorder interrupted")
+        return original(self, kind, payload, candidate_id)
+    with monkeypatch.context() as patch:
+        patch.setattr(History, "append", crash)
+        with pytest.raises(OSError, match="decision recorder"):
+            run_search(project, root, solver=port)
+    before_calls = sum(e["kind"] == "solver.invoked" for e in read(root)[1])
+    result = run_search(project, root, resume=True, solver=ReplaySolver(RACK / "evidence"))
+    assert result["solver_calls"] == before_calls
+    row = inspect_history(root)["candidates"][0]
+    assert row["outcome"] == ("evaluation_failed" if failure else "rejected_constraint")
+    assert row["decisions"][0]["evaluation_id"] == row["evaluations"][0]["id"]

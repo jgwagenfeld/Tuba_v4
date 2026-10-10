@@ -322,14 +322,20 @@ def run_search(project_root: Path, run_dir: Path, *, resume: bool = False, paren
             for event in h.events():
                 if event["kind"] == "candidate.built":
                     built[event["candidate_id"]] = event["payload"]
-                elif event["kind"] in {"evaluation.completed", "evaluation.failed"}:
+                elif event["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted"}:
                     evaluations[event["candidate_id"]] = Evaluation.from_dict(event["payload"])
                 elif event["kind"] == "candidate.decision":
                     decisions[event["candidate_id"]] = Decision.from_dict(event["payload"])
             if resume:
-                # A repaired runtime gets a fresh attempt; its old failure stays in history.
+                for cid, evaluation in evaluations.items():
+                    if cid not in decisions or decisions[cid].evaluation_id != evaluation.id:
+                        archive.verify_inventory(evaluation.evidence_manifest_ref)
+                        decision = decide(evaluation, loaded.check_specs, loaded.settings.operations)
+                        h.append("candidate.decision", decision.to_dict(), cid)
+                        decisions[cid] = decision
+                # Interrupted and runtime-blocked evaluations get fresh attempts.
                 evaluations = {cid: evaluation for cid, evaluation in evaluations.items()
-                               if evaluation.error_kind != "runtime"}
+                               if evaluation.error_kind != "runtime" and evaluation.status != "interrupted"}
             seen_designs = {data["design_digest"]: cid for cid, data in built.items() if cid in evaluations}
             blocked, stop_reason = False, None
             for candidate in h.candidates():
@@ -356,8 +362,20 @@ def run_search(project_root: Path, run_dir: Path, *, resume: bool = False, paren
                     continue
                 data = {"design_digest": digest(model.to_dict()), "check_digest": h.manifest()["check_digest"],
                         "solver_identities": {op: identity.to_dict() for op, identity in identities.items()}, "objectives": objectives}
+                model_ref = f"candidates/{candidate.id}/model.json"
+                model_path = archive.path(model_ref)
+                if candidate.id in built and built[candidate.id]["design_digest"] != data["design_digest"]:
+                    raise ValueError("Candidate geometry integrity failure: frozen builder no longer reproduces its archived model")
+                if model_path.exists():
+                    try:
+                        stored = digest(json.loads(model_path.read_text(encoding="utf-8")))
+                    except (ValueError, UnicodeError):
+                        raise ValueError("Candidate geometry integrity failure: unreadable preserved model") from None
+                    if stored != data["design_digest"]:
+                        raise ValueError("Candidate geometry integrity failure: preserved model conflicts with frozen builder")
                 if candidate.id not in built:
-                    data["model_ref"] = archive.save_model(candidate.id, model)
+                    data["geometry_recovered"] = model_path.exists()
+                    data["model_ref"] = model_ref if model_path.exists() else archive.save_model(candidate.id, model)
                     h.append("candidate.built", data, candidate.id)
                     built[candidate.id] = data
                 previous_id = seen_designs.get(data["design_digest"])

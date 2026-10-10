@@ -29,18 +29,29 @@ def compare_scalar(*, constraint_id, value, limit, unit, comparator, required, b
                        limit=limit, unit=unit, comparator=comparator)
 
 
-def verification_checks(report, check_specs):
+def _unsupported_obstacles(model):
+    return tuple(o.get("id", "unknown") for o in model.obstacles
+                 if o.get("type") not in {"cuboid", "cylinder"}
+                 or o.get("min_point") is None or o.get("max_point") is None)
+
+
+def verification_checks(report, check_specs, *, model=None):
     checks = []
+    unsupported = _unsupported_obstacles(model) if model is not None else ()
+    coverage_unavailable = model is None or bool(unsupported)
     for spec in check_specs:
         if spec.kind not in {"cold_model", "cold_clearance"}:
             continue
-        unknown = bool(report.validation_errors) and spec.kind == "cold_clearance"
         failed = not report.passed if spec.kind == "cold_model" else bool(report.clashes)
-        refs = tuple(dict.fromkeys(str(ref) for clash in report.clashes for ref in (clash.left, clash.right)))
+        unknown = (bool(report.validation_errors) and spec.kind == "cold_clearance") or (coverage_unavailable and not failed)
+        refs = tuple(dict.fromkeys([str(ref) for clash in report.clashes for ref in (clash.left, clash.right)]
+                                  + [f"obstacle:{name}" for name in unsupported]))
+        details = report.to_dict() | {"coverage": {"available": not coverage_unavailable,
+                                                   "unsupported_obstacle_ids": list(unsupported)}}
         checks.append(CheckResult(spec.id, "unknown" if unknown else "fail" if failed else "pass",
-                                  spec.required, "cold_geometry", "invalid_model" if report.validation_errors else
+                                  spec.required, "cold_geometry", "coverage_unavailable" if unknown and coverage_unavailable else "invalid_model" if report.validation_errors else
                                   "cold_collision" if failed else "cold_verified", "Cold verification",
-                                  entity_refs=refs, details=report.to_dict()))
+                                  entity_refs=refs, details=details))
     return tuple(checks)
 
 
@@ -95,7 +106,7 @@ def _operating(model, run, state, operation, spec):
     try:
         if spec.target_refs:
             raise ValueError("M1 operating clearance covers the full model; target subsets are unsupported")
-        if any(o.get("type") not in {"cuboid", "cylinder"} or o.get("min_point") is None or o.get("max_point") is None for o in model.obstacles):
+        if _unsupported_obstacles(model):
             raise ValueError("Unsupported obstacle coverage")
         if envelope != "bare" and any(physical_properties_for_element(model, e).insulation_spec_id is None
                                       for e in model.elements if e.type in {"pipe_straight", "pipe_bend"}):
@@ -159,8 +170,11 @@ def _user_checks(model, runs, specs, evaluator, candidate_id):
             for state in states:
                 found = [c for c in output if c.constraint_id == spec.id and c.operation == operation
                          and (c.result_state_id == state.id if state else c.result_state_id is None)]
-                if not found:
-                    checks.append(unknown(spec, operation, state, reason="evaluator_output_missing"))
+                covered = {ref for check in found for ref in check.entity_refs}
+                missing = tuple(ref for ref in spec.target_refs if ref not in covered)
+                if not found or missing:
+                    checks.append(unknown(spec, operation, state, reason="evaluator_target_missing" if missing else "evaluator_output_missing",
+                                          message="Evaluator coverage is incomplete for this operation/state", refs=missing))
     return checks
 
 

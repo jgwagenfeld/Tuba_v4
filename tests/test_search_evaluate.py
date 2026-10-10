@@ -67,6 +67,22 @@ def test_cold_validation_rejects_without_solver(tmp_path):
         store.verify_inventory(result.evidence_manifest_ref)
 
 
+def test_unsupported_cold_obstacle_cannot_establish_clearance(tmp_path):
+    c, model, loaded, store, h = setup(tmp_path)
+    model.obstacles.append({"id": "sphere", "type": "sphere", "center": [0, 0, 0], "radius": 100.0})
+    assert model.verify().passed  # Native geometry currently omits this primitive.
+    policy = CheckSpec("cold.clearance", "cold_clearance", True, (), (), None, None, {})
+    loaded = replace(loaded, check_specs=(*loaded.check_specs, policy))
+    with h:
+        result = evaluate_candidate(c, model, loaded, archive=store, history=h, solver=ReplaySolver(RACK / "evidence"))
+        clearance = next(c for c in result.checks if c.constraint_id == policy.id)
+        assert clearance.verdict == "unknown" and clearance.reason_code == "coverage_unavailable"
+        assert "obstacle:sphere" in clearance.entity_refs
+        assert result.completed_operations == ()
+        assert decide(result, loaded.check_specs, loaded.settings.operations).outcome == "incomplete"
+        store.verify_inventory(result.evidence_manifest_ref)
+
+
 def test_second_operation_failure_retains_first_and_partial_output(tmp_path):
     c, model, loaded, store, h = setup(tmp_path)
     loaded = replace(loaded, settings=replace(loaded.settings, operations=("Operating", "Other")))

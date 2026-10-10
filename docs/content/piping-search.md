@@ -172,10 +172,19 @@ bounded authored benchmark and opt-in real Code_Aster qualification test.
 On 2026-10-10, the fixed example ran through Code_Aster **18.0.12** using the
 Python-managed external bridge. The Tuba host used Python 3.12.3 on WSL Ubuntu;
 the solver environment used Python 3.14.6. Portable validation used the existing
-Windows environment: **118 passed, 1 skipped** (Windows symlink permission).
+Windows environment: **175 passed, 1 skipped** (Windows symlink permission) in
+the final search and adjacent native checks.
 The real integration test passed, including native attestations, complete
 Sustained/Hot results, selected-candidate review and inspection/export with solver
 access disabled.
+
+The final review added regressions for per-state evaluator target coverage,
+unsupported cold obstacle coverage, and the two restart gaps between geometry,
+evaluation and decision publication. All four findings were fixed. The corrected
+acceptance adapters also rechecked all 12 retained benchmark candidates using
+their verified native artifacts; every outcome matched with zero new solver
+calls. The original real integration and final acceptance recheck retain their
+separate source provenance.
 
 | Recorded outcome | Candidates |
 | --- | --- |

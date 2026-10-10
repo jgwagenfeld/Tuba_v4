@@ -7,7 +7,7 @@ import pytest
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.project import load_project
 from tuba.search.checks import compare_scalar, evaluate_checks, render_reason, verification_checks
-from tuba.search.contracts import CheckResult, CheckSpec
+from tuba.search.contracts import CheckResult, CheckSpec, Evaluation, decide
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
@@ -107,6 +107,27 @@ def test_all_native_contact_increments_are_checked():
     node = next(iter(run.result_state.node_displacements))
     checks = evaluate_checks(model, {"Reseat": run}, (spec("displacement", (f"node:{node}",), operations=("Reseat",), limit=1.0),))
     assert [c.result_state_id for c in checks] == [s.id for s in run.result_states]
+
+
+def test_authored_evaluator_must_cover_every_target_in_every_state():
+    project = load_project(EXAMPLES / "native-friction-review")
+    model = project.run_model()["model"]
+    run = import_code_aster_artifacts(model=model, work_dir=project.root / "evidence/Reseat")
+    refs = tuple(f"node:{node}" for node in list(model.nodes)[:2])
+    policy = CheckSpec("code.targets", "user_evaluator", True, ("Reseat",), refs, None, None, {})
+    def incomplete(context):
+        return tuple(CheckResult(policy.id, "pass", True, "code_aster", "fixture_check", "Incomplete target coverage",
+                    entity_refs=(refs[index % 2],), operation="Reseat", result_state_id=state.id,
+                    evidence_refs=(str(Path(run.study.work_dir) / "study_depl.csv"),))
+                    for index, state in enumerate(run.result_states))
+    raw = Evaluation("E", "C", "A", "complete", ("Reseat",), ("Reseat",), incomplete(None), "inventory.json")
+    assert decide(raw, (policy,), ("Reseat",)).outcome == "incomplete"
+    checks = evaluate_checks(model, {"Reseat": run}, (policy,), user_evaluator=incomplete)
+    evaluation = Evaluation("E", "C", "A", "complete", ("Reseat",), ("Reseat",), checks, "inventory.json")
+    assert decide(evaluation, (policy,), ("Reseat",)).outcome == "incomplete"
+    for index, state in enumerate(run.result_states):
+        missing = [c for c in checks if c.result_state_id == state.id and c.verdict == "unknown"]
+        assert len(missing) == 1 and set(missing[0].entity_refs) == set(refs) - {refs[index % 2]}
 
 
 def test_cold_collision_keeps_entities_and_location(native):
