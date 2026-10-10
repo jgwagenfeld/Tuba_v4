@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-Status: M1 implemented; real Code_Aster qualification in progress. Later milestones remain planned.
+Status: M1 implemented and qualified on the hot-line example with real Code_Aster. Later milestones remain planned.
 
 Implementation baseline: `7652065e1637e5c7ab102cb2ceb5236a3d4a92b6`
 

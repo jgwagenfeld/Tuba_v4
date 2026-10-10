@@ -166,3 +166,45 @@ and learned proposal policies remain [roadmap milestones](../architecture/piping
 
 The [hot-line example](../../examples/piping-search/README.md) provides the
 bounded authored benchmark and opt-in real Code_Aster qualification test.
+
+## Measured qualification
+
+On 2026-10-10, the fixed example ran through Code_Aster **18.0.12** using the
+Python-managed external bridge. The Tuba host used Python 3.12.3 on WSL Ubuntu;
+the solver environment used Python 3.14.6. Portable validation used the existing
+Windows environment: **118 passed, 1 skipped** (Windows symlink permission).
+The real integration test passed, including native attestations, complete
+Sustained/Hot results, selected-candidate review and inspection/export with solver
+access disabled.
+
+| Recorded outcome | Candidates |
+| --- | --- |
+| Cold-clearance rejection, no solve | C0001–C0004 |
+| Hot operating-clearance rejection, both operations solved | C0005–C0006 |
+| Hot nozzle-force rejection, both operations solved | C0007–C0008 |
+| Selected, every required demonstration check passed | C0009 |
+| Feasible alternatives retained after comparison | C0010–C0012 |
+
+There were **12 proposals and 16 fresh operation calls**. C0009 uses a 1.6 m
+wide, 1.8 m deep loop and end guides. Its pipe length is 11.170796326794896 m
+with four bends and four supports. C0010 has the same objective values and is
+retained as an alternative; proposal order resolves that tie. Force margin is
+not a declared selection objective.
+
+The durable archive is `D:/tuba-runs/Tuba_v4/search-qualification-20261010-03`.
+It contains `qualification.json`, the database, frozen sources, all trials,
+`exports/selected-review`, `exports/rejected-C0005`, and `exports/replay`.
+The manifest records exact source/check digests, Git provenance, interpreter
+paths, test logs and measured storage/free space.
+
+Two earlier diagnostic archives remain alongside it. Native validation caught
+overlapping restraints in run 01; a direct support-state test caught the
+held-axis mask error in run 02. Those boundary assumptions were corrected in a
+fresh run without changing the clearance, force or displacement limits. Run 03
+was interrupted to repair repeated unrelated cache verification and resumed
+against its unchanged frozen source/configuration; the interruption and both
+logs are retained. Every completed operation used real Code_Aster evidence.
+
+These results qualify this declared benchmark and M1 workflow. Broader routing,
+support/contact physics, piping-standard evaluators, interactive timeline replay
+and film generation remain separate roadmap work.

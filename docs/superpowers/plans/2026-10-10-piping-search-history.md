@@ -10,7 +10,7 @@
 
 **Spec:** [Explainable piping-layout search roadmap](../../architecture/piping-search-roadmap.md).
 
-**Status:** proposed plan, not an implemented feature. Proposed commands, modules and interfaces below do not exist at the baseline. Date: 2026-10-10. Source baseline: `7652065e1637e5c7ab102cb2ceb5236a3d4a92b6`.
+**Status:** implemented and qualified on 2026-10-10; see [measured qualification](../../content/piping-search.md#measured-qualification). The tasks below retain the original implementation instructions. Source baseline: `7652065e1637e5c7ab102cb2ceb5236a3d4a92b6`.
 
 ## Global Constraints
 
