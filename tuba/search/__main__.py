@@ -12,6 +12,7 @@ from .checks import render_reason
 from .contracts import CheckResult
 from .export import export_history, inspect_history, write_candidate_review
 from .run import SearchBlocked, run_search
+from .replay import write_search_replay
 
 
 def main(argv=None, *, solver=None) -> int:
@@ -26,7 +27,7 @@ def main(argv=None, *, solver=None) -> int:
     inspect.add_argument("--run-dir", required=True, type=Path)
     inspect.add_argument("--candidate")
     inspect.add_argument("--json", action="store_true")
-    for name in ("export", "review"):
+    for name in ("export", "review", "replay"):
         command = commands.add_parser(name)
         command.add_argument("--run-dir", required=True, type=Path)
         command.add_argument("--output", required=True, type=Path, help="New output directory; existing output is refused")
@@ -61,7 +62,8 @@ def main(argv=None, *, solver=None) -> int:
                             for check in record["checks"]:
                                 print(render_reason(CheckResult.from_dict(check)))
             return 0
-        path = (export_history(args.run_dir, args.output) if args.command == "export" else
+        path = (write_search_replay(args.run_dir, args.output) if args.command == "replay" else
+                export_history(args.run_dir, args.output) if args.command == "export" else
                 write_candidate_review(args.run_dir, args.candidate, args.output, attempt_id=args.attempt))
         print(path)
         print(f"output bytes: {sum(p.stat().st_size for p in path.parent.rglob('*') if p.is_file())}")

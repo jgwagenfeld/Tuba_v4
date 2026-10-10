@@ -6,6 +6,9 @@ __all__ = ["Candidate", "CheckResult", "CheckSpec", "Decision", "Evaluation", "S
 
 
 def __getattr__(name):
+    if name == "write_search_replay":
+        from .replay import write_search_replay
+        return write_search_replay
     if name in {"load_search", "grid_parameters", "run_search"}:
         from . import run
         return getattr(run, name)
@@ -18,4 +21,4 @@ def __getattr__(name):
     raise AttributeError(name)
 
 
-__all__ += ["load_search", "grid_parameters", "run_search", "evaluate_candidate", "export_history", "write_candidate_review"]
+__all__ += ["load_search", "grid_parameters", "run_search", "evaluate_candidate", "export_history", "write_candidate_review", "write_search_replay"]

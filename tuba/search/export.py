@@ -155,7 +155,8 @@ def _clashes(checks, *, operating):
     return findings
 
 
-def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *, attempt_id: str | None = None) -> Path:
+def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *, attempt_id: str | None = None,
+                           evaluation_id: str | None = None) -> Path:
     safe_id(candidate_id)
     archive = _archive(run_dir)
     snapshot = inspect_history(run_dir, candidate_id)
@@ -166,6 +167,11 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
         raise ValueError("Candidate geometry integrity check failed")
     model = TubaModel.from_dict(json.loads(archive.path(row["build"]["model_ref"]).read_text(encoding="utf-8")))
     records = row["evaluations"]
+    if evaluation_id is not None:
+        safe_id(evaluation_id)
+        records = [e for e in records if e["id"] == evaluation_id]
+        if not records:
+            raise ValueError("Unknown candidate evaluation")
     if attempt_id is not None:
         safe_id(attempt_id)
         records = [e for e in records if e["attempt_id"] == attempt_id]
@@ -193,6 +199,7 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                    operating_clash_results=_clashes(checks, operating=True),
                    volume_export=snapshot["run"]["settings"]["volume_export"], scene_id=f"scene:search:{candidate_id}"))
     metadata = {"run_id": snapshot["run"]["run_id"], "candidate_id": candidate_id,
+                "evaluation_id": evaluation.id if evaluation else None,
                 "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": outcome,
                 "current_candidate_outcome": row["outcome"], "attempt_decisions": attempt_decisions,
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
