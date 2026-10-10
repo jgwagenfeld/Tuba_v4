@@ -66,7 +66,7 @@ def test_candidate_refuses_non_json_parameters(parameters):
         Candidate("C", (), parameters, "Proposal")
 
 
-@pytest.mark.parametrize("identifier", ["", "../outside", "C/other"])
+@pytest.mark.parametrize("identifier", ["", "../outside", "C/other", "CON", "C."])
 def test_candidate_identifier_is_safe_for_archive_paths(identifier):
     with pytest.raises(ValueError):
         Candidate(identifier, (), {}, "Proposal")
@@ -109,6 +109,11 @@ def test_non_applicability_requires_authored_condition():
     assert decide(evaluation((check,)), specs(), ("Hot",)).outcome == "incomplete"
     configured = replace(specs()[0], options={"applicability_condition": "No equipment nozzle"})
     assert decide(evaluation((check,)), (configured,), ("Hot",)).outcome == "feasible_retained"
+
+
+def test_required_targets_cannot_be_omitted_from_a_pass():
+    configured = replace(specs()[0], target_refs=("node:PumpNozzle", "node:Other"))
+    assert decide(evaluation((force_check(),)), (configured,), ("Hot",)).outcome == "incomplete"
 
 
 @pytest.mark.parametrize("change", [{"candidate_limit": True}, {"max_solver_calls": -1},

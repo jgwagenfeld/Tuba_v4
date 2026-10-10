@@ -36,7 +36,9 @@ def json_copy(value: Any) -> Any:
 
 
 def safe_id(value: str) -> str:
-    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", value) or value in {".", ".."}:
+    reserved = {"CON", "PRN", "AUX", "NUL", *(f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(10))}
+    if (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", value)
+            or value.endswith(".") or value.split(".")[0].upper() in reserved):
         raise ValueError("Expected a nonempty path-safe identifier")
     return value
 
@@ -260,6 +262,8 @@ def decide(evaluation: Evaluation, check_specs: tuple[CheckSpec, ...], required_
             checks = [c for c in evaluation.checks if c.constraint_id == spec.id and c.operation == operation]
             if not checks or any(c.verdict == "unknown" for c in checks):
                 missing.append(f"check_incomplete:{spec.id}")
+            if spec.target_refs and not set(spec.target_refs) <= {ref for c in checks for ref in c.entity_refs}:
+                missing.append(f"target_coverage_incomplete:{spec.id}")
             for check in checks:
                 if not check.required or (spec.unit and check.unit != spec.unit) or (spec.limit is not None and check.limit != spec.limit):
                     missing.append(f"check_scope_mismatch:{spec.id}")

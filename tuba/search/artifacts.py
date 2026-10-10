@@ -143,7 +143,7 @@ class ArtifactStore:
         folder.mkdir(exist_ok=True)
         return folder
 
-    def seal_attempt(self, attempt_id: str, status: str) -> str:
+    def seal_attempt(self, attempt_id: str, status: str, *, evidence_links=()) -> str:
         if status not in {"complete", "failed", "interrupted", "blocked", "not_started"}:
             raise ValueError("Invalid execution status")
         reference = f"attempts/{safe_id(attempt_id)}/inventory.json"
@@ -156,10 +156,13 @@ class ArtifactStore:
         files = [self._entry(path) for path in self._files(folder)]
         atomic_json(inventory_path, {"schema": "tuba.search.inventory.v1", "kind": "attempt",
                                     **record, "status": status, "files": files,
+                                    "evidence_links": list(evidence_links),
                                     "total_bytes": sum(f["size_bytes"] for f in files)})
         return reference
 
-    def verify_inventory(self, manifest_ref: str) -> dict:
+    def verify_inventory(self, manifest_ref: str, *, _ancestors=()) -> dict:
+        if manifest_ref in _ancestors:
+            raise ValueError("Archive integrity failure: inventory cycle")
         path = self.path(manifest_ref)
         manifest = json.loads(path.read_text(encoding="utf-8"))
         if manifest.get("schema") != "tuba.search.inventory.v1":
@@ -171,6 +174,8 @@ class ArtifactStore:
                     raise ValueError(f"Archive integrity failure: {entry['path']}")
             except FileNotFoundError:
                 raise ValueError(f"Archive integrity failure: missing {entry['path']}") from None
+        for linked in manifest.get("evidence_links", ()):
+            self.verify_inventory(linked, _ancestors=(*_ancestors, manifest_ref))
         return manifest
 
     def recover(self, history) -> list[str]:

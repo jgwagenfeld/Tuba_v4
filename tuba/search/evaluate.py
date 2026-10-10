@@ -83,7 +83,14 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, arc
                     "result_state_ids": [state.id for state in (run.result_states or (run.result_state,))],
                     "artifact_dir": Path(run.study.work_dir).relative_to(archive.root).as_posix()}, candidate.id)
         # Seal execution before acceptance code can fail or reject the design.
-        inventory_ref = archive.seal_attempt(attempt_id, status)
+        evidence_links = []
+        for run in runs.values():
+            folder = Path(run.study.work_dir)
+            if folder.parent.name != attempt_id:
+                link = (folder.parent / "inventory.json" if folder.parent.parent.name == "attempts"
+                        else folder / "inventory.json")
+                evidence_links.append(link.relative_to(archive.root).as_posix())
+        inventory_ref = archive.seal_attempt(attempt_id, status, evidence_links=tuple(dict.fromkeys(evidence_links)))
         if not cold_failed and status == "complete":
             try:
                 checks.extend(evaluate_checks(model, runs, loaded.check_specs,
