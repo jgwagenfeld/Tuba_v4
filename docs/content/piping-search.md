@@ -200,6 +200,13 @@ Missing/damaged evidence disables its result view while preserving the recorded
 historical decision and diagnostics. A historical pass is not requalification of
 damaged evidence.
 
+Malformed inventory records remain visible as availability diagnostics; readable
+candidates continue to open. Crash-recovered sealed attempts appear independently
+from published evaluations, with their archived artifact availability and no
+inferred checks or decisions. Missing transferred scenes clear the viewport and
+leave the history accessible. Static replay reports contain native evidence and
+checks; decision labels belong to the event cursor in the Search panel.
+
 The package contains `search_replay.json`, the M1 history export, previews and
 complete native per-evaluation review bundles. All candidate records remain,
 including builder failures with no scene. The history manifest still references
@@ -226,14 +233,24 @@ $env:TUBA_VIEWER_ASSETS = 'D:/tuba-runs/Tuba_v4/search-replay-m2-20261010/viewer
 python -m tuba.visualization.viewer D:/tuba-runs/Tuba_v4/search-replay-m2-20261010/package --open
 ```
 
-M2 validation passed **725 viewer unit checks**, **40 Python checks**, and
-**8 real-archive browser scenarios with zero page errors**. Those scenarios
+Final M2 validation passed **726 viewer unit checks**, **86 Python checks**
+(one Windows symlink-permission skip), and **10 real-archive browser scenarios
+with zero page errors**. Those scenarios
 covered all 12 candidates, Hot clearance and nozzle-force rejections with native
 downloads/highlights, C0009 selection, its interrupted retry, cold geometry,
-parameter comparison, event causality and delayed/rapid switching. One controlled
+parameter comparison, event causality, a pre-selection report, cold-after-hot
+finding scope and delayed/rapid switching. Python regressions also covered malformed
+inventories, missing authored-source records, native crash recovery followed by
+retry, and missing/malformed transferred scenes. One controlled
 1200 ms response delay exercised UI ordering; it did not alter solver artifacts.
 The real Code_Aster 18.0.12 evidence is from M1's original qualification. M2
 performed no new physics solve.
+
+The fresh final review, regression failures/passes, native payload hash checks,
+current source revision, viewer build identity and measured storage are retained
+in `qualification.json` and `validation/`. Proposal `intent` remains inspectable
+in the archive; displaying it directly in the panel is deferred presentation
+polish. Every recorded rejection/check/decision explanation is available.
 
 The [hot-line example](../../examples/piping-search/README.md) provides the
 bounded authored benchmark and opt-in real Code_Aster qualification test.

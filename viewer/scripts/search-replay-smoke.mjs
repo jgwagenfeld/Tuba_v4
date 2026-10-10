@@ -27,6 +27,10 @@ try {
     const failed = panel.locator(`.search-fail[data-search-constraint="${constraint}"]`).first();
     await failed.waitFor();
     assert.match(await failed.textContent(), /Hot/);
+    const recordedMessage = await page.request.get(new URL('/bundle/search_replay.json', url).href).then(r => r.json())
+      .then(m => m.candidates.find(c => c.id === id).evaluations.at(-1).checks.find(c => c.constraint_id === constraint && c.verdict === 'fail').message);
+    assert.ok(recordedMessage);
+    assert.ok((await failed.textContent()).includes(recordedMessage), 'Native checker explanation is shown');
     await failed.locator("[data-search-finding]").click();
     await panel.locator("[data-search-view-status]").filter({ hasText: "Showing the recorded finding" }).waitFor();
     assert.equal(await page.locator('[data-canvas]').getAttribute('data-search-operation'), 'Hot');
@@ -52,7 +56,20 @@ try {
   await panel.locator("[data-search-view-status]").filter({ hasText: "Showing this sealed attempt" }).waitFor();
   assert.ok(await panel.locator("[data-search-parameters] .search-changed").count());
   checks.push("Cold rejection and authored parameter comparison retained");
+  await panel.locator('.search-fail [data-search-finding]').first().click();
+  await panel.locator('[data-search-view-status]').filter({ hasText: 'Showing the recorded finding' }).waitFor();
+  assert.equal(await page.locator('[data-canvas]').getAttribute('data-search-operation'), 'cold');
+  checks.push('Cold finding after hot finding clears the native operation scope');
   const slider = panel.locator("[data-search-event]");
+  await slider.evaluate(node => { node.value = '210'; node.dispatchEvent(new Event('change', { bubbles: true })); });
+  await panel.locator('[data-search-candidate="C0009"]').click();
+  await panel.locator('[data-search-view-status]').filter({ hasText: 'Showing this sealed attempt' }).waitFor();
+  assert.doesNotMatch(await panel.locator('[data-search-outcome]').textContent(), /selected/);
+  const report = page.locator('[data-report-link]');
+  const reportResponse = await page.request.get(await report.getAttribute('href'));
+  assert.equal(reportResponse.ok(), true);
+  assert.doesNotMatch(await reportResponse.text(), /Search candidate C0009: selected/);
+  checks.push('Pre-selection native Report contains no later selection');
   await slider.evaluate(node => { node.value = "0"; node.dispatchEvent(new Event("change", { bubbles: true })); });
   assert.equal(await panel.locator("[data-search-candidate]").count(), 0);
   assert.match(await panel.textContent(), /No candidate has been proposed/);

@@ -10,6 +10,10 @@
 
 **Spec:** [Interactive piping search replay](../specs/2026-10-10-piping-search-replay-design.md).
 
+**Execution:** All three tasks completed. Fresh final review and regression-driven
+fixes are recorded with source/build/native-artifact provenance in
+`D:/tuba-runs/Tuba_v4/search-replay-m2-20261010/qualification.json`.
+
 ## Global Constraints
 
 - Python support remains `>=3.11,<3.15`.

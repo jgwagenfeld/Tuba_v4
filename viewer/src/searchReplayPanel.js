@@ -119,6 +119,12 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       }
       const stateMessage = element("p", "", "search-note"); stateMessage.dataset.searchViewStatus = ""; stateMessage.setAttribute("role", "status");
       panel.append(stateMessage);
+      if (evaluation?.source_event_kind === "attempt.recovered") {
+        panel.append(element("p", `Crash-recovered attempt ${evaluation.attempt_id}: sealed execution without a published evaluation. No checks or candidate decision inferred.`, "search-note"));
+        for (const artifact of evaluation.review.artifact_diagnostics ?? []) {
+          panel.append(element("p", `Archived recovery evidence: ${artifact.path} (${artifact.availability})`, "search-note"));
+        }
+      }
       const controls = element("div", undefined, "search-event-nav");
       controls.append(button("Reference geometry", () => void display(selected.preview), { searchReference: "" })); panel.append(controls);
       const params = element("details"); params.open = true; params.append(element("summary", "Parameters and comparison"));
@@ -153,7 +159,7 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
         callout.open = check.verdict === "fail" || check.verdict === "unknown";
         callout.append(element("summary", `${label(check.verdict)} · ${check.constraint_id} · ${check.operation ?? "cold"}`),
           element("p", `${check.required ? "Required" : "Advisory"} · ${check.basis} · ${check.result_state_id ?? "reference geometry"}`),
-          element("p", `${check.reason_text ?? ""} (${label(check.reason_code)})`), element("p", `Targets: ${(check.entity_refs ?? []).join(", ") || "whole model"}`));
+          element("p", `${check.message ?? check.reason_text ?? ""} (${label(check.reason_code)})`), element("p", `Targets: ${(check.entity_refs ?? []).join(", ") || "whole model"}`));
         if (check.measured_value != null || check.limit != null) callout.append(element("p", `${text(check.measured_value)} ${check.comparator ?? "against"} ${text(check.limit)} ${check.unit ?? ""}`));
         for (const clash of check.details?.clashes ?? []) callout.append(element("p", `Collision at ${text(clash.location)} m; native distance ${text(clash.distance_m)} m; penetration ${text(clash.penetration_m)} m`));
         if (check.details?.coverage) {

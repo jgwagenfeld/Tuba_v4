@@ -181,3 +181,32 @@ def test_viewer_replay_rejects_malformed_rows_clearly(tmp_path, monkeypatch, row
     path.write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match='Malformed search_replay.json'):
         create_server(root)
+
+
+@pytest.mark.parametrize('damaged', [None, '{truncated', '[]'])
+def test_viewer_replay_opens_records_when_selected_scene_is_unreadable(tmp_path, monkeypatch, damaged):
+    from tuba.visualization.viewer import create_server
+    root = _replay_bundle(tmp_path, monkeypatch)
+    path = root / 'previews/C1/scene.json'
+    if damaged is None:
+        path.unlink()
+    else:
+        path.write_text(damaged)
+    server, url = create_server(root)
+    try:
+        assert 'search=/bundle/search_replay.json' in url
+        assert 'bundle=/bundle/' not in url
+    finally:
+        server.server_close()
+    other = root / 'previews/C2'
+    other.mkdir()
+    (other / 'scene.json').write_text('{"objects": []}')
+    manifest_path = root / 'search_replay.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['candidates'].append({'id': 'C2', 'attempt_reviews': [], 'preview': {'bundle': 'previews/C2', 'availability': 'available'}})
+    manifest_path.write_text(json.dumps(manifest))
+    server, url = create_server(root)
+    try:
+        assert 'bundle=/bundle/previews/C2' in url
+    finally:
+        server.server_close()

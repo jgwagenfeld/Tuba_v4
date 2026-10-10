@@ -600,8 +600,8 @@ async function showSearchView(bundleUrl, request) {
 }
 
 function highlightSearchCheck(check) {
-  if (check.operation) dispatch({ type: "setActiveLoadCase", loadCase: check.operation });
-  if (check.result_state_id) dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id });
+  dispatch({ type: "setActiveLoadCase", loadCase: check.operation ?? null });
+  dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id ?? null });
   const ids = (check.entity_refs ?? []).map(ref => resolveEntityObjectId(currentState, ref)).filter(Boolean);
   dispatch({ type: "selectObjects", objectIds: ids });
   dom.canvas.dataset.searchOperation = currentState.activeLoadCase ?? "cold";

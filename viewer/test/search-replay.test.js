@@ -67,3 +67,23 @@ test("latest request guard never accepts an older candidate load", async () => {
   assert.equal(first.current(), false);
   assert.equal(second.current(), true);
 });
+
+test("crash-recovered attempts remain selectable without fabricated evaluations", () => {
+  const manifest = fixture();
+  for (const event of manifest.events.slice(2)) event.sequence++;
+  manifest.events.splice(2, 0, { sequence: 3, kind: 'attempt.recovered', candidate_id: 'C1',
+    payload: { attempt_id: 'ACrash', status: 'interrupted', evidence_manifest_ref: 'attempts/ACrash/inventory.json' } });
+  manifest.candidates[0].attempt_reviews.unshift({ attempt_id: 'ACrash', evaluation_id: null,
+    availability: 'unavailable', message: 'No evaluation was published before crash recovery' });
+  assert.equal(replayAt(manifest, 2).candidates[0].evaluations.length, 0);
+  const row = replayAt(manifest, 9).candidates[0];
+  assert.equal(row.evaluations.length, 3);
+  const recovered = row.evaluations[0];
+  assert.equal(recovered.attempt_id, 'ACrash');
+  assert.equal(recovered.source_event_kind, 'attempt.recovered');
+  assert.deepEqual(recovered.checks, []);
+  assert.deepEqual(recovered.decisions, []);
+  assert.equal(recovered.outcome, 'incomplete');
+  assert.equal(recovered.review.availability, 'unavailable');
+  assert.equal(row.evaluations.at(-1).outcome, 'selected');
+});

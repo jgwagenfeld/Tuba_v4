@@ -160,13 +160,28 @@ class ArtifactStore:
                                     "total_bytes": sum(f["size_bytes"] for f in files)})
         return reference
 
+    def read_inventory(self, manifest_ref: str) -> dict:
+        """Read inventory structure without claiming that its evidence is intact."""
+        manifest = json.loads(self.path(manifest_ref).read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict) or manifest.get("schema") != "tuba.search.inventory.v1":
+            raise ValueError("Unsupported inventory schema")
+        if not isinstance(manifest.get("files"), list) or not isinstance(manifest.get("evidence_links", []), list):
+            raise ValueError("Malformed inventory files or evidence links")
+        for entry in manifest["files"]:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                raise ValueError("Malformed inventory file entry")
+            self.path(entry["path"])
+            size, digest = entry.get("size_bytes"), entry.get("sha256")
+            if type(size) is not int or size < 0 or not isinstance(digest, str) or len(digest) != 64 or set(digest.lower()) - set("0123456789abcdef"):
+                raise ValueError("Malformed inventory file size or digest")
+        for link in manifest.get("evidence_links", ()):
+            self.path(link)
+        return manifest
+
     def verify_inventory(self, manifest_ref: str, *, _ancestors=()) -> dict:
         if manifest_ref in _ancestors:
             raise ValueError("Archive integrity failure: inventory cycle")
-        path = self.path(manifest_ref)
-        manifest = json.loads(path.read_text(encoding="utf-8"))
-        if manifest.get("schema") != "tuba.search.inventory.v1":
-            raise ValueError("Unsupported inventory schema")
+        manifest = self.read_inventory(manifest_ref)
         for entry in manifest["files"]:
             file = self.path(entry["path"])
             try:

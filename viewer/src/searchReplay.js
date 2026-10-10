@@ -58,6 +58,14 @@ export function replayAt(manifest, sequence) {
     const row = rows.get(original.id);
     if (!row) continue;
     if (event.kind === "candidate.built") { row.build = event.payload; row.preview = original.preview; }
+    if (event.kind === "attempt.recovered") {
+      row.evaluations.push({ ...event.payload, id: `recovered:${event.payload.attempt_id}`, sequence: event.sequence,
+        source_event_kind: event.kind, operations: manifest.run.settings?.operations ?? [], completed_operations: [],
+        checks: [], outcome: "incomplete", decisions: [],
+        review: original.attempt_reviews?.find(v => v.evaluation_id == null && v.attempt_id === event.payload.attempt_id)
+          ?? { availability: "unavailable", message: "No evaluation was published before crash recovery" } });
+      row.outcome = "awaiting_evaluation";
+    }
     if (["evaluation.completed", "evaluation.failed", "evaluation.interrupted"].includes(event.kind)) {
       row.evaluations.push({ ...event.payload, sequence: event.sequence, outcome: "incomplete", decisions: [],
         review: original.attempt_reviews?.find(v => v.evaluation_id === event.payload.id) ?? { availability: "unavailable", message: "Review not exported" } });

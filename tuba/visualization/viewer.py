@@ -67,9 +67,13 @@ def _replay_default(manifest, root):
                     raise ValueError('Unsafe relative replay path')
                 if entry.get('availability') == 'available':
                     views.append(relative)
-    if views:
-        _read_bundle_json(root / views[0] / 'scene.json')
-    return views[0] if views else None
+    for view in views:
+        try:
+            _read_bundle_json(root / view / 'scene.json')
+        except ValueError:
+            continue
+        return view
+    return None
 
 
 def viewer_assets_path():

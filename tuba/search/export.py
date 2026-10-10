@@ -45,11 +45,12 @@ def inspect_history(run_dir: Path, candidate_id: str | None = None) -> dict:
         own = [e for e in events if e["candidate_id"] == candidate.id]
         decisions = [e["payload"] | {"sequence": e["sequence"]} for e in own if e["kind"] == "candidate.decision"]
         evaluations = [e["payload"] for e in own if e["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted"}]
+        recovered = [e["payload"] | {"sequence": e["sequence"]} for e in own if e["kind"] == "attempt.recovered"]
         built = [e["payload"] for e in own if e["kind"] == "candidate.built"]
         completed = evaluations[-1]["completed_operations"] if evaluations else []
         rows.append(candidate.to_dict() | {"outcome": decisions[-1]["outcome"] if decisions else "incomplete",
                     "reason_codes": decisions[-1]["reason_codes"] if decisions else ["decision_not_recorded"],
-                    "decisions": decisions, "evaluations": evaluations, "build": built[-1] if built else None,
+                    "decisions": decisions, "evaluations": evaluations, "recovered_attempts": recovered, "build": built[-1] if built else None,
                     "unevaluated_operations": [op for op in manifest["settings"]["operations"] if op not in completed]})
     return {"run": manifest, "candidates": rows, "events": events}
 
@@ -92,20 +93,26 @@ def export_history(run_dir: Path, output_dir: Path) -> Path:
         ref = event["payload"].get("evidence_manifest_ref")
         if ref:
             references.add(ref)
-    inventories, diagnostics, files = [], [], {}
+    inventories, diagnostics, files, visited = [], [], {}, set()
     while references:
         ref = references.pop()
+        if ref in visited:
+            continue
+        visited.add(ref)
         path = archive.path(ref)
         if not path.is_file():
             diagnostics.append({"path": ref, "availability": "missing", "message": "Inventory is unavailable"})
             continue
-        native = json.loads(path.read_text(encoding="utf-8"))
-        entries = [_availability(archive, entry) for entry in native["files"]]
+        try:
+            native = archive.read_inventory(ref)
+            entries = [_availability(archive, entry) for entry in native["files"]]
+        except (ValueError, UnicodeError) as exc:
+            diagnostics.append({"path": ref, "availability": "damaged", "message": str(exc)})
+            continue
         inventories.append(native | {"manifest": archive._entry(path), "files": entries})
         files.update((entry["path"], entry) for entry in entries)
         diagnostics.extend({"path": entry["path"], "availability": entry["availability"]} for entry in entries if entry["availability"] != "available")
-        already = {i["manifest"]["path"] for i in inventories}
-        references.update(ref for ref in native.get("evidence_links", ()) if ref not in already)
+        references.update(ref for ref in native.get("evidence_links", ()) if ref not in visited)
     for row in snapshot["candidates"]:
         for name, reference in (("model", row["build"]["model_ref"] if row["build"] else None),
                                 ("parameters", f"candidates/{row['id']}/parameters.json")):
@@ -156,7 +163,7 @@ def _clashes(checks, *, operating):
 
 
 def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *, attempt_id: str | None = None,
-                           evaluation_id: str | None = None) -> Path:
+                           evaluation_id: str | None = None, include_decisions: bool = True) -> Path:
     safe_id(candidate_id)
     archive = _archive(run_dir)
     snapshot = inspect_history(run_dir, candidate_id)
@@ -205,6 +212,10 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
                 "result_status": "code_aster_results" if staged else "unsolved_preview", "scope": snapshot["run"]["scope"],
                 "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
+    if not include_decisions:
+        for key in ("outcome", "current_candidate_outcome", "attempt_decisions", "decisions"):
+            metadata.pop(key)
+        metadata["decision_scope"] = "Replay timeline; this static evidence view contains no candidate decisions"
     scene.extra["search"] = metadata
     for index, check in enumerate(local_checks):
         if check.verdict in {"fail", "unknown"}:
@@ -223,7 +234,11 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                  tuple(check.to_dict() for check in local_checks), "tuba.search recorded checks")
     review = replace(review, tables=(*review.tables, table))
     source_inventory = archive.verify_inventory(snapshot["run"]["source_manifest_ref"])
-    source = archive.path(next(f["path"] for f in source_inventory["files"] if f["logical_name"] == "model.py"))
-    write_engineering_review_with_scene(review, output, scene=scene, title=f"Search candidate {candidate_id}: {outcome}", source=source)
+    source_entry = next((f for f in source_inventory["files"] if f.get("logical_name") == "model.py"), None)
+    if source_entry is None:
+        raise ValueError("Archived authored model is unavailable in the source inventory")
+    source = archive.path(source_entry["path"])
+    title = f"Search candidate {candidate_id}: {outcome}" if include_decisions else f"Search candidate {candidate_id}: recorded evaluation"
+    write_engineering_review_with_scene(review, output, scene=scene, title=title, source=source)
     atomic_json(output / "search_review.json", metadata)
     return output / "scene.json"
