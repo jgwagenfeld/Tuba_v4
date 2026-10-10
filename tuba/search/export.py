@@ -1,0 +1,198 @@
+"""Read-only history projections and reviews through Tuba's existing web scene."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+import json
+import os
+from pathlib import Path
+
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.staged_run import stage_runs
+from tuba.clash.types import ClashResult
+from tuba.model import TubaModel
+from tuba.refs import EntityRef
+from tuba.reporting import ReportColumn, ReportTable, build_engineering_review
+from tuba.visualization import Issue, SceneBuildOptions, SceneRequest, build_visualization_scene, write_engineering_review_with_scene
+
+from .artifacts import ArtifactStore, atomic_json, digest_file, no_links
+from .checks import render_reason
+from .contracts import CheckResult, Evaluation, safe_id
+from .history import History, encode
+
+
+def _archive(run_dir):
+    root = Path(run_dir).absolute()
+    no_links(root)
+    if not (root / "history.sqlite3").is_file():
+        raise FileNotFoundError("Run history does not exist")
+    archive = ArtifactStore(root)
+    archive.path("history.sqlite3")
+    return archive
+
+
+def inspect_history(run_dir: Path, candidate_id: str | None = None) -> dict:
+    archive = _archive(run_dir)
+    with History.open(archive.path("history.sqlite3"), readonly=True) as h:
+        manifest, events, candidates = h.manifest(), h.events(), h.candidates()
+    if candidate_id is not None and candidate_id not in {c.id for c in candidates}:
+        raise ValueError(f"Unknown candidate: {candidate_id}")
+    rows = []
+    for candidate in candidates:
+        if candidate_id is not None and candidate.id != candidate_id:
+            continue
+        own = [e for e in events if e["candidate_id"] == candidate.id]
+        decisions = [e["payload"] | {"sequence": e["sequence"]} for e in own if e["kind"] == "candidate.decision"]
+        evaluations = [e["payload"] for e in own if e["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted"}]
+        built = [e["payload"] for e in own if e["kind"] == "candidate.built"]
+        completed = evaluations[-1]["completed_operations"] if evaluations else []
+        rows.append(candidate.to_dict() | {"outcome": decisions[-1]["outcome"] if decisions else "incomplete",
+                    "reason_codes": decisions[-1]["reason_codes"] if decisions else ["decision_not_recorded"],
+                    "decisions": decisions, "evaluations": evaluations, "build": built[-1] if built else None,
+                    "unevaluated_operations": [op for op in manifest["settings"]["operations"] if op not in completed]})
+    return {"run": manifest, "candidates": rows, "events": events}
+
+
+def _availability(archive, entry):
+    path = archive.path(entry["path"])
+    available = "missing" if not path.is_file() else "available" if path.stat().st_size == entry["size_bytes"] and digest_file(path) == entry["sha256"] else "damaged"
+    return entry | {"availability": available}
+
+
+def _new_output(output_dir):
+    path = Path(output_dir).absolute()
+    no_links(path)
+    path.mkdir(parents=True, exist_ok=False)
+    return path
+
+
+def export_history(run_dir: Path, output_dir: Path) -> Path:
+    archive = _archive(run_dir)
+    snapshot = inspect_history(run_dir)
+    # A manifest intentionally references the retained archive; it is not a full copy.
+    relative_archive = os.path.relpath(archive.root, Path(output_dir).absolute()).replace("\\", "/")
+    output = _new_output(output_dir)
+    references = {snapshot["run"]["source_manifest_ref"]}
+    for event in snapshot["events"]:
+        ref = event["payload"].get("evidence_manifest_ref")
+        if ref:
+            references.add(ref)
+    inventories, diagnostics, files = [], [], {}
+    while references:
+        ref = references.pop()
+        path = archive.path(ref)
+        if not path.is_file():
+            diagnostics.append({"path": ref, "availability": "missing", "message": "Inventory is unavailable"})
+            continue
+        native = json.loads(path.read_text(encoding="utf-8"))
+        entries = [_availability(archive, entry) for entry in native["files"]]
+        inventories.append(native | {"manifest": archive._entry(path), "files": entries})
+        files.update((entry["path"], entry) for entry in entries)
+        diagnostics.extend({"path": entry["path"], "availability": entry["availability"]} for entry in entries if entry["availability"] != "available")
+        already = {i["manifest"]["path"] for i in inventories}
+        references.update(ref for ref in native.get("evidence_links", ()) if ref not in already)
+    for row in snapshot["candidates"]:
+        for name, reference in (("model", row["build"]["model_ref"] if row["build"] else None),
+                                ("parameters", f"candidates/{row['id']}/parameters.json")):
+            if reference:
+                path = archive.path(reference)
+                row[f"{name}_artifact"] = archive._entry(path) | {"availability": "available"} if path.is_file() else {"path": reference, "availability": "missing"}
+        for evaluation in row["evaluations"]:
+            evaluation["scoped_checks"] = []
+            for check in evaluation["checks"]:
+                evidence = [files.get(ref, {"path": ref, "availability": "not_in_inventory"}) for ref in check["evidence_refs"]]
+                evaluation["scoped_checks"].append({"check": check,
+                    "scope": {"candidate_id": row["id"], "attempt_id": evaluation["attempt_id"],
+                              "operation": check["operation"], "result_state_id": check["result_state_id"]}, "evidence": evidence})
+    payload = {"schema": "tuba.search.replay.v1", "self_contained": False, "archive_relative_path": relative_archive,
+               "handoff": "Keep the referenced retained archive. A native candidate review bundle is a separate complete handoff.",
+               **snapshot, "inventories": inventories, "availability_diagnostics": diagnostics}
+    events_path = output / "events.jsonl"
+    with events_path.open("x", encoding="utf-8", newline="\n") as stream:
+        for event in snapshot["events"]:
+            stream.write(encode(event) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    payload["events_artifact"] = {"path": "events.jsonl", "sha256": digest_file(events_path), "size_bytes": events_path.stat().st_size}
+    atomic_json(output / "search_history.json", payload)
+    return output / "search_history.json"
+
+
+def _clashes(checks, *, operating):
+    findings = []
+    seen = set()
+    for check in checks:
+        if (check.operation is not None) != operating:
+            continue
+        for data in check.details.get("clashes", ()):
+            identity = encode(data)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            findings.append(ClashResult(EntityRef.from_dict(data["left"]), EntityRef.from_dict(data["right"]),
+                         data["severity"], data["distance_m"], data["penetration_m"],
+                         tuple(data["location"]) if "location" in data else None,
+                         data.get("diagnostics", []), data.get("metadata", {})))
+    return findings
+
+
+def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *, attempt_id: str | None = None) -> Path:
+    safe_id(candidate_id)
+    archive = _archive(run_dir)
+    snapshot = inspect_history(run_dir, candidate_id)
+    row = snapshot["candidates"][0]
+    if not row["build"]:
+        raise ValueError("Candidate has no archived geometry to review")
+    model = TubaModel.from_dict(json.loads(archive.path(row["build"]["model_ref"]).read_text(encoding="utf-8")))
+    records = row["evaluations"]
+    if attempt_id is not None:
+        safe_id(attempt_id)
+        records = [e for e in records if e["attempt_id"] == attempt_id]
+        if not records:
+            raise ValueError("Unknown candidate attempt")
+    evaluation = Evaluation.from_dict(records[-1]) if records else None
+    runs, checks = {}, ()
+    if evaluation:
+        archive.verify_inventory(evaluation.evidence_manifest_ref)
+        checks = evaluation.checks
+        for event in snapshot["events"]:
+            if event["kind"] == "operation.completed" and event["candidate_id"] == candidate_id and event["payload"]["attempt_id"] == evaluation.attempt_id:
+                operation = event["payload"]["operation"]
+                run = import_code_aster_artifacts(model=model, work_dir=archive.path(event["payload"]["artifact_dir"]))
+                run.validate_for_publication(model)
+                runs[operation] = run
+    output = _new_output(output_dir)
+    staged = stage_runs(runs, output)
+    local_checks = tuple(replace(check, evidence_refs=tuple(f"artifacts/{check.operation}/{Path(ref).name}"
+                         for ref in check.evidence_refs)) if check.operation in staged else check for check in checks)
+    scene = build_visualization_scene(SceneRequest(model, options=SceneBuildOptions(include_physical_envelopes=True),
+                   analysis_runs=tuple(staged.values()), clash_results=_clashes(checks, operating=False),
+                   operating_clash_results=_clashes(checks, operating=True),
+                   volume_export=snapshot["run"]["settings"]["volume_export"], scene_id=f"scene:search:{candidate_id}"))
+    metadata = {"run_id": snapshot["run"]["run_id"], "candidate_id": candidate_id,
+                "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": row["outcome"],
+                "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
+                "result_status": "code_aster_results" if staged else "unsolved_preview", "scope": snapshot["run"]["scope"],
+                "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
+    scene.extra["search"] = metadata
+    for index, check in enumerate(local_checks):
+        if check.verdict in {"fail", "unknown"}:
+            scene.issues.append(Issue(id=f"issue:search:{index}", type="search_constraint", title=render_reason(check),
+                          severity="error" if check.required and check.verdict == "fail" else "warning", status="open",
+                          entity_refs=[EntityRef.parse(ref) for ref in check.entity_refs], extra={"search_check": check.to_dict()}))
+    for obj in scene.objects:
+        matching = [check.constraint_id for check in local_checks if obj.entity_ref and str(obj.entity_ref) in check.entity_refs]
+        if matching:
+            obj.metadata["search_constraints"] = matching
+    review = build_engineering_review(model, analysis_runs=tuple(staged.values()), package_id=f"review:search:{candidate_id}")
+    table = ReportTable("search_constraints", "Recorded search constraints", tuple(ReportColumn(key, label) for key, label in
+                 (("constraint_id", "Constraint"), ("verdict", "Verdict"), ("operation", "Operation"),
+                  ("result_state_id", "State / increment"), ("entity_refs", "Targets"), ("measured_value", "Measurement"),
+                  ("limit", "Limit"), ("unit", "Unit"), ("reason_code", "Reason"), ("evidence_refs", "Evidence"))),
+                 tuple(check.to_dict() for check in local_checks), "tuba.search recorded checks")
+    review = replace(review, tables=(*review.tables, table))
+    source_inventory = archive.verify_inventory(snapshot["run"]["source_manifest_ref"])
+    source = archive.path(next(f["path"] for f in source_inventory["files"] if f["logical_name"] == "model.py"))
+    write_engineering_review_with_scene(review, output, scene=scene, title=f"Search candidate {candidate_id}: {row['outcome']}", source=source)
+    atomic_json(output / "search_review.json", metadata)
+    return output / "scene.json"
