@@ -165,6 +165,8 @@ class EvidenceCache:
         qualified = {e["payload"]["attempt_id"] for e in events if e["kind"] == "evaluation.completed"
                      and e["payload"]["status"] == "complete" and not e["payload"]["error_kind"]
                      and all(c["verdict"] != "unknown" for c in e["payload"]["checks"] if c["required"])}
+        inventory_hashes = {e['payload']['attempt_id']: e['payload'].get('evidence_manifest_sha256')
+                            for e in events if e['kind'] == 'evaluation.completed'}
         for event in events:
             if event["kind"] != "operation.completed" or event["payload"]["attempt_id"] not in qualified:
                 continue
@@ -175,6 +177,7 @@ class EvidenceCache:
             ref = f"attempts/{payload['attempt_id']}/inventory.json"
             folder = archive.path(payload["artifact_dir"])
             self.entries.append({"archive": archive, "inventory_ref": ref, "folder": folder,
+                                 'inventory_sha256': inventory_hashes.get(payload['attempt_id']),
                                  "run_id": history.manifest()["run_id"], "candidate_id": event["candidate_id"],
                                  "attempt_id": payload["attempt_id"], "operation": payload["operation"],
                                  "identity": builds[event["candidate_id"]]["solver_identities"][payload["operation"]]})
@@ -186,7 +189,7 @@ class EvidenceCache:
                 continue
             # A damaged/unknown attempt is not a cache hit; keep the original history intact.
             try:
-                entry["archive"].verify_inventory(entry["inventory_ref"])
+                entry["archive"].verify_inventory(entry["inventory_ref"], expected_sha256=entry.get('inventory_sha256'))
             except (OSError, ValueError):
                 continue
             if evidence_verdict(entry["folder"], identity).reusable:
@@ -305,7 +308,8 @@ def run_search(project_root: Path, run_dir: Path, *, resume: bool = False, paren
             if resume and previous:
                 for event in h.events():
                     if event["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted"}:
-                        archive.verify_inventory(event["payload"]["evidence_manifest_ref"])
+                        archive.verify_inventory(event["payload"]["evidence_manifest_ref"],
+                                                 expected_sha256=event['payload'].get('evidence_manifest_sha256'))
                 return previous[-1]["payload"] | storage_report(archive)
             for index, parameters in enumerate(grid_parameters(loaded.definition), 1):
                 candidate = Candidate(f"C{index:04d}", (), parameters, "Deterministic authored parameter-grid proposal")
@@ -329,7 +333,7 @@ def run_search(project_root: Path, run_dir: Path, *, resume: bool = False, paren
             if resume:
                 for cid, evaluation in evaluations.items():
                     if cid not in decisions or decisions[cid].evaluation_id != evaluation.id:
-                        archive.verify_inventory(evaluation.evidence_manifest_ref)
+                        archive.verify_inventory(evaluation.evidence_manifest_ref, expected_sha256=evaluation.evidence_manifest_sha256)
                         decision = decide(evaluation, loaded.check_specs, loaded.settings.operations)
                         h.append("candidate.decision", decision.to_dict(), cid)
                         decisions[cid] = decision

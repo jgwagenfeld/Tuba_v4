@@ -80,6 +80,8 @@ the session budget, including failed calls. There is no automatic result reuse
 or ranking between free-form candidates in this milestone.
 
 The session freezes its requirements and evaluator source fingerprints.
+The guided case gives each Code_Aster invocation 600 seconds; this wall-clock
+budget accommodates runtime startup and is separate from engineering limits.
 Changing either requires a new session. Candidate reviews use the candidate's
 own source snapshot, compiled model and recorded solver identity. Source/attempt
 integrity checks refuse missing or altered artifacts. Parent diffs are retained

@@ -182,11 +182,27 @@ class ArtifactStore:
                 raise ValueError("Malformed inventory file size or digest")
         for link in manifest.get("evidence_links", ()):
             self.path(link)
+        if manifest.get('kind') == 'source' or PurePosixPath(manifest_ref).parts[0] == 'source':
+            try:
+                records = [{key: entry[key] for key in ('logical_name', 'sha256', 'size_bytes')}
+                           for entry in manifest['files']]
+                expected = hashlib.sha256(encode(records).encode()).hexdigest()
+                prefix = f'source/{expected}/'
+                valid = (manifest.get('kind') == 'source' and manifest.get('digest') == expected
+                         and manifest_ref == prefix + 'inventory.json'
+                         and len({r['logical_name'] for r in records}) == len(records)
+                         and all(entry['path'] == prefix + entry['logical_name'] for entry in manifest['files']))
+            except (KeyError, TypeError):
+                valid = False
+            if not valid:
+                raise ValueError('Archive integrity failure: source inventory differs from its immutable reference')
         return manifest
 
-    def verify_inventory(self, manifest_ref: str, *, _ancestors=()) -> dict:
+    def verify_inventory(self, manifest_ref: str, *, expected_sha256=None, _ancestors=()) -> dict:
         if manifest_ref in _ancestors:
             raise ValueError("Archive integrity failure: inventory cycle")
+        if expected_sha256 is not None and digest_file(self.path(manifest_ref)) != expected_sha256:
+            raise ValueError('Archive integrity failure: sealed inventory changed')
         manifest = self.read_inventory(manifest_ref)
         for entry in manifest["files"]:
             file = self.path(entry["path"])
@@ -201,7 +217,7 @@ class ArtifactStore:
 
     def recover(self, history) -> list[str]:
         terminal = {event["payload"].get("attempt_id") for event in history.events()
-                    if event["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted", "attempt.recovered"}}
+                    if event["kind"] in {"evaluation.completed", "evaluation.failed", "evaluation.interrupted", "attempt.recovered", "attempt.orphaned"}}
         recovered = []
         attempts = self.path("attempts")
         if not attempts.exists():
@@ -210,7 +226,21 @@ class ArtifactStore:
             no_links(folder)
             if not folder.is_dir() or folder.name in terminal:
                 continue
-            metadata = json.loads(self.path(f"attempts/{folder.name}/attempt.json").read_text(encoding="utf-8"))
+            metadata_path = self.path(f"attempts/{folder.name}/attempt.json")
+            if not metadata_path.is_file():
+                # Publication may die before the first atomic metadata rename.
+                # Preserve bytes without guessing a candidate from partial JSON.
+                ref = f'attempts/{safe_id(folder.name)}/inventory.json'
+                if not self.path(ref).exists():
+                    files = [self._entry(p) for p in self._files(folder)]
+                    atomic_json(self.path(ref), {'schema': 'tuba.search.inventory.v1', 'kind': 'attempt',
+                        'attempt_id': folder.name, 'candidate_id': None, 'status': 'interrupted',
+                        'files': files, 'evidence_links': [], 'total_bytes': sum(f['size_bytes'] for f in files)})
+                self.verify_inventory(ref)
+                history.append('attempt.orphaned', {'attempt_id': folder.name, 'status': 'interrupted',
+                    'evidence_manifest_ref': ref, 'reason': 'Attempt metadata was never published; candidate unknown.'})
+                continue
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             ref = self.seal_attempt(folder.name, "interrupted")
             history.append("attempt.recovered", {**metadata, "status": "interrupted", "evidence_manifest_ref": ref}, metadata["candidate_id"])
             recovered.append(folder.name)

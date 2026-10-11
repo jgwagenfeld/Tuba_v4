@@ -13,6 +13,7 @@ from tuba.project.freshness import export_study
 
 from .contracts import Candidate, CheckResult, Evaluation, EvaluationContext, LoadedSearch
 from .checks import evaluate_checks, verification_checks
+from .artifacts import digest_file
 
 
 def unknown_checks(specs, checks, reason):
@@ -121,7 +122,8 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch | Evalu
     checks.extend(unknown_checks(loaded.check_specs, checks, "evaluation_interrupted" if cancelled else "check_unavailable"))
     checks = [replace(check, evidence_refs=tuple(Path(ref).relative_to(archive.root).as_posix()
               if Path(ref).is_absolute() else ref for ref in check.evidence_refs)) for check in checks]
-    evaluation = Evaluation(evaluation_id, candidate.id, attempt_id, status, operations, tuple(runs), tuple(checks), inventory_ref, error_kind)
+    evaluation = Evaluation(evaluation_id, candidate.id, attempt_id, status, operations, tuple(runs), tuple(checks), inventory_ref, error_kind,
+                            digest_file(archive.path(inventory_ref)))
     if diagnostic:
         history.append("evaluation.diagnostic", {"attempt_id": attempt_id, **diagnostic,
                        "evidence_manifest_ref": inventory_ref}, candidate.id)

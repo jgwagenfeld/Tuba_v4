@@ -81,3 +81,46 @@ Reuse the checkout Python environment. Use the existing web-scene review/replay.
   parent diffs and retry/recovery. L1 + L2 focused tests: 51 passed. Corrected the
   recovery test expectation: a later interrupted attempt makes the current
   candidate incomplete while the prior rejection remains in its decision history.
+- Baseline qualification finished: 157 passed, 1 skipped in 1243.90 s; seven
+  viewer replay unit tests passed. This baseline run preceded final hardening.
+- Independent review found three Important issues, no Critical or Minor issues:
+  source/inventory replacement, orphan attempt metadata after process death, and
+  decision recovery without candidate integrity. Five new regression cases
+  failed as expected (including sealed attempt-inventory replacement). Fixes
+  bind source references to their canonical inventory digest, fingerprint newly
+  sealed attempt inventories in immutable evaluation records, retain orphan
+  bytes without invented candidate attribution, and verify candidate source/
+  model before restoring a decision. Final combined checks are running.
+- Final: Ruling: Trusted Python is the declared scope; hostile script execution
+  is not sandboxed. Cost if wrong: untrusted scripts can affect the host.
+- Final: Ruling: Industrial engineering qualification and benchmark allowables
+  remain outside this thermal research task. Cost if wrong: these results do not
+  establish operating-system or piping-code acceptability.
+- Final: Ruling: Provider integration and statistical design-quality comparison
+  remain L3 work. Cost if wrong: no repeat-run reliability or model ranking is shown.
+- Final: Ruling: The executor owns real-solver and final-suite qualification;
+  the reviewer did not rerun them. Cost if wrong: review alone cannot substantiate
+  execution results, so they must be measured and reported separately.
+- Task 3: Ruling: L2 uses a frozen 600-second execution timeout after the loaded
+  runtime exceeded the inherited 180-second limit. Use a fresh session and keep
+  earlier failures; mechanical loads, limits and mesh settings do not change.
+  Cost if wrong: a stalled solver can consume ten minutes per call.
+- Final combined regression run: 213 passed, 1 skipped, 1 stale diagnostic
+  assertion failed. The corrupted-source replay now correctly fails the earlier
+  immutable-inventory gate. Updated that assertion; its focused rerun passed in
+  17.36 s. Thus 214 distinct checks pass across runs, with one platform skip;
+  the combined command was not repeated after the assertion-only correction.
+  A separate final-policy run passed all 27 authored-iteration tests in 87.45 s.
+- Task 3: two real Code_Aster solves completed in the 600-second session. C1
+  rejects at 7496.016 N; its child C2 passes at 3639.423 N, with guides/limits
+  unchanged and 0.8 m more pipe. Operation elapsed: 104.514 s and 49.277 s.
+  Earlier runtime failures remain retained; total L2 development qualification
+  is five solver calls (three completed, two timeouts), not just the final two.
+- Final verification: both native Code_Aster 18.0.12 runs reopened against their
+  recorded identities and passed publication checks. Replay has two valid result
+  scenes and exact candidate source, no availability diagnostics. Five focused
+  browser checks passed, no page errors. Shared viewer source identity matched
+  the existing build, so it was reused without rebuild or dependency copies.
+- Final: fixed all three Important review findings via five failing regression
+  cases and passing final checks. No Minor findings were deferred. All four
+  review boundary decisions and the timeout-budget decision are recorded above.

@@ -167,12 +167,15 @@ class Evaluation(Record):
     checks: tuple[CheckResult, ...]
     evidence_manifest_ref: str | None = None
     error_kind: str | None = None
+    evidence_manifest_sha256: str | None = None
 
     def __post_init__(self):
         for value in (self.id, self.candidate_id, self.attempt_id):
             safe_id(value)
         if self.status not in {"complete", "failed", "interrupted", "not_started", "blocked"}:
             raise ValueError("Unsupported evaluation status")
+        if self.evidence_manifest_sha256 is not None and not re.fullmatch('[a-f0-9]{64}', self.evidence_manifest_sha256):
+            raise ValueError('Expected a SHA-256 sealed-inventory fingerprint')
         object.__setattr__(self, "operations", tuple(self.operations))
         object.__setattr__(self, "completed_operations", tuple(self.completed_operations))
         object.__setattr__(self, "checks", tuple(CheckResult.from_dict(c) if isinstance(c, dict) else c for c in self.checks))

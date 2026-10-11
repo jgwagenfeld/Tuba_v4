@@ -203,8 +203,98 @@ def test_changed_evaluator_cannot_resume_session(tmp_path, monkeypatch):
         iteration.recover_session(root)
 
 
+def test_equivalent_checkout_line_endings_do_not_change_evaluator(tmp_path, monkeypatch):
+    source = tmp_path / 'evaluator.py'
+    source.write_bytes(b'x = 1\n')
+    monkeypatch.setattr(iteration, 'REPO', tmp_path)
+    monkeypatch.setattr(iteration, 'IMPLEMENTATION', ('evaluator.py',))
+    before = iteration._implementation()
+    source.write_bytes(b'x = 1\r\n')
+    assert iteration._implementation() == before
+
+
 def test_guided_example_uses_allowed_procedural_units():
     source = SOURCE.parents[1] / 'llm-piping-iteration'
     model = load_project(source).run_model()['model']
     assert len(model.supports) == 4
     assert all(c['status'] == 'pass' for c in iteration.design_checks(model))
+
+
+def test_source_and_edited_inventory_cannot_replace_retained_candidate(tmp_path):
+    import hashlib
+    root = session(tmp_path)
+    project = author(tmp_path, "raise ValueError('ORIGINAL')")
+    iteration.submit(root, project, 'C1', intent='source integrity fixture')
+    row = inspect_history(root)['candidates'][0]
+    store = ArtifactStore(root)
+    ref = row['parameters']['source_manifest_ref']
+    inventory = store.verify_inventory(ref)
+    file = store.path(inventory['files'][0]['path'])
+    file.write_bytes(b"raise ValueError('REPLACED')")
+    inventory['files'][0].update(sha256=hashlib.sha256(file.read_bytes()).hexdigest(), size_bytes=file.stat().st_size)
+    store.path(ref).write_text(json.dumps(inventory))
+    with pytest.raises(ValueError, match='integrity'):
+        iteration.retry(root, 'C1')
+
+
+def test_attempt_metadata_crash_does_not_block_recovery(tmp_path, monkeypatch):
+    from tuba.search import artifacts
+    root = session(tmp_path, max_solver_calls=1)
+    project = author(tmp_path)
+    original = artifacts.atomic_json
+    def crash(path, value, **kwargs):
+        if path.name == 'attempt.json':
+            path.parent.mkdir(parents=True)
+            path.with_name('.attempt.json.crash.partial').write_text('{')
+            raise KeyboardInterrupt()
+        return original(path, value, **kwargs)
+    monkeypatch.setattr(artifacts, 'atomic_json', crash)
+    with pytest.raises(KeyboardInterrupt):
+        iteration.submit(root, project, 'C1', intent='hard metadata crash')
+    monkeypatch.setattr(artifacts, 'atomic_json', original)
+    snapshot = iteration.recover_session(root)
+    assert snapshot['candidates'][0]['outcome'] == 'incomplete'
+    assert not snapshot['candidates'][0]['evaluations']
+    event = next(e for e in snapshot['events'] if e['kind'] == 'attempt.orphaned')
+    assert event['candidate_id'] is None
+    inventory = ArtifactStore(root).verify_inventory(event['payload']['evidence_manifest_ref'])
+    assert inventory['status'] == 'interrupted' and inventory['files']
+    assert len(iteration.recover_session(root)['events']) == len(snapshot['events'])
+
+
+@pytest.mark.parametrize('missing', ['source', 'model'])
+def test_decision_gap_cannot_publish_without_candidate_integrity(tmp_path, monkeypatch, missing):
+    root = session(tmp_path)
+    project = author(tmp_path, SOURCE.read_text().replace('temperature=200.0', 'temperature=20.0'))
+    original = History.append
+    def crash(self, kind, payload, candidate_id=None):
+        if kind == 'candidate.decision':
+            raise KeyboardInterrupt()
+        return original(self, kind, payload, candidate_id)
+    monkeypatch.setattr(History, 'append', crash)
+    with pytest.raises(KeyboardInterrupt):
+        iteration.submit(root, project, 'C1', intent='decision gap')
+    monkeypatch.setattr(History, 'append', original)
+    store = ArtifactStore(root)
+    row = inspect_history(root)['candidates'][0]
+    ref = row['build']['model_ref']
+    if missing == 'source':
+        ref = store.verify_inventory(row['parameters']['source_manifest_ref'])['files'][0]['path']
+    store.path(ref).unlink()
+    with pytest.raises((ValueError, FileNotFoundError)):
+        iteration.recover_session(root)
+    assert not inspect_history(root)['candidates'][0]['decisions']
+
+
+def test_edited_attempt_inventory_cannot_rewrite_review_evidence(tmp_path):
+    root = session(tmp_path)
+    project = author(tmp_path, SOURCE.read_text().replace('temperature=200.0', 'temperature=20.0'))
+    iteration.submit(root, project, 'C1', intent='seal integrity fixture')
+    row = inspect_history(root)['candidates'][0]
+    evaluation = row['evaluations'][0]
+    inventory_path = ArtifactStore(root).path(evaluation['evidence_manifest_ref'])
+    inventory = json.loads(inventory_path.read_text())
+    inventory['status'] = 'complete'
+    inventory_path.write_text(json.dumps(inventory))
+    with pytest.raises(ValueError, match='integrity'):
+        write_candidate_review(root, 'C1', tmp_path / 'review')

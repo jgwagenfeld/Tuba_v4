@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -23,10 +24,12 @@ from tuba.search.run import coordinator, digest, objective_values
 
 REPO = Path(__file__).resolve().parents[1]
 CASE = {**benchmark.CASE, 'id': 'thermal-guided-design-v1',
+        'solver_options': {**benchmark.CASE['solver_options'], 'timeout_seconds': 600},
         'support_policy': {'max_guides': 4, 'directions': [[0., 1., 0.], [0., 0., 1.]],
                            'placement': 'Distinct interior nodes; ideal bilateral ground guides only.'}}
 IMPLEMENTATION = ('scripts/iterate_llm_piping.py', 'scripts/benchmark_llm_piping.py',
-                  'tuba/search/contracts.py', 'tuba/search/checks.py', 'tuba/search/evaluate.py')
+                  'tuba/search/contracts.py', 'tuba/search/checks.py', 'tuba/search/evaluate.py',
+                  'tuba/search/artifacts.py', 'tuba/search/history.py', 'tuba/search/run.py', 'tuba/search/export.py')
 
 
 def design_checks(model):
@@ -48,7 +51,10 @@ def design_checks(model):
 
 
 def _implementation():
-    return {name: digest_file(REPO / name) for name in IMPLEMENTATION}
+    # Git may materialize the same Python source with LF or CRLF on Windows.
+    # Retain exact archived bytes, but compare implementation text across checkouts.
+    return {name: hashlib.sha256((REPO / name).read_text(encoding='utf-8-sig').encode()).hexdigest()
+            for name in IMPLEMENTATION}
 
 
 def create_session(root: Path, *, max_solver_calls: int = 10):
@@ -146,13 +152,18 @@ def _recover(archive, history):
     events = history.events()
     decisions = {e['payload']['evaluation_id'] for e in events if e['kind'] == 'candidate.decision'}
     builds = {e['candidate_id']: e['payload'] for e in events if e['kind'] == 'candidate.built'}
+    candidates = {c.id: c for c in history.candidates()}
     for event in events:
         if event['kind'] not in {'evaluation.completed', 'evaluation.failed', 'evaluation.interrupted'}:
             continue
         evaluation = Evaluation.from_dict(event['payload'])
         if evaluation.id not in decisions:
-            archive.verify_inventory(evaluation.evidence_manifest_ref)
-            specs = tuple(CheckSpec.from_dict(s) for s in builds[evaluation.candidate_id]['check_specs'])
+            _source_files(archive, candidates[evaluation.candidate_id])
+            build = builds[evaluation.candidate_id]
+            if digest(json.loads(archive.path(build['model_ref']).read_text())) != build['design_digest']:
+                raise ValueError('Candidate model integrity failure during decision recovery')
+            archive.verify_inventory(evaluation.evidence_manifest_ref, expected_sha256=evaluation.evidence_manifest_sha256)
+            specs = tuple(CheckSpec.from_dict(s) for s in build['check_specs'])
             _decision(history, decide(evaluation, specs, ('Hot',)))
     archive.recover(history)
     # Recovery publishes no invented evaluation or measurement.

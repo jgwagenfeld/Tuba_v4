@@ -126,7 +126,9 @@ def test_replay_keeps_previews_when_source_inventory_lacks_authored_model(tmp_pa
     data = json.loads(replay_writer()(run, tmp_path / 'replay').read_text())
     assert all(c['preview']['availability'] == 'available' for c in data['candidates'])
     assert all(c['attempt_reviews'][0]['availability'] == 'unavailable' for c in data['candidates'])
-    assert all('authored model' in c['attempt_reviews'][0]['message'] for c in data['candidates'])
+    # Editing a content-addressed source inventory now fails its immutable
+    # reference before review can search its entries for model.py.
+    assert all('integrity' in c['attempt_reviews'][0]['message'] for c in data['candidates'])
 
 
 def test_replay_retains_native_crash_recovery_before_successful_retry(tmp_path):

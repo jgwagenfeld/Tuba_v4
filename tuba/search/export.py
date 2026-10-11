@@ -98,6 +98,8 @@ def export_history(run_dir: Path, output_dir: Path) -> Path:
         if ref:
             references.add(ref)
     inventories, diagnostics, files, visited = [], [], {}, set()
+    inventory_hashes = {evaluation['evidence_manifest_ref']: evaluation.get('evidence_manifest_sha256')
+                       for row in snapshot['candidates'] for evaluation in row['evaluations']}
     while references:
         ref = references.pop()
         if ref in visited:
@@ -108,6 +110,8 @@ def export_history(run_dir: Path, output_dir: Path) -> Path:
             diagnostics.append({"path": ref, "availability": "missing", "message": "Inventory is unavailable"})
             continue
         try:
+            if inventory_hashes.get(ref) and digest_file(path) != inventory_hashes[ref]:
+                raise ValueError('Archive integrity failure: sealed inventory changed')
             native = archive.read_inventory(ref)
             entries = [_availability(archive, entry) for entry in native["files"]]
         except (ValueError, UnicodeError) as exc:
@@ -193,7 +197,7 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
     outcome = attempt_decisions[-1]["outcome"] if attempt_decisions else "incomplete"
     runs, checks = {}, ()
     if evaluation:
-        archive.verify_inventory(evaluation.evidence_manifest_ref)
+        archive.verify_inventory(evaluation.evidence_manifest_ref, expected_sha256=evaluation.evidence_manifest_sha256)
         checks = evaluation.checks
         for event in snapshot["events"]:
             if event["kind"] == "operation.completed" and event["candidate_id"] == candidate_id and event["payload"]["attempt_id"] == evaluation.attempt_id:

@@ -48,7 +48,7 @@ of their respective responsibilities.
 | L4: Tools justified by measured failures | Optional geometric search, bounded parameter search, or evolutionary search; retrieval/surrogates only with suitable evidence | Improvement over the same agent without the tool under matched requirements and resource budgets |
 | L5: Broader engineering scope | Multiple operations, gravity/pressure, operating clearance, support travel/friction, nozzle requirements, coupled racks and multiple lines | Representative real-solver cases, declared modeling/check coverage, project-owned standard evaluation and independent engineering review |
 
-L1 is complete. The user's continuation starts L2; L3-L5 remain future work.
+L1 and L2 are complete for their declared research scope. L3-L5 remain future work.
 
 ## L1 specification: thermal nozzle-reaction task
 
@@ -125,3 +125,6 @@ and [authored iteration example](../../examples/llm-piping-iteration/README.md)
 cover free-form candidate submission, frozen guide policy, parent source diffs,
 retry/recovery and shared retained history. This remains a coding-agent workflow;
 there is no provider-specific autonomous LLM driver or repeat-run comparison yet.
+The [L2 measured results and validation](llm-piping-iteration-results.md) record
+two qualified guided-line candidates, retained runtime failures, native evidence
+reopening, browser checks and the exact limits of the qualification.
