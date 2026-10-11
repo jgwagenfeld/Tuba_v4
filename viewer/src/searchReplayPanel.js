@@ -40,18 +40,20 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       if (message?.isConnected) message.textContent = view?.availability === "available"
         ? (check ? "Showing the recorded finding" : evaluation ? "Showing this sealed attempt" : "Reference geometry — no solver result")
         : view?.message ?? "No geometry or verified results available";
+      return { availability: view?.availability ?? 'unavailable', url, check };
     } catch (error) {
       if (!request.current()) return;
       shownView = null;
       await showView(null, request);
       if (message?.isConnected) message.textContent = `View unavailable: ${error.message}`;
+      return { availability: 'unavailable', url: null, error: error.message, check };
     }
   }
 
   function select(id) { candidateId = id; evaluationId = null; render(); }
   function move(next) { sequence = next; evaluationId = null; render(); }
 
-  function render() {
+  function render({ displayView = true } = {}) {
     const focused = container.contains(document.activeElement) ? document.activeElement : null;
     const focusLabel = focused?.getAttribute("aria-label");
     const focusCandidate = focused?.dataset.searchCandidate;
@@ -191,8 +193,17 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
     if (focused) [...container.querySelectorAll("input, select, button")].find(node =>
       focusLabel ? node.getAttribute("aria-label") === focusLabel : focusCandidate ? node.dataset.searchCandidate === focusCandidate :
       focusText && node.tagName === "BUTTON" && node.textContent === focusText)?.focus({ preventScroll: true });
-    void display(evaluation?.review ?? selected?.preview);
+    if (displayView) void display(evaluation?.review ?? selected?.preview);
   }
   render();
-  return { select, move, snapshot: () => snapshot };
+  return { select, move, snapshot: () => snapshot,
+    async seek(next, id, attempt, checkIndex = null) {
+      sequence = next; candidateId = id; evaluationId = attempt;
+      render({ displayView: false });
+      if (id && selected?.id !== id || attempt && evaluation?.id !== attempt) throw new Error('Film scope not available at this event');
+      const check = checkIndex == null ? null : evaluation?.checks?.[checkIndex];
+      if (checkIndex != null && !check) throw new Error('Film finding not available at this event');
+      return display(check ? (check.operation ? evaluation.review : selected.preview) : evaluation?.review ?? selected?.preview, check);
+    }
+  };
 }

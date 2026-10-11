@@ -5316,3 +5316,19 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 .search-check p, .search-check a { display: block; margin: 0.4rem 0; }
 .search-check a { color: #8dccdf; }
 .search-details { font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Capture is a presentation of the existing review viewport, with no second
+   renderer and no animated intermediate engineering states. */
+body[data-search-film="true"] .app-header,
+body[data-search-film="true"] .controls,
+body[data-search-film="true"] .cockpit-rail,
+body[data-search-film="true"] .pane-resize,
+body[data-search-film="true"] .inspector,
+body[data-search-film="true"] .rail-toggle,
+body[data-search-film="true"] .status-strip { display: none !important; }
+body[data-search-film="true"] .viewport { position: fixed; inset: 0 0 40%; width: auto; height: auto; }
+body[data-search-film="true"] [data-canvas] { width: 100%; height: 100%; }
+.film-caption { position: fixed; inset: 60% 0 38px; margin: 0; padding: 18px 28px;
+  background: #f8fafc; color: #17233a; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 16px/1.3 system-ui, sans-serif; overflow: hidden; border-top: 1px solid #becbd9; z-index: 1000; }
+.film-scale { position: fixed; bottom: 0; left: 0; right: 0; height: 38px; box-sizing: border-box;
+  margin: 0; padding: 10px 28px; background: #17233a; color: white; font: 13px system-ui, sans-serif; z-index: 1000; }

@@ -1,5 +1,8 @@
 import { previewProtocols } from "./localAuth.js";
 import { loadSearchReplay } from "./searchReplay.js";
+import { safeReplayUrl } from './searchReplay.js';
+import { planSearchFilm } from './searchFilm.js';
+import { readBoundedJson } from './sceneBudget.js';
 import { initSearchReplay } from "./searchReplayPanel.js";
 import { openReport } from "./reportView.js";
 import {
@@ -286,7 +289,8 @@ const startupConfig = Object.freeze({
   requestedBundle: startupParams.get("bundle"),
   embed: startupParams.get("embed") === "1",
   previewWebSocketUrl: startupParams.get("preview_ws"),
-  search: startupParams.get("search")
+  search: startupParams.get("search"),
+  film: startupParams.get('film') === '1'
 });
 
 let currentBundle = null;
@@ -565,12 +569,72 @@ async function startSearchReplay() {
   try {
     const baseUrl = new URL(startupConfig.search, window.location.href).href;
     searchManifest = await loadSearchReplay(baseUrl);
-    initSearchReplay(panel, { manifest: searchManifest, baseUrl, showView: showSearchView, highlight: highlightSearchCheck });
+    const replay = initSearchReplay(panel, { manifest: searchManifest, baseUrl, showView: showSearchView, highlight: highlightSearchCheck });
+    if (startupConfig.film) initSearchFilm(replay, baseUrl);
   } catch (error) {
     panel.textContent = `Search replay unavailable: ${error.message}`;
     await showSearchView(null, { current: () => true });
     setStatus("Search replay unavailable", true);
   }
+}
+
+function initSearchFilm(replay, baseUrl) {
+  document.body.dataset.searchFilm = 'true';
+  const caption = document.createElement('pre'); caption.dataset.filmCaption = ''; caption.className = 'film-caption';
+  const scale = document.createElement('p'); scale.className = 'film-scale';
+  scale.textContent = 'SI units · Physical displacement ×1 · Visual deformation ×1 · Held recorded views · Search time ≠ solver state';
+  document.body.append(caption, scale);
+  let plan, envelope;
+  window.tubaSearchFilm = {
+    async plan(options) {
+      plan = planSearchFilm(searchManifest, options);
+      envelope = null;
+      for (const bundle of new Set(plan.keyframes.filter(f => f.view.availability === 'available').map(f => f.view.bundle))) {
+        try {
+          const response = await fetch(safeReplayUrl(baseUrl, `${bundle}/scene.json`));
+          if (!response.ok) continue;
+          const scene = await readBoundedJson(response);
+          for (const asset of scene.geometry_assets ?? []) {
+            const b = asset.bounds;
+            if (!Array.isArray(b) || b.length !== 6 || !b.every(Number.isFinite)) continue;
+            envelope = envelope ? [...envelope.slice(0, 3).map((v, i) => Math.min(v, b[i])), ...envelope.slice(3).map((v, i) => Math.max(v, b[i + 3]))] : [...b];
+          }
+        } catch { /* Availability is recorded by show(), with a cleared viewport. */ }
+      }
+      return plan;
+    },
+    async show(requested) {
+      const frame = plan?.keyframes.find(f => f.frame_id === requested.frame_id);
+      if (!frame) throw new Error('Unknown planned film frame');
+      const view = await replay.seek(frame.event_sequence, frame.candidate_id, frame.evaluation_id, frame.check_index);
+      dispatch({ type: 'setUnitSystem', unitSystem: 'si' });
+      dispatch({ type: 'setVisualDeformationScale', scale: 1 });
+      if (!frame.check) {
+        dispatch({ type: 'setActiveLoadCase', loadCase: currentBundle?.scene?.search?.solved_operations?.[0] ?? null });
+        dispatch({ type: 'setActiveResultState', resultStateId: null });
+        dispatch({ type: 'selectObjects', objectIds: [] });
+      }
+      render();
+      if (currentState.objects.length && dom.canvas.dataset.renderer !== 'three') throw new Error('Film geometry requires a working WebGL2 renderer');
+      // Fit the same envelope, at the same viewport size, on every frame. This
+      // also survives empty/unavailable scenes and renderer initialization.
+      viewportRenderer?.fitRecordedEnvelope(envelope ?? [-1, -1, -1, 1, 1, 1]);
+      caption.textContent = frame.caption + (view.error ? `\nView unavailable: ${view.error}` : '') +
+        (view.availability === 'available' ? `\nDisplayed operation: ${currentState.activeLoadCase ?? 'cold reference'} · Solver state: ${currentState.activeResultStateId ?? 'none'}` : '');
+      caption.style.fontSize = '16px';
+      while (caption.scrollHeight > caption.clientHeight && parseInt(caption.style.fontSize) > 12) caption.style.fontSize = `${parseInt(caption.style.fontSize) - 1}px`;
+      if (caption.scrollHeight > caption.clientHeight) throw new Error('Film caption does not fit; use a taller viewport');
+      await document.fonts.ready;
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { availability: view.availability, error: view.error ?? null, bundle: view.url,
+        candidate_id: dom.canvas.dataset.searchCandidate, attempt_id: dom.canvas.dataset.searchAttempt,
+        operation: frame.check ? dom.canvas.dataset.searchOperation : currentState.activeLoadCase ?? 'cold',
+        result_state: frame.check ? dom.canvas.dataset.searchResultState : currentState.activeResultStateId ?? '',
+        rendered_objects: Number(dom.canvas.dataset.renderedObjects ?? 0), units: currentState.unitSystem,
+        visual_deformation_scale: currentState.visualDeformationScale, camera: viewportRenderer?.cameraSnapshot() ?? null,
+        viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent };
+    }
+  };
 }
 
 async function showSearchView(bundleUrl, request) {

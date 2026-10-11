@@ -574,6 +574,15 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       fitCameraToBounds(camera, currentGraph.bounds, controls);
       drawFrame(currentGraph);
     },
+    fitRecordedEnvelope(bounds) {
+      syncCanvasSize();
+      fitCameraToBounds(camera, bounds, controls);
+      if (currentGraph) drawFrame(currentGraph);
+    },
+    cameraSnapshot() {
+      return { position: camera.position.toArray(), target: controls.target.toArray(), up: camera.up.toArray(),
+        zoom: camera.zoom, left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom };
+    },
     setStandardView(viewId) {
       if (!currentGraph) return;
       syncCanvasSize();
