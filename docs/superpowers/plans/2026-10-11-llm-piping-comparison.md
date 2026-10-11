@@ -57,7 +57,7 @@ Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets
 - [x] Run two real reference trials per case, retain logs and all attempts externally. Review measured reactions and report failure/coverage exactly.
 - [x] Request one independent final branch review, address important defects with reproducing tests and rerun affected checks.
 - [x] Document exact results, scope, limitations and commands; update roadmap L3 status to foundation complete, pinned LLM campaign pending.
-- [ ] Commit locally, verify main ownership and clean status, integrate without pushing, remove only clean task-owned worktree.
+- [x] Commit locally, verify main ownership and clean status, integrate without pushing, remove only clean task-owned worktree.
 
 ## Execution ledger
 
@@ -75,3 +75,5 @@ Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets
 - Final regression after the review fix pass: 77 passed in 106.90 s; no deferred minor findings.
 
 - Task 3 qualification: campaign Bfe9206cd8d784dffa5f4cc67f309aa7a completed six reference trials with 12 fresh Code_Aster 18.0.12 solves: six rejected and six feasible candidates, no runtime failures. Total trial time 735.685038 s. All 12 result sets reopened with recorded identities; three existing web-scene reviews validated. LLM trials: zero. Evidence and logs retained outside Git.
+
+- Completion: integrated implementation and results through 2c094d9 locally on main. Main-checkout resume returned the identical six-trial report with 12 existing solver calls and no new solves. Verified clean task worktree removed; separate search-history/film worktree preserved. No push. Storage snapshot and final integration manifest retained in the external validation directory.
