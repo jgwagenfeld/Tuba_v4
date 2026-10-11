@@ -135,4 +135,5 @@ python -m tuba.search review --run-dir D:/tuba-runs/comparison-001/trials/T001 -
 ```
 
 See the [roadmap](../../docs/architecture/llm-piping-design-roadmap.md) and
-[implementation plan](../../docs/superpowers/plans/2026-10-11-llm-piping-comparison.md).
+[measured reference campaign](../../docs/architecture/llm-piping-comparison-results.md),
+with the [implementation plan](../../docs/superpowers/plans/2026-10-11-llm-piping-comparison.md).

@@ -139,6 +139,8 @@ per-trial budgets, method/model/prompt/tool metadata and all planned repeat slot
 Reports keep invalid candidates, failures and unstarted trials visible, verify
 retained evidence, and group results by case, method and representation. Model
 usage remains explicitly caller reported or unknown.
+The [measured reference campaign](llm-piping-comparison-results.md) records six
+completed trials, 12 fresh Code_Aster solves and the limits of that qualification.
 
 Next L3 tasks:
 

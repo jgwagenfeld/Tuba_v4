@@ -36,10 +36,10 @@ Files: `scripts/piping_comparison_cases.py`, `scripts/benchmark_llm_piping.py`, 
 
 Interfaces: `get_case(case_id)->dict` returns a fresh copy; `create_session(root, max_solver_calls=10, case_id=...)`; compiled and reaction checks accept explicit `case=`. Existing defaults remain unchanged.
 
-- [ ] Write tests for independent copies, changed temperature rejection, compact envelope, case-aware reaction limits and unknown IDs.
-- [ ] Run focused tests; expected missing case API failure.
-- [ ] Implement case propagation without mutation of module globals.
-- [ ] Run L1/L2 plus new tests; expected all pass. Commit explicit owned files.
+- [x] Write tests for independent copies, changed temperature rejection, compact envelope, case-aware reaction limits and unknown IDs.
+- [x] Run focused tests; expected missing case API failure.
+- [x] Implement case propagation without mutation of module globals.
+- [x] Run L1/L2 plus new tests; expected all pass. Commit explicit owned files.
 
 ## Task 2: Protocol, lifecycle and metrics
 
@@ -47,16 +47,16 @@ Files: `scripts/compare_llm_piping.py`, `tests/test_llm_piping_comparison.py`, `
 
 Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets=...)`; `start_trial(root, trial_id)`; `submit_trial(root, trial_id, project, intent=..., dependencies=(), usage=None)`; `finish_trial(root, trial_id, reason=...)`; `report_campaign(root)`; `run_reference(root)`.
 
-- [ ] Test a six-slot campaign before any runs, metadata validation, invalid candidate accounting, caller-reported versus unknown usage, budgets, frozen source integrity, and report evidence damage.
-- [ ] Run focused tests; expected missing campaign API failure.
-- [ ] Implement immutable protocol in History, nested authored sessions, lifecycle events and conservative evidence-derived reporting. Reference source comes from the pinned authored example, adjusted only for case and prescribed rise.
-- [ ] Add CLI init/reference/report and driver-facing API documentation. Run targeted checks, expected pass. Commit owned files.
+- [x] Test a six-slot campaign before any runs, metadata validation, invalid candidate accounting, caller-reported versus unknown usage, budgets, frozen source integrity, and report evidence damage.
+- [x] Run focused tests; expected missing campaign API failure.
+- [x] Implement immutable protocol in History, nested authored sessions, lifecycle events and conservative evidence-derived reporting. Reference source comes from the pinned authored example, adjusted only for case and prescribed rise.
+- [x] Add CLI init/reference/report and driver-facing API documentation. Run targeted checks, expected pass. Commit owned files.
 
 ## Task 3: Qualification and integration
 
-- [ ] Run two real reference trials per case, retain logs and all attempts externally. Review measured reactions and report failure/coverage exactly.
-- [ ] Request one independent final branch review, address important defects with reproducing tests and rerun affected checks.
-- [ ] Document exact results, scope, limitations and commands; update roadmap L3 status to foundation complete, pinned LLM campaign pending.
+- [x] Run two real reference trials per case, retain logs and all attempts externally. Review measured reactions and report failure/coverage exactly.
+- [x] Request one independent final branch review, address important defects with reproducing tests and rerun affected checks.
+- [x] Document exact results, scope, limitations and commands; update roadmap L3 status to foundation complete, pinned LLM campaign pending.
 - [ ] Commit locally, verify main ownership and clean status, integrate without pushing, remove only clean task-owned worktree.
 
 ## Execution ledger
@@ -73,3 +73,5 @@ Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets
 - Final: Ruling: coordinated rewriting of SQLite and all integrity metadata is outside the trusted-local execution boundary. The store detects ordinary damage and session substitution; it is not a hostile-code security boundary.
 - Final: Ruling: an admitted solve may finish after the wall deadline. Its evidence and elapsed time remain counted; the wall budget limits new admissions, not total process lifetime.
 - Final regression after the review fix pass: 77 passed in 106.90 s; no deferred minor findings.
+
+- Task 3 qualification: campaign Bfe9206cd8d784dffa5f4cc67f309aa7a completed six reference trials with 12 fresh Code_Aster 18.0.12 solves: six rejected and six feasible candidates, no runtime failures. Total trial time 735.685038 s. All 12 result sets reopened with recorded identities; three existing web-scene reviews validated. LLM trials: zero. Evidence and logs retained outside Git.
