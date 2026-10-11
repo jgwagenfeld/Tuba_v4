@@ -1,36 +1,64 @@
 # Tuba v4
 
-Tuba is an open-source Python library for modeling piping systems, running
-Code_Aster analyses, and displaying the results.
+Tuba is an open-source Python library for modeling piping systems and their supporting structures, running Code_Aster analyses, and reviewing the results.
 
-[![A solved Tuba review showing pipe geometry, the analysis mesh, wall stress, deformation and support reactions together.](docs/content/assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
+We are building an **agent interface for engineering models**: a coding agent can author and revise parametric Python, inspect the structure, check clashes, and run analyses through the CLI or Model Context Protocol (MCP). The model stays in readable source files; stress, displacement and reaction results come from Code_Aster.
 
-## Gallery
+**[Explore examples](#examples-to-explore)** · **[Work with an agent](#work-with-an-agent)** · **[Get started](#getting-started)** · **[Documentation](https://jgwagenfeld.github.io/Tuba_v4/)**
 
-Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **Update geometry** to [try a geometry preview](docs/content/setup.md#try-a-model-in-the-browser).
-**Review** shows published Code_Aster results (except *Imported components*); edited geometry needs a new Code_Aster solve.
-[Browse the full gallery →](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
+## Examples to explore
+
+Open these reviews in your browser without installing Tuba. Each example below includes Code_Aster results and Python source you can inspect and adapt.
+
+[![Plant layout with two process lines, a shared steel pipe rack, and surrounding equipment.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+**[Plant layout](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)** — Two process lines, an elevated rack, shoe supports and equipment obstacles in one model. Inspect displacement, pipe-wall stress and friction shoe reactions. This is an illustrative hydrogen-plant layout, not a hydrogen-service qualification. [Model source](examples/hydrogen-plant-layout/model.py) · [Study](examples/hydrogen-plant-layout/study.py).
 
 <table>
 <tr>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png" width="250" alt="Pipe bends"></a><br><b>Pipe bends</b><br>What happens to a pressurised line held at both ends?</td>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="Load-case preparation"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?</td>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png" width="250" alt="Load transfer"></a><br><b>Load transfer</b><br>What do the supports and the steel underneath actually carry?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png" width="250" alt="Three pipe lines on a shared steel rack"></a><br><b>Multipipe rack</b><br>How do three lines at different temperatures load one shared rack?<br><a href="examples/multipipe-rack/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png" width="250" alt="An automatically routed hot line with an expansion loop"></a><br><b>Thermal expansion</b><br>An automatically routed line and expansion loop. Where does a hot line move, and what does it reach?<br><a href="examples/autorouted-expansion-loop/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="Solid tee mesh coupled to pipe elements"></a><br><b>3D solid</b><br>How does 1D beam pipework transition into a 3D solid tee junction?<br><a href="examples/pipe-tee-volume-review/model.py">Model source</a></td>
 </tr>
 <tr>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png" width="250" alt="Thermal expansion"></a><br><b>Thermal expansion</b><br>Where does a hot line move, and what does it reach?</td>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png" width="250" alt="Nonlinear friction"></a><br><b>Nonlinear friction</b><br>How does friction change the same pipe and load path?</td>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png" width="250" alt="Multipipe rack"></a><br><b>Multipipe rack</b><br>How do three lines at different temperatures load one shared rack?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png" width="250" alt="A steel industrial hall with repeated portal frames and bracing"></a><br><b>Portal frame stability</b><br>A seven-frame hall under gravity and wind, with linear buckling modes for the ideal frame. These are reference results, not member-adequacy checks.<br><a href="examples/steel-portal-frame/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png" width="250" alt="Comparison of frictionless and frictional pipe supports"></a><br><b>Nonlinear friction</b><br>How does friction change the same pipe and load path?<br><a href="examples/native-friction-review/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png" width="250" alt="Pipe loads transferred through shoes to a steel rack"></a><br><b>Load transfer</b><br>What do the supports and the steel underneath actually carry?<br><a href="examples/support-rack-review/model.py">Model source</a></td>
 </tr>
 <tr>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png" width="250" alt="Beam orientation"></a><br><b>Beam orientation</b><br>How does a rolled I-section change the response to the same tip force?</td>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid"></a><br><b>3D solid</b><br>How does 1D beam pipework transition into a 3D solid tee junction?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="The same pipework evaluated in four load cases"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?<br><a href="examples/load-case-preparation/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png" width="250" alt="Three I-section orientations under the same load"></a><br><b>Beam orientation</b><br>How does a rolled I-section change the response to the same tip force?<br><a href="examples/profile-orientation-review/model.py">Model source</a></td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png" width="250" alt="A restrained pipe with two bends"></a><br><b>Pipe bends</b><br>What happens to a pressurised line held at both ends?<br><a href="examples/code-aster-review/model.py">Model source</a></td>
 </tr>
 </table>
 
-## Example
+The thermal-expansion example selects its route geometrically, then checks the solved operating clearance; it does not rank competing routes by solver results. [Browse all examples and their limits](docs/content/examples.md), including braced racks, guy cables and imported components.
 
-Define a pipe with two straight runs, a bend, anchored ends, and an operating load case, then solve it with Code_Aster:
+Choose **Build**, edit `model.py`, and **Update geometry** to [try a browser preview](docs/content/setup.md#try-a-model-in-the-browser). **Review** shows the published analysis; edited geometry needs a new Code_Aster solve.
+
+## Work with an agent
+
+The agent works on the same project folder you open in Studio: `model.py` defines the structure, `study.py` defines the analysis, and optional `units/` holds reusable construction functions. Parameters, loops and functions keep a generated model editable and reviewable in Git.
+
+1. **Author:** write or revise procedural Python for routes, racks, supports, materials and loads.
+2. **Inspect and verify:** use `inspect_model`, `verify_model` and `check_clashes` through MCP. Tuba reports structural errors, clashes and rule findings so the agent can revise the model.
+3. **Evaluate:** run the project CLI or MCP's `solve_model`. Both use the project's study and verification gate, reuse matching verified evidence, and require Code_Aster for new results.
+4. **Review:** open the geometry and processed results in Studio, or share a browser review bundle with another engineer.
+
+After [setup](#getting-started), these commands expose the workflow to your tools:
+
+```bash
+python -m tuba.skills --target ~/.config/opencode/skills  # Use your agent's skills directory
+python -m tuba.mcp.server                               # Local MCP server (stdio)
+python -m tuba.project examples/multipipe-rack --output .build/multipipe-review
+python -m tuba.cli_studio examples/multipipe-rack        # Open the same project in Studio
+```
+
+Configure the MCP client to launch the server with the Tuba environment's Python, then bind it to the intended project using `init_session(file_path="/path/to/project/model.py", load_existing=True)`. See [CLI and MCP workflow](docs/content/workflow.md#projects-in-studio-the-cli-and-agents) and the shipped [modeling skill](tuba/skills/tuba-modeling/SKILL.md) for the authoring and verification contract.
+
+## A small Python model
+
+The same Python API is available to people, scripts and agents. Define a pipe with anchored ends and an operating load case, solve it with Code_Aster, then display the imported results:
 
 ```python
 from tuba import Model
@@ -49,49 +77,12 @@ with model.pipe(section="DN100", material="Steel") as pipe:
 
 model.validate()
 run = model.solve("Operating")
-```
-
-Display the imported stress and displacement results with PyVista:
-
-```python
 run.results.plot_deformed_stress(model=model)
 ```
 
-For browser display, see the [web-scene workflow](docs/content/workflow.md#reviewable-web-scene).
-Scene bundles contain model geometry, analysis meshes, results, and run metadata.
-
-## Features
-
-- Define pipe runs, bends, supports, racks and imported components in Python.
-- Route lines automatically around obstacles and add thermal expansion loops.
-- Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
-- Assign [fluid contents by operation](docs/content/modeling.md#fluid-contents-by-operation) for empty, operating and hydrotest 1D piping, with separate mass reporting.
-- Recover deflection, wall stress, element forces and support reactions.
-- Check operating-state clearances against the deformed line and apply your own design rules.
-- Display results in PyVista or the web viewer, export glTF, PLY or Blender files, and
-  exchange with IFC.
-
-## Tuba Studio & 3D Review
-
-Tuba separates parametric modeling (`model.py`) from FEA solver configuration (`study.py`):
-
-[Share and open a project](docs/content/project-sharing.md) covers portable
-`.tubaproject` ZIPs or `.tgz` archives, optional verified results, opening in Studio, generated meshes
-and complete review bundles for collaborators.
-
-```bash
-python -m tuba.cli_studio                                                     # Open Folder, New Project and Recent Projects
-python -m tuba.cli_studio examples/line-load-studio                          # Live Three.js studio, .comm inspector & solve
-python -m tuba.visualization.viewer .build/studio/line-load-studio/review    # Serve the bundle the studio wrote
-python -m tuba.mcp.server                                                    # Model Context Protocol for external AI agents
-python -m tuba.skills --target ~/.config/opencode/skills                     # Agent skill: how to author and verify model.py
-```
+For browser display, see the [web-scene workflow](docs/content/workflow.md#reviewable-web-scene) and an [example result view](docs/content/assets/figures/code_aster_review.png). Scene bundles include geometry, analysis meshes, results and run metadata. The [modeling guide](docs/content/modeling.md) covers beam, `TUYAU` pipe-wall and 3D solid idealisations, supports and fluid contents by operation.
 
 ## Getting started
-
-The [STEP and mesh guide](docs/content/step-meshing.md) covers units, interfaces and CLI/MCP jobs.
-The [refinement example](examples/mesh-refinement-review/README.md) supplies portable CAD,
-local sizing and a verified Code_Aster convergence comparison.
 
 Install [Miniforge](https://github.com/conda-forge/miniforge) in Linux x86_64 (Ubuntu WSL2 on Windows), then create the shared Tuba and Code_Aster environment:
 
@@ -103,6 +94,8 @@ conda activate tuba
 ```
 
 The environment installs Python 3.14, Code_Aster 18.0.12, Tuba, notebooks, IFC exchange and MCP support. Follow the [setup walkthrough](docs/content/setup.md) to check the solver and launch Studio in your browser. Choose **Solve**, then **Review** to inspect the results. The Windows `.venv` developer setup remains available there.
+
+For CAD input and mesh refinement, see the [STEP and mesh guide](docs/content/step-meshing.md) and [convergence example](examples/mesh-refinement-review/README.md). To hand a project or its results to someone else, see [Share and open a project](docs/content/project-sharing.md).
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·
