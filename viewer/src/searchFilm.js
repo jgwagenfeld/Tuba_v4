@@ -11,10 +11,10 @@ export function planSearchFilm(manifest, options = {}) {
   if (!Number.isInteger(fps) || fps < 1 || fps > 60) throw new Error('Invalid film fps (1–60)');
   if (!Number.isFinite(holdSeconds) || holdSeconds <= 0 || holdSeconds > 30 || Math.round(fps * holdSeconds) < 1) throw new Error('Invalid film hold (one frame to 30 seconds)');
   if (![width, height].every(n => Number.isInteger(n) && n % 2 === 0) || width < 640 || width > 3840 || height < 360 || height > 2160) throw new Error('Invalid film size (even 640–3840 × 360–2160)');
-  if (!['all', 'milestones'].includes(events)) throw new Error('Invalid film events policy');
+  if (!['all', 'milestones', 'review'].includes(events)) throw new Error('Invalid film events policy');
   const hold = Math.round(fps * holdSeconds);
   const keyframes = [];
-  for (const event of manifest.events.filter(e => e.sequence >= start && e.sequence <= end && (events === 'all' || milestones.has(e.kind)))) {
+  for (const event of manifest.events.filter(e => e.sequence >= start && e.sequence <= end && (events === 'all' || (events === 'review' ? ['candidate.built', 'candidate.decision', 'evaluation.failed', 'evaluation.interrupted', 'run.completed'].includes(e.kind) : milestones.has(e.kind))))) {
     const snapshot = replayAt(manifest, event.sequence);
     const candidate = snapshot.candidates.find(c => c.id === (event.candidate_id ?? event.payload?.selected_candidate_id)) ?? snapshot.candidates.at(-1);
     const exactId = event.kind === 'candidate.decision' ? event.payload.evaluation_id
@@ -31,7 +31,7 @@ export function planSearchFilm(manifest, options = {}) {
       lines.push(`Decision reasons: ${(event.payload.reason_codes ?? []).join(', ') || 'not recorded'}`);
       if (Object.keys(event.payload.details ?? {}).length) lines.push(`Decision details: ${JSON.stringify(event.payload.details)}`);
     }
-    const add = (check = null, checkIndex = null) => {
+    const add = (check = null, checkIndex = null, resultView = null, operation = null) => {
       const view = check ? (check.operation ? evaluation?.review : candidate?.preview) : evaluation?.review ?? candidate?.preview;
       const caption = [...lines];
       if (check) {
@@ -42,14 +42,18 @@ export function planSearchFilm(manifest, options = {}) {
         if (check.entity_refs?.length) caption.push(`Targets: ${check.entity_refs.join(', ')}`);
         for (const clash of (check.details?.clashes ?? []).slice(0, 3)) caption.push(`Collision at ${literal(clash.location)} m; distance ${literal(clash.distance_m)} m; penetration ${literal(clash.penetration_m)} m`);
       }
-      caption.push(view?.availability === 'available' ? (check?.operation || evaluation?.completed_operations?.length ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results') : `View unavailable: ${view?.message ?? 'No recorded scene at this event'}`);
+      const native = check ? check.operation && evaluation?.completed_operations?.includes(check.operation) : evaluation?.completed_operations?.length;
+      caption.push(view?.availability === 'available' ? (native ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results') : `View unavailable: ${view?.message ?? 'No recorded scene at this event'}`);
       keyframes.push({ frame_id: `F${String(keyframes.length + 1).padStart(5, '0')}`, event_sequence: event.sequence,
         event_kind: event.kind, search_timestamp: event.timestamp ?? event.at_utc ?? null,
         candidate_id: candidate?.id ?? null, evaluation_id: evaluation?.id ?? null, attempt_id: evaluation?.attempt_id ?? null,
-        check_index: checkIndex, check, view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
+        event_message: event.payload?.message ?? null, reason_codes: event.payload?.reason_codes ?? [], check_index: checkIndex, check, result_view: resultView, operation, view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
         start_frame: keyframes.length * hold, end_frame: (keyframes.length + 1) * hold });
     };
     add();
+    if ((events === 'review' ? event.kind === 'candidate.decision' : event.kind === 'evaluation.completed')) for (const operation of evaluation?.completed_operations ?? []) {
+      for (const mode of ['reactions', 'internal_forces', 'displacement']) add(null, null, mode, operation);
+    }
     for (const [i, check] of (evaluation?.checks ?? []).entries()) if (['fail', 'unknown'].includes(check.verdict)) add(check, i);
   }
   if (!keyframes.length || keyframes.length > 2000 || keyframes.length * hold > 200000) throw new Error('Film segment is empty or exceeds capture frame budget');

@@ -255,6 +255,53 @@ polish. Every recorded rejection/check/decision explanation is available.
 The [hot-line example](../../examples/piping-search/README.md) provides the
 bounded authored benchmark and opt-in real Code_Aster qualification test.
 
+## Recorded search film (M3)
+
+From a source checkout with the existing viewer npm dependencies, select a current
+viewer build and an existing FFmpeg executable with VP8 support:
+
+```powershell
+$env:TUBA_VIEWER_ASSETS = 'D:/path/to/current-viewer-build'
+python -m tuba.search film --replay-dir D:/path/to/viewer-replay --output D:/path/to/new-film --ffmpeg C:/path/to/ffmpeg.exe
+```
+
+`--start 100 --end 160` selects an inclusive search-event range. The default
+milestone policy shows builds, sealed evaluations, recovery/diagnostics and
+decisions; `--events all` includes every recorded event. Failed and unknown checks
+receive separate frames with exact recorded measurements, collision details,
+targets and load/state. `--hold-seconds 2 --fps 25 --width 1600 --height 900`
+sets presentation timing and size. It does not reproduce elapsed solver time.
+The output must be new and outside the replay package.
+
+The export contains `film.webm`, `captions.vtt`, unique `frames/F*.png` and
+`film.json`. Each keyframe records its event sequence/time, candidate,
+evaluation/attempt, check index and complete check/evidence references, actual
+displayed operation/state, camera, viewer identity, PNG hash and encoded frame
+range. The movie and replay manifest have hashes too. Retain the replay package
+and native archive alongside the film for inspection; the movie does not copy or
+replace those artifacts.
+
+Capture uses the existing Three.js viewer at fixed SI units and visual
+deformation scale 1, with a common segment envelope and the replay's labelled
+comparison colour ranges. Captions distinguish search time from solver state.
+Views are held and cut without creating interpolated engineering states. Missing
+scenes are visibly unavailable with the previous scene cleared; failed capture
+keeps a `status: failed` manifest and aborts. Interrupted/recovered attempts never
+inherit a later successful evaluation or selection.
+
+This first format is WebM/VP8. MP4 conversion, narration and creative editing are
+separate work. Missing Node, Playwright, current viewer assets or FFmpeg stops
+capture with a runtime requirement; nothing is installed automatically. Installed
+wheels without the source capture script require a source checkout.
+
+M3 qualification and reproducible helper scripts are retained in
+`D:/tuba-runs/Tuba_v4/search-film-m3-20261011`. They capture the existing M1
+Code_Aster evidence through the CLI, check native hashes, exercise Hot/cold scope,
+the interrupted retry, unavailable geometry and fixed presentation, and decode
+representative movie frames. This is film/replay qualification with zero new
+physics solves. The recorded benchmark is a deterministic grid search; the film
+does not claim that a new agent searched or provide hidden agent reasoning.
+
 ## Measured qualification
 
 On 2026-10-10, the fixed example ran through Code_Aster **18.0.12** using the
@@ -304,4 +351,10 @@ logs are retained. Every completed operation used real Code_Aster evidence.
 
 These results qualify this declared benchmark and M1 workflow. M2 replay is
 qualified separately above. Broader routing, support/contact physics,
-piping-standard evaluators and film generation remain separate roadmap work.
+piping-standard evaluators remain separate roadmap work. Film capture is described
+and qualified separately above.
+
+For the corrected drawing layout, on-drawing failure annotations and native
+reaction/section-force/displacement views, see
+[film readability](../architecture/piping-search-film-readability.md).
+Use `--events review --hold-seconds 5` for the slower review presentation.

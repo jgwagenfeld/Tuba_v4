@@ -1,3 +1,4 @@
+import { filmPresentation, conciseFilmCaption } from './searchFilmPresentation.js';
 import { previewProtocols } from "./localAuth.js";
 import { loadSearchReplay } from "./searchReplay.js";
 import { safeReplayUrl } from './searchReplay.js';
@@ -610,19 +611,27 @@ function initSearchFilm(replay, baseUrl) {
       dispatch({ type: 'setUnitSystem', unitSystem: 'si' });
       dispatch({ type: 'setVisualDeformationScale', scale: 1 });
       if (!frame.check) {
-        dispatch({ type: 'setActiveLoadCase', loadCase: currentBundle?.scene?.search?.solved_operations?.[0] ?? null });
-        dispatch({ type: 'setActiveResultState', resultStateId: null });
+        dispatch({ type: 'setActiveLoadCase', loadCase: frame.operation ?? currentBundle?.scene?.search?.solved_operations?.[0] ?? null });
         dispatch({ type: 'selectObjects', objectIds: [] });
+      }
+      const presentation = filmPresentation(frame, currentBundle?.scene, currentState.activeLoadCase, currentState.activeResultStateId);
+      if (presentation.fieldId) {
+        dispatch({ type: 'setColorChannel', colorChannel: 'results' });
+        dispatch({ type: 'setColoringField', fieldId: presentation.fieldId });
+        dispatch({ type: 'setColoringComponent', component: presentation.component });
+      }
+      if (frame.result_view) for (const layer of Object.values(currentState.layers ?? {})) {
+        if (layer.id?.startsWith('physical_envelope:')) dispatch({ type: 'setLayerVisibility', layerId: layer.id, visible: false });
       }
       render();
       if (currentState.objects.length && dom.canvas.dataset.renderer !== 'three') throw new Error('Film geometry requires a working WebGL2 renderer');
       // Fit the same envelope, at the same viewport size, on every frame. This
       // also survives empty/unavailable scenes and renderer initialization.
       viewportRenderer?.fitRecordedEnvelope(envelope ?? [-1, -1, -1, 1, 1, 1]);
-      caption.textContent = frame.caption + (view.error ? `\nView unavailable: ${view.error}` : '') +
-        (view.availability === 'available' ? `\nDisplayed operation: ${currentState.activeLoadCase ?? 'cold reference'} · Solver state: ${currentState.activeResultStateId ?? 'none'}` : '');
-      caption.style.fontSize = '16px';
-      while (caption.scrollHeight > caption.clientHeight && parseInt(caption.style.fontSize) > 12) caption.style.fontSize = `${parseInt(caption.style.fontSize) - 1}px`;
+      drawSearchAnnotations(presentation.annotations);
+      caption.textContent = conciseFilmCaption(frame, presentation, currentState.activeLoadCase, currentState.activeResultStateId, view.error);
+      caption.style.fontSize = '22px';
+      while (caption.scrollHeight > caption.clientHeight && parseInt(caption.style.fontSize) > 18) caption.style.fontSize = `${parseInt(caption.style.fontSize) - 1}px`;
       if (caption.scrollHeight > caption.clientHeight) throw new Error('Film caption does not fit; use a taller viewport');
       await document.fonts.ready;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -632,7 +641,7 @@ function initSearchFilm(replay, baseUrl) {
         result_state: frame.check ? dom.canvas.dataset.searchResultState : currentState.activeResultStateId ?? '',
         rendered_objects: Number(dom.canvas.dataset.renderedObjects ?? 0), units: currentState.unitSystem,
         visual_deformation_scale: currentState.visualDeformationScale, camera: viewportRenderer?.cameraSnapshot() ?? null,
-        viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent };
+        viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent, annotations: presentation.annotations, result_view: presentation.mode, field_id: presentation.fieldId };
     }
   };
 }
@@ -646,6 +655,7 @@ async function showSearchView(bundleUrl, request) {
     colorChannel: previous?.colorChannel ?? "results", activeLoadCase: previous?.activeLoadCase,
     activeResultStateId: previous?.activeResultStateId, visualDeformationScale: previous?.visualDeformationScale ?? 1 };
   currentBundle = null;
+  drawSearchAnnotations([]);
   selectedObjectId = null;
   for (const key of ["searchCandidate", "searchAttempt", "searchOperation", "searchResultState"]) dom.canvas.dataset[key] = "";
   clearBundleSource();
@@ -663,6 +673,37 @@ async function showSearchView(bundleUrl, request) {
   if (!searchHasView && currentState.objects.length) { viewportRenderer?.resetView(); searchHasView = true; }
 }
 
+let searchAnnotations = [];
+function drawSearchAnnotations(annotations) {
+  searchAnnotations = annotations;
+  let overlay = document.querySelector('[data-search-annotations]');
+  if (!overlay) {
+    overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    overlay.dataset.searchAnnotations = ''; overlay.classList.add('search-annotations');
+    document.body.append(overlay);
+  }
+  overlay.replaceChildren();
+  const rect = dom.canvas.getBoundingClientRect();
+  overlay.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+  let index = 0;
+  for (const annotation of annotations) {
+    const p = viewportRenderer?.projectPoint(annotation.point);
+    if (!p?.visible) continue;
+    const labelX = rect.left + 24;
+    const labelY = rect.top + 85 + index++ * 42;
+    const color = annotation.severity === 'fail' ? '#b91c1c' : '#075985';
+    const create = (name, attrs) => {
+      const node = document.createElementNS(overlay.namespaceURI, name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      overlay.append(node); return node;
+    };
+    create('line', { x1: labelX + 300, y1: labelY - 7, x2: p.x, y2: p.y, stroke: color, 'stroke-width': 2 });
+    create('circle', { cx: p.x, cy: p.y, r: 11, fill: 'none', stroke: color, 'stroke-width': 4 });
+    create('text', { x: labelX, y: labelY, fill: color, 'font-size': 18, 'font-weight': 700,
+      stroke: '#fff', 'stroke-width': 5, 'paint-order': 'stroke' }).textContent = annotation.label;
+  }
+}
+
 function highlightSearchCheck(check) {
   dispatch({ type: "setActiveLoadCase", loadCase: check.operation ?? null });
   dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id ?? null });
@@ -671,6 +712,7 @@ function highlightSearchCheck(check) {
   dom.canvas.dataset.searchOperation = currentState.activeLoadCase ?? "cold";
   dom.canvas.dataset.searchResultState = currentState.activeResultStateId ?? "";
   render();
+  drawSearchAnnotations(filmPresentation({ check }, currentBundle?.scene, currentState.activeLoadCase, currentState.activeResultStateId).annotations);
 }
 
 async function sourceIdentity(source) {
@@ -4717,6 +4759,7 @@ function renderCanvas() {
   }
   try {
     viewportRenderer ??= createThreeCanvasRenderer(dom.canvas, {
+      onViewChange: () => { if (searchAnnotations.length) drawSearchAnnotations(searchAnnotations); },
       viewportInsets: () => getViewportInsets(dom.canvas, { right: dom.inspector }),
       resizeTargets: [dom.inspector]
     });

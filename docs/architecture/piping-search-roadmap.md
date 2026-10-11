@@ -204,6 +204,14 @@ M1 intentionally establishes the data and evaluation contract before viewer UI,
 film rendering or LLM strategy work. Each subsequent milestone receives its own
 implementation plan and validation gate.
 
+M1 and M2 have retained native benchmark and interactive replay evidence. M3's
+[implementation plan](../superpowers/plans/2026-10-11-piping-search-film.md) adds
+WebM capture, PNG keyframes, event-derived captions and a frame/evidence manifest
+within the existing viewer. Its initial format reuses the installed VP8 encoder;
+MP4/narration are later presentation options. M3 does not rerun or extend the
+engineering qualification. M4 and M5 remain the subsequent search/qualification
+milestones; see the [measured search guide](../content/piping-search.md).
+
 ## Initial benchmark and evaluation of search quality
 
 Start with one hot line in a bounded corridor with known equipment/obstacles,

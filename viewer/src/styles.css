@@ -5325,10 +5325,19 @@ body[data-search-film="true"] .pane-resize,
 body[data-search-film="true"] .inspector,
 body[data-search-film="true"] .rail-toggle,
 body[data-search-film="true"] .status-strip { display: none !important; }
-body[data-search-film="true"] .viewport { position: fixed; inset: 0 0 40%; width: auto; height: auto; }
+body[data-search-film="true"] .viewport { position: fixed; inset: 0 30% 38px 0; width: auto; height: auto; }
 body[data-search-film="true"] [data-canvas] { width: 100%; height: 100%; }
-.film-caption { position: fixed; inset: 60% 0 38px; margin: 0; padding: 18px 28px;
+.film-caption { position: fixed; inset: 0 0 38px 70%; margin: 0; padding: 18px 28px;
   background: #f8fafc; color: #17233a; white-space: pre-wrap; overflow-wrap: anywhere;
   font: 16px/1.3 system-ui, sans-serif; overflow: hidden; border-top: 1px solid #becbd9; z-index: 1000; }
 .film-scale { position: fixed; bottom: 0; left: 0; right: 0; height: 38px; box-sizing: border-box;
   margin: 0; padding: 10px 28px; background: #17233a; color: white; font: 13px system-ui, sans-serif; z-index: 1000; }
+
+.search-annotations { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+body[data-search-film="true"] .display-strip, body[data-search-film="true"] .viewport-controls { display: none !important; }
+.film-caption { border-left: 1px solid #becbd9; line-height: 1.4; }
+
+body[data-search-film="true"] .viewport { display: block; }
+body[data-search-film="true"] [data-canvas] { position: absolute; inset: 0; }
+body[data-search-film="true"] .viewport > :not([data-canvas]):not(.viewport-legend) { display: none !important; }
+body[data-search-film="true"] .review-drawer { display: none !important; }

@@ -13,6 +13,15 @@ function fixture() {
     event(6, 'candidate.decision', { evaluation_id: 'E1', outcome: 'selected', reason_codes: ['objective'] }) ] };
 }
 
+test('compact review retains failures and only plans completed operation result views', () => {
+  const plan = planSearchFilm(fixture(), { events: 'review', start: 2, end: 4 });
+  const results = plan.keyframes.filter(frame => frame.result_view);
+  assert.deepEqual(results.map(frame => frame.result_view), ['reactions', 'internal_forces', 'displacement']);
+  assert.ok(results.every(frame => frame.operation === 'Hot' && frame.evaluation_id === 'E1' && frame.event_sequence === 4));
+  assert.ok(plan.keyframes.some(frame => frame.check?.verdict === 'fail'));
+  assert.ok(!plan.keyframes.some(frame => frame.event_kind === 'evaluation.completed'));
+});
+
 test('frames use the cursor, without final decision or future evaluation leakage', () => {
   const plan = planSearchFilm(fixture(), { start: 2, end: 2 });
   assert.equal(plan.keyframes.length, 1);
@@ -32,6 +41,14 @@ test('recovery creates no checks, no decision and no inherited successful attemp
   const frame = planSearchFilm(fixture(), { start: 5, end: 5 }).keyframes[0];
   assert.equal(frame.evaluation_id, 'recovered:A2'); assert.equal(frame.check, null);
   assert.match(frame.caption, /No published evaluation/); assert.doesNotMatch(frame.caption, /selected|Nozzle/);
+});
+test('an unknown operation without completed native results is labelled unsolved', () => {
+  const m = fixture();
+  m.events[2].kind = 'evaluation.interrupted';
+  m.events[2].payload.completed_operations = [];
+  m.events[2].payload.checks[0].verdict = 'unknown';
+  const frame = planSearchFilm(m, { start: 3, end: 3 }).keyframes[1];
+  assert.match(frame.caption, /no solver results/);
 });
 test('integer timing is deterministic; VTT escapes literal caption markup', () => {
   const a = planSearchFilm(fixture(), { events: 'all', fps: 25, holdSeconds: 1.21 });

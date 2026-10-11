@@ -444,6 +444,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       transparencyRenderer.render(graph.scene, camera);
     }
     viewHelper.render(renderer);
+    options.onViewChange?.();
     if (deformationInteractionActive) drawDeformationOverlay(deformationOverlay, graph.deformationPreview, camera);
     canvas.dataset.cameraDirection = camera
       .getWorldDirection(cameraDirection)
@@ -578,6 +579,12 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       syncCanvasSize();
       fitCameraToBounds(camera, bounds, controls);
       if (currentGraph) drawFrame(currentGraph);
+    },
+    projectPoint(point) {
+      if (!Array.isArray(point) || point.length !== 3 || !point.every(Number.isFinite)) return null;
+      const p = new THREE.Vector3(...point).project(camera);
+      const rect = canvas.getBoundingClientRect();
+      return { x: rect.left + (p.x + 1) * rect.width / 2, y: rect.top + (1 - p.y) * rect.height / 2, visible: Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1 };
     },
     cameraSnapshot() {
       return { position: camera.position.toArray(), target: controls.target.toArray(), up: camera.up.toArray(),

@@ -70,8 +70,13 @@ The replay JSON and JSONL preserve proposal/event order, ancestry, all decisions
 failed/unexecuted checks, scoped result IDs and artifact availability. A replay
 manifest references its retained archive; moving the manifest alone is not a
 self-contained handoff. Candidate review bundles follow the existing complete
-web-bundle contract. Interactive history playback and film export are later
-roadmap milestones.
+web-bundle contract. Interactive playback uses `python -m tuba.search replay`;
+film export consumes that existing package with `python -m tuba.search film
+--replay-dir <package> --output <new-directory> --ffmpeg <existing-encoder>`.
+Select current viewer assets through `TUBA_VIEWER_ASSETS`. This source-checkout
+capture needs existing Node/Playwright and a VP8 encoder. It writes WebM, PNG
+keyframes, WebVTT and an auditable frame manifest without a new solver run; see
+the search guide for event-range and presentation options.
 
 Real qualification is opt-in and never substitutes recorded fixtures:
 

@@ -58,7 +58,7 @@ export async function captureFilm({ url, output, ffmpeg, options = {} }) {
       if (pageErrors.length) throw new Error(`Browser capture failed: ${pageErrors.join('; ')}`);
       const png = await page.screenshot({ type: 'png', animations: 'disabled' });
       frame.png = `frames/${frame.frame_id}.png`; frame.png_sha256 = hash(png);
-      frame.capture = rendered; frame.caption = rendered.caption;
+      frame.capture = rendered; frame.source_caption = frame.caption; frame.caption = rendered.caption;
       await writeFile(join(output, frame.png), png);
       const jpeg = await page.screenshot({ type: 'jpeg', quality: 94, animations: 'disabled' });
       await writeHeldFrames(encoder.stdin, jpeg, frame.end_frame - frame.start_frame);

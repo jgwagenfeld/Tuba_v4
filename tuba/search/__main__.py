@@ -13,6 +13,7 @@ from .contracts import CheckResult
 from .export import export_history, inspect_history, write_candidate_review
 from .run import SearchBlocked, run_search
 from .replay import write_search_replay
+from .film import write_search_film, FilmCaptureError
 
 
 def main(argv=None, *, solver=None) -> int:
@@ -34,8 +35,27 @@ def main(argv=None, *, solver=None) -> int:
         if name == "review":
             command.add_argument("--candidate", required=True)
             command.add_argument("--attempt", help="Review an earlier retained attempt")
+    film = commands.add_parser('film', help='Capture recorded replay events through the existing viewer (no new solve)')
+    film.add_argument('--replay-dir', required=True, type=Path)
+    film.add_argument('--output', required=True, type=Path, help='New film output directory; existing output is refused')
+    film.add_argument('--ffmpeg', help='Existing FFmpeg executable with VP8 support; alternatively TUBA_FFMPEG/PATH')
+    film.add_argument('--node', help='Existing Node executable; alternatively TUBA_NODE/PATH')
+    film.add_argument('--start', type=int, default=1, help='First search event sequence (inclusive)')
+    film.add_argument('--end', type=int, help='Last search event sequence (inclusive)')
+    film.add_argument('--events', choices=['milestones', 'all', 'review'], default='milestones')
+    film.add_argument('--fps', type=int, default=25)
+    film.add_argument('--hold-seconds', type=float, default=2.0, help='Presentation hold per recorded keyframe')
+    film.add_argument('--width', type=int, default=1600)
+    film.add_argument('--height', type=int, default=900)
     args = parser.parse_args(argv)
     try:
+        if args.command == 'film':
+            path = write_search_film(args.replay_dir, args.output, ffmpeg=args.ffmpeg, node=args.node,
+                                     start=args.start, end=args.end, events=args.events, fps=args.fps,
+                                     hold_seconds=args.hold_seconds, width=args.width, height=args.height)
+            print(path)
+            print('movie: ' + str(path.parent / 'film.webm'))
+            return 0
         if args.command == "run":
             summary = run_search(args.project, args.run_dir, resume=args.resume, parent_run_dir=args.parent_run, solver=solver)
             print(json.dumps(summary, indent=2, allow_nan=False))
@@ -74,7 +94,7 @@ def main(argv=None, *, solver=None) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 4 if any(word in str(exc).lower() for word in ("integrity", "history schema")) else 2
-    except (SearchBlocked, OSError, sqlite3.Error) as exc:
+    except (SearchBlocked, FilmCaptureError, OSError, sqlite3.Error) as exc:
         print(f"blocked: {exc}", file=sys.stderr)
         return 4
 
