@@ -616,6 +616,7 @@ function initSearchFilm(replay, baseUrl) {
       }
       const presentation = filmPresentation(frame, currentBundle?.scene, currentState.activeLoadCase, currentState.activeResultStateId);
       if (presentation.fieldId) {
+        dispatch({ type: 'setUnitSystem', unitSystem: presentation.unitSystem });
         dispatch({ type: 'setColorChannel', colorChannel: 'results' });
         dispatch({ type: 'setColoringField', fieldId: presentation.fieldId });
         dispatch({ type: 'setColoringComponent', component: presentation.component });
@@ -635,6 +636,7 @@ function initSearchFilm(replay, baseUrl) {
       if (caption.scrollHeight > caption.clientHeight) throw new Error('Film caption does not fit; use a taller viewport');
       await document.fonts.ready;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const pipeLegend = getScalarLegend(currentState);
       return { availability: view.availability, error: view.error ?? null, bundle: view.url,
         candidate_id: dom.canvas.dataset.searchCandidate, attempt_id: dom.canvas.dataset.searchAttempt,
         operation: frame.check ? dom.canvas.dataset.searchOperation : currentState.activeLoadCase ?? 'cold',
@@ -642,6 +644,9 @@ function initSearchFilm(replay, baseUrl) {
         rendered_objects: Number(dom.canvas.dataset.renderedObjects ?? 0), units: currentState.unitSystem,
         visual_deformation_scale: currentState.visualDeformationScale, camera: viewportRenderer?.cameraSnapshot() ?? null,
         viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent, annotations: presentation.annotations, result_view: presentation.mode, field_id: presentation.fieldId,
+        component: presentation.component, pipe_colours: viewportRenderer?.resultBodyColours() ?? [],
+        pipe_legend: pipeLegend ? { field: pipeLegend.field, component: pipeLegend.component, unit: pipeLegend.unit,
+          range: pipeLegend.range, rangeOverride: pipeLegend.rangeOverride, bands: pipeLegend.bands, colorMap: pipeLegend.colorMap } : null,
         support_glyphs: viewportRenderer?.supportReactionGlyphs() ?? [] };
     }
   };

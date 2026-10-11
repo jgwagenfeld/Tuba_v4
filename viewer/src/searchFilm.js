@@ -6,12 +6,13 @@ const literal = value => typeof value === 'string' ? value : JSON.stringify(valu
 
 export function planSearchFilm(manifest, options = {}) {
   const { start = 1, end = manifest.events.at(-1)?.sequence ?? 0, fps = 25,
-    holdSeconds = 2, width = 1600, height = 900, events = 'milestones' } = options;
+    holdSeconds = 2, width = 1600, height = 900, events = 'milestones', sectionComponents = ['MFZ'] } = options;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start || end > (manifest.events.at(-1)?.sequence ?? 0)) throw new Error('Invalid film event range');
   if (!Number.isInteger(fps) || fps < 1 || fps > 60) throw new Error('Invalid film fps (1–60)');
   if (!Number.isFinite(holdSeconds) || holdSeconds <= 0 || holdSeconds > 30 || Math.round(fps * holdSeconds) < 1) throw new Error('Invalid film hold (one frame to 30 seconds)');
   if (![width, height].every(n => Number.isInteger(n) && n % 2 === 0) || width < 640 || width > 3840 || height < 360 || height > 2160) throw new Error('Invalid film size (even 640–3840 × 360–2160)');
   if (!['all', 'milestones', 'review'].includes(events)) throw new Error('Invalid film events policy');
+  if (!Array.isArray(sectionComponents) || !sectionComponents.length || sectionComponents.some(c => !['N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'].includes(c)) || new Set(sectionComponents).size !== sectionComponents.length) throw new Error('Invalid film section components');
   const hold = Math.round(fps * holdSeconds);
   const keyframes = [];
   for (const event of manifest.events.filter(e => e.sequence >= start && e.sequence <= end && (events === 'all' || (events === 'review' ? ['candidate.built', 'candidate.decision', 'evaluation.failed', 'evaluation.interrupted', 'run.completed'].includes(e.kind) : milestones.has(e.kind))))) {
@@ -31,7 +32,7 @@ export function planSearchFilm(manifest, options = {}) {
       lines.push(`Decision reasons: ${(event.payload.reason_codes ?? []).join(', ') || 'not recorded'}`);
       if (Object.keys(event.payload.details ?? {}).length) lines.push(`Decision details: ${JSON.stringify(event.payload.details)}`);
     }
-    const add = (check = null, checkIndex = null, resultView = null, operation = null) => {
+    const add = (check = null, checkIndex = null, resultView = null, operation = null, component = null) => {
       const view = check ? (check.operation ? evaluation?.review : candidate?.preview) : evaluation?.review ?? candidate?.preview;
       const caption = [...lines];
       if (check) {
@@ -47,12 +48,15 @@ export function planSearchFilm(manifest, options = {}) {
       keyframes.push({ frame_id: `F${String(keyframes.length + 1).padStart(5, '0')}`, event_sequence: event.sequence,
         event_kind: event.kind, search_timestamp: event.timestamp ?? event.at_utc ?? null,
         candidate_id: candidate?.id ?? null, evaluation_id: evaluation?.id ?? null, attempt_id: evaluation?.attempt_id ?? null,
-        event_message: event.payload?.message ?? null, reason_codes: event.payload?.reason_codes ?? [], check_index: checkIndex, check, result_view: resultView, operation, view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
+        event_message: event.payload?.message ?? null, reason_codes: event.payload?.reason_codes ?? [], check_index: checkIndex, check, result_view: resultView, component, operation, view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
         start_frame: keyframes.length * hold, end_frame: (keyframes.length + 1) * hold });
     };
     add();
     if ((events === 'review' ? event.kind === 'candidate.decision' : event.kind === 'evaluation.completed')) for (const operation of evaluation?.completed_operations ?? []) {
-      for (const mode of ['reactions', 'internal_forces', 'displacement']) add(null, null, mode, operation);
+      for (const mode of ['stress', 'reactions', 'internal_forces', 'displacement']) {
+        if (mode === 'internal_forces') for (const component of sectionComponents) add(null, null, mode, operation, component);
+        else add(null, null, mode, operation);
+      }
     }
     for (const [i, check] of (evaluation?.checks ?? []).entries()) if (['fail', 'unknown'].includes(check.verdict)) add(check, i);
   }
@@ -60,7 +64,7 @@ export function planSearchFilm(manifest, options = {}) {
   return { schema: 'tuba.search.film.v1', status: 'planned', source_schema: manifest.schema,
     start_event: start, end_event: end, events_policy: events, width, height, fps, hold_frames: hold,
     total_frames: keyframes.length * hold, duration_seconds: keyframes.length * hold / fps,
-    presentation: { units: 'SI', visual_deformation_scale: 1, engineering_displacement_scale: 1,
+    presentation: { units: 'Native SI values; stress legend in MPa; force and moment legends in N and N m', visual_deformation_scale: 1, engineering_displacement_scale: 1,
       transitions: 'held recorded views; no interpolated solver states', camera: 'common segment envelope',
       colour_policy: 'replay package comparison ranges when available; native local ranges otherwise' }, keyframes };
 }

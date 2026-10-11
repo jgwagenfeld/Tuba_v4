@@ -16,10 +16,19 @@ function fixture() {
 test('compact review retains failures and only plans completed operation result views', () => {
   const plan = planSearchFilm(fixture(), { events: 'review', start: 2, end: 4 });
   const results = plan.keyframes.filter(frame => frame.result_view);
-  assert.deepEqual(results.map(frame => frame.result_view), ['reactions', 'internal_forces', 'displacement']);
+  assert.deepEqual(results.map(frame => frame.result_view), ['stress', 'reactions', 'internal_forces', 'displacement']);
   assert.ok(results.every(frame => frame.operation === 'Hot' && frame.evaluation_id === 'E1' && frame.event_sequence === 4));
   assert.ok(plan.keyframes.some(frame => frame.check?.verdict === 'fail'));
   assert.ok(!plan.keyframes.some(frame => frame.event_kind === 'evaluation.completed'));
+});
+
+test('all six signed section components can be planned as separate views of the same native operation', () => {
+  const sectionComponents = ['N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'];
+  const plan = planSearchFilm(fixture(), { events: 'review', start: 4, end: 4, sectionComponents });
+  assert.deepEqual(plan.keyframes.filter(f => f.result_view === 'internal_forces').map(f => f.component), sectionComponents);
+  for (const components of [[], ['unknown'], ['N', 'N'], 'N']) {
+    assert.throws(() => planSearchFilm(fixture(), { sectionComponents: components }), /section components/);
+  }
 });
 
 test('frames use the cursor, without final decision or future evaluation leakage', () => {

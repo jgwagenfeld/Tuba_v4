@@ -599,6 +599,19 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
           return record;
         });
     },
+    resultBodyColours() {
+      return (currentGraph?.root.children ?? []).filter(o => o.visible && o.userData.assetId?.startsWith('geometry:element:'))
+        .map(object => {
+          const materials = [];
+          object.traverse(part => {
+            if (!part.isMesh || !part.visible) return;
+            for (const material of Array.isArray(part.material) ? part.material : [part.material]) {
+              if (material?.color) materials.push({ color: `#${material.color.getHexString()}`, opacity: material.opacity });
+            }
+          });
+          return { object_ids: object.userData.objectIds, materials };
+        });
+    },
     setStandardView(viewId) {
       if (!currentGraph) return;
       syncCanvasSize();

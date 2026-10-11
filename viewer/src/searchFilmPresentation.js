@@ -29,7 +29,9 @@ export function filmPresentation(frame, scene, operation, state) {
   const mode = frame.result_view ?? 'finding';
   const annotations = [], rows = [];
   let title = frame.check ? `${frame.check.verdict.toUpperCase()}: ${frame.check.constraint_id}` : 'Recorded candidate';
-  let fieldType = null, component = null;
+  // Reactions are a nodal quantity. Colour the pipe by its own measured stress
+  // while the separate blue/orange support diagrams remain visible.
+  let fieldType = 'stress', component = 'magnitude';
   const check = frame.check;
   if (!check && mode === 'finding') {
     if (frame.event_message) rows.push(frame.event_message);
@@ -61,7 +63,7 @@ export function filmPresentation(frame, scene, operation, state) {
     annotations.push({ point: vector.start, label: `${vector.node_id}: F ${force} N · M ${moment} N m`, severity: 'result' });
   }
   if (mode === 'reactions') {
-    title = 'Support reactions — global X, Y, Z'; fieldType = 'reaction_force'; component = 'magnitude';
+    title = 'Support reactions — pipe coloured by FE stress';
     for (const vector of reactions?.data.vectors ?? []) {
       const values = reactions.data.values?.[vector.node_id];
       if (!point(values) || !point(vector.start)) continue;
@@ -74,8 +76,23 @@ export function filmPresentation(frame, scene, operation, state) {
     if (!rows.length) rows.push('Support reactions unavailable for this recorded operation/state.');
     rows.push('Code_Aster reactions on the model; loads on the foundation have opposite sign.');
   }
+  if (mode === 'stress') {
+    title = 'Pipe stress — FE von Mises (MPa)';
+    const stress = scopedOverlay(scene, 'stress', operation, state);
+    const entries = Object.entries(stress?.data.values ?? {}).filter(([, value]) => finite(value));
+    const peak = entries.sort((a, b) => b[1] - a[1])[0];
+    rows.push(peak ? `Largest recorded element maximum: ${number(peak[1] / 1e6)} MPa · ${peak[0].replace('object:element:', '')}` : 'Pipe stress unavailable for this recorded operation/state.');
+    rows.push('Pipe colours show each element’s recorded maximum FE von Mises stress.');
+    rows.push('FE stress — not a piping-code stress or compliance verdict.');
+    if (peak) {
+      const p = objectPoint(scene, peak[0]);
+      if (p) annotations.push({ point: p, label: `${peak[0].replace('object:element:', '')}: element max ${number(peak[1] / 1e6)} MPa`, severity: 'result' });
+    }
+  }
   if (mode === 'internal_forces') {
-    title = 'Section forces — signed peaks at element ends'; fieldType = 'internal_forces'; component = frame.component ?? 'MFZ';
+    fieldType = 'internal_forces'; component = frame.component ?? 'MFZ';
+    const names = { N: 'Axial force', VY: 'Shear Y', VZ: 'Shear Z', MT: 'Torsion', MFY: 'Bending Y', MFZ: 'Bending Z' };
+    title = `${names[component]} — ${component} (${SECTION_COMPONENTS.indexOf(component) < 3 ? 'N' : 'N m'})`;
     const overlay = scopedOverlay(scene, 'internal_forces', operation, state);
     for (const [index, name] of SECTION_COMPONENTS.entries()) {
       let peak = null;
@@ -92,6 +109,7 @@ export function filmPresentation(frame, scene, operation, state) {
         if (p) annotations.push({ point: p, label: `${name}: ${number(peak.value)} ${unit} (${peak.end})`, severity: 'result' });
       }
     }
+    rows.push(`Pipe colours: signed ${component} at each element’s controlling endpoint.`);
     rows.push('Local element axes. Endpoint peaks only; no interior maximum or code compliance inferred.');
   }
   if (mode === 'displacement') {
@@ -103,7 +121,8 @@ export function filmPresentation(frame, scene, operation, state) {
     rows.push('Labels show measured displacement; the geometry remains at physical scale.');
   }
   const field = scene?.result_fields?.find(f => f.overlay_id === scopedOverlay(scene, fieldType, operation, state)?.id);
-  return { title, rows, annotations, fieldId: field?.id ?? null, component, mode };
+  return { title, rows, annotations, fieldId: field?.id ?? null, component, mode,
+    fieldType, unitSystem: fieldType === 'stress' ? 'engineering' : 'si' };
 }
 
 export function conciseFilmCaption(frame, presentation, operation, state, error) {

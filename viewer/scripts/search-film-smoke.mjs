@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { colorForScalarValue } from '../src/resultReview.js';
 const [sourceUrl, output] = process.argv.slice(2);
 const url = new URL(sourceUrl); url.searchParams.set('film', '1');
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-webgl'] });
@@ -14,7 +15,7 @@ try {
   const canvasBounds = await page.locator('[data-canvas]').boundingBox();
   assert.equal(canvasBounds.x, 0); assert.ok(canvasBounds.width >= 1100);
   checks.push('Drawing occupies the full left 70 percent without hidden rail space');
-  const plan = await page.evaluate(() => window.tubaSearchFilm.plan({ holdSeconds: 0.08 }));
+  const plan = await page.evaluate(() => window.tubaSearchFilm.plan({ holdSeconds: 0.08, sectionComponents: ['N','VY','VZ','MT','MFY','MFZ'] }));
   assert.equal(new Set(plan.keyframes.map(f => f.candidate_id)).size, 12);
   checks.push('All 12 retained candidates have causal film keyframes');
   async function show(frame) {
@@ -36,14 +37,41 @@ try {
   const interrupted = plan.keyframes.find(f => f.candidate_id === 'C0009' && f.event_kind === 'evaluation.interrupted');
   await show(interrupted); assert.doesNotMatch(await page.locator('[data-film-caption]').textContent(), /Recorded outcome: selected/);
   checks.push('Interrupted attempt does not inherit the later selection');
-  for (const mode of ['reactions', 'internal_forces', 'displacement']) {
-    const frame = plan.keyframes.find(f => f.candidate_id === 'C0007' && f.operation === 'Hot' && f.result_view === mode);
+  for (const [mode, component] of [['stress',null], ['reactions',null], ...['N','VY','VZ','MT','MFY','MFZ'].map(c=>['internal_forces',c]), ['displacement',null]]) {
+    const frame = plan.keyframes.find(f => f.candidate_id === 'C0007' && f.operation === 'Hot' && f.result_view === mode && (!component || f.component === component));
     const shown = await show(frame);
     assert.equal(shown.operation, 'Hot'); assert.match(shown.result_state, /Hot/);
     assert.equal(shown.result_view, mode); assert.ok(shown.field_id);
     if (mode !== 'displacement') assert.ok(shown.annotations.length > 0);
     const sourceScene = await page.request.get(new URL(`${frame.view.bundle}/scene.json`,
       new URL('./', new URL(url.searchParams.get('search'), url))).href).then(r => r.json());
+    if (mode !== 'displacement') {
+      const type = mode === 'internal_forces' ? mode : 'stress';
+      const native = sourceScene.overlays.find(o => o.data?.result_type === type && o.data.load_case === 'Hot' && o.data.result_state_id === shown.result_state);
+      assert.match(shown.field_id, new RegExp(`:${type}:`));
+      assert.equal(shown.pipe_legend.unit, type === 'stress' ? 'Pa' : ['N','VY','VZ'].includes(component) ? 'N' : 'N·m');
+      const index = ['N','VY','VZ','MT','MFY','MFZ'].indexOf(component);
+      assert.equal(shown.pipe_colours.length, Object.keys(native.data.values).length);
+      for (const pipe of shown.pipe_colours) {
+        const raw = native.data.values[pipe.object_ids[0]];
+        const value = type === 'stress' ? raw : raw[index];
+        const expected = `#${colorForScalarValue(value, shown.pipe_legend).toString(16).padStart(6,'0')}`;
+        assert.ok(pipe.materials.length);
+        assert.ok(pipe.materials.every(m => m.color === expected && m.opacity >= 0.95), JSON.stringify({pipe,expected}));
+      }
+      const colourPixels = await page.locator('[data-canvas]').evaluate((canvas,type) => {
+        const gl=canvas.getContext('webgl2'), p=new Uint8Array(canvas.width*canvas.height*4);
+        gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,p);
+        let coloured=0;for(let i=0;i<p.length;i+=4){
+          const r=p[i],g=p[i+1],b=p[i+2];
+          const yellow=r>150&&g>140&&b<120;
+          const signed=(r>85&&g<55&&b>10&&b<90)||(r>45&&r<130&&b>r+60&&g<150&&b>130);
+          if(yellow||(type==='internal_forces'&&signed))coloured++;
+        }
+        return coloured;
+      },type);
+      assert.ok(colourPixels>30, `No visible high-value pipe colour: ${mode}/${component} (${colourPixels} pixels)`);
+    }
     for (const [kind, key, unit] of [['force', 'reaction_force_n', 'N'], ['moment', 'reaction_moment_nm', 'N m']]) {
       const native = sourceScene.overlays.find(o => o.data?.result_type === `reaction_${kind}` &&
         o.data.load_case === 'Hot' && o.data.result_state_id === shown.result_state);
@@ -68,9 +96,10 @@ try {
     });
     assert.ok(pixels.blue > 300 && pixels.orange > 100, JSON.stringify(pixels));
     await mkdir(output, { recursive: true });
-    await page.screenshot({ path: join(output, `${mode}.png`) });
+    await page.screenshot({ path: join(output, `${mode}${component ? `-${component}` : ''}.png`) });
   }
   checks.push('All nonzero Hot support force and moment glyphs match native nodes/components, with actual blue/orange pixels in every result view');
+  checks.push('Every pipe mesh has its native stress or signed section-component colour; matching units and visible high-value pixels for all six components');
   const selected = plan.keyframes.find(f => f.candidate_id === 'C0009' && f.caption.includes('Recorded outcome: selected'));
   result = await show(selected); assert.ok(result.rendered_objects > 0); assert.match(result.result_state, /Sustained/);
   await mkdir(output, { recursive: true }); await page.screenshot({ path: join(output, 'selected.png') });
