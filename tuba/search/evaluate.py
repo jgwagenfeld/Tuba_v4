@@ -11,7 +11,7 @@ import uuid
 from tuba.project.evidence import evidence_verdict
 from tuba.project.freshness import export_study
 
-from .contracts import Candidate, CheckResult, Evaluation, LoadedSearch
+from .contracts import Candidate, CheckResult, Evaluation, EvaluationContext, LoadedSearch
 from .checks import evaluate_checks, verification_checks
 
 
@@ -24,11 +24,14 @@ def unknown_checks(specs, checks, reason):
                  if (spec.id, operation) not in completed)
 
 
-def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch, *, archive, history, solver=None) -> Evaluation:
+def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch | EvaluationContext, *, archive, history,
+                       solver=None, pre_checks=()) -> Evaluation:
     attempt_id = archive.begin_attempt(candidate.id)
     evaluation_id = "E" + uuid.uuid4().hex
     operations = loaded.settings.operations
-    runs, checks = {}, []
+    runs, checks = {}, list(pre_checks)
+    checks.extend(unknown_checks(tuple(s for s in loaded.check_specs if s.kind == 'design_requirement'),
+                                 checks, 'design_requirement_unchecked'))
     history.append("evaluation.started", {"evaluation_id": evaluation_id, "attempt_id": attempt_id,
                                          "operations": operations}, candidate.id)
     status, error_kind, diagnostic = "complete", None, None

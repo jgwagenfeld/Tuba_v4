@@ -89,6 +89,10 @@ def export_history(run_dir: Path, output_dir: Path) -> Path:
     relative_archive = os.path.relpath(archive.root, Path(output_dir).absolute()).replace("\\", "/")
     output = _new_output(output_dir)
     references = {snapshot["run"]["source_manifest_ref"]}
+    if snapshot['run'].get('evaluator_manifest_ref'):
+        references.add(snapshot['run']['evaluator_manifest_ref'])
+    references.update(row['parameters']['source_manifest_ref'] for row in snapshot['candidates']
+                      if 'source_manifest_ref' in row['parameters'])
     for event in snapshot["events"]:
         ref = event["payload"].get("evidence_manifest_ref")
         if ref:
@@ -194,7 +198,10 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
         for event in snapshot["events"]:
             if event["kind"] == "operation.completed" and event["candidate_id"] == candidate_id and event["payload"]["attempt_id"] == evaluation.attempt_id:
                 operation = event["payload"]["operation"]
-                run = import_code_aster_artifacts(model=model, work_dir=archive.path(event["payload"]["artifact_dir"]))
+                from tuba.analysis.provenance import SolverInputIdentity
+                expected = row['build']['solver_identities'][operation]
+                run = import_code_aster_artifacts(model=model, work_dir=archive.path(event["payload"]["artifact_dir"]),
+                                                 expected_identity=SolverInputIdentity.from_dict(expected))
                 run.validate_for_publication(model)
                 runs[operation] = run
     output = _new_output(output_dir)
@@ -233,7 +240,8 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                   ("limit", "Limit"), ("unit", "Unit"), ("reason_code", "Reason"), ("evidence_refs", "Evidence"))),
                  tuple(check.to_dict() for check in local_checks), "tuba.search recorded checks")
     review = replace(review, tables=(*review.tables, table))
-    source_inventory = archive.verify_inventory(snapshot["run"]["source_manifest_ref"])
+    source_inventory = archive.verify_inventory(row['parameters'].get('source_manifest_ref')
+                                               or snapshot["run"]["source_manifest_ref"])
     source_entry = next((f for f in source_inventory["files"] if f.get("logical_name") == "model.py"), None)
     if source_entry is None:
         raise ValueError("Archived authored model is unavailable in the source inventory")

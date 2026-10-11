@@ -181,7 +181,7 @@ def _user_checks(model, runs, specs, evaluator, candidate_id):
 def evaluate_checks(model, runs, check_specs, *, user_evaluator=None, candidate_id=None) -> tuple[CheckResult, ...]:
     checks = []
     for spec in check_specs:
-        if spec.kind in {"cold_model", "cold_clearance", "user_evaluator"}:
+        if spec.kind in {"cold_model", "cold_clearance", "design_requirement", "user_evaluator"}:
             continue
         for operation in spec.operations:
             run = runs.get(operation)

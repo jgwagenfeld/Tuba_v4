@@ -29,10 +29,10 @@ or interrupted attempt must remain distinct from a measured constraint failure.
 
 The [search-history roadmap](piping-search-roadmap.md) owns persistent generic
 candidate/evaluation records, replay, and film. Its implementation is on a
-separate active branch at this baseline, not in `main`. Do not rebuild that
-subsystem in a benchmark. Initially retain independent attempt folders; connect
-them to the shared history contract after that branch is reviewed and integrated.
-Replay and film delivery need not block the first LLM experiment.
+separate branch at the L1 baseline. L2 integrates its committed M1/M2 history
+and replay through `bbc19e6`, leaving ongoing M3 film work in its own checkout.
+The authored-candidate runner uses that shared store, permanent-attempt evaluator
+and review/export path. The original L1 attempt folders remain valid evidence.
 
 Use a small repository script for the first benchmark, rather than a new core
 optimizer package. Existing solver/evidence/visualization modules remain owners
@@ -48,8 +48,7 @@ of their respective responsibilities.
 | L4: Tools justified by measured failures | Optional geometric search, bounded parameter search, or evolutionary search; retrieval/surrogates only with suitable evidence | Improvement over the same agent without the tool under matched requirements and resource budgets |
 | L5: Broader engineering scope | Multiple operations, gravity/pressure, operating clearance, support travel/friction, nozzle requirements, coupled racks and multiple lines | Representative real-solver cases, declared modeling/check coverage, project-owned standard evaluation and independent engineering review |
 
-This task authorizes documentation and L1. Later milestones are defined here so
-subsequent work has a decision basis, not a claim that they are implemented.
+L1 is complete. The user's continuation starts L2; L3-L5 remain future work.
 
 ## L1 specification: thermal nozzle-reaction task
 
@@ -120,3 +119,9 @@ The [L1 implementation plan](../superpowers/plans/2026-10-11-llm-piping-first-ta
 tracks files, checks, execution outcomes and remaining limitations.
 The first [measured iteration](llm-piping-first-task-results.md) reduced nozzle
 force from 7496 N to 3639 N against the unchanged 5000 N target.
+
+The [L2 implementation plan](../superpowers/plans/2026-10-11-llm-piping-iteration.md)
+and [authored iteration example](../../examples/llm-piping-iteration/README.md)
+cover free-form candidate submission, frozen guide policy, parent source diffs,
+retry/recovery and shared retained history. This remains a coding-agent workflow;
+there is no provider-specific autonomous LLM driver or repeat-run comparison yet.

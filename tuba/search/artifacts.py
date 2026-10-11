@@ -80,14 +80,20 @@ class ArtifactStore:
 
     def capture_source(self, project, dependency_paths=()) -> str:
         project_root = Path(project.root).absolute()
-        no_links(project_root)
         sources = {project_root / name for name in ("model.py", "study.py", "search.py")}
         sources.update(Path(path).absolute() for path in dependency_paths)
+        return self.capture_files(project_root, sources)
+
+    def capture_files(self, project_root: Path, paths) -> str:
+        """Snapshot only explicitly declared authored files, preserving local layout."""
+        project_root = Path(project_root).absolute()
+        no_links(project_root)
+        sources = {project_root / Path(path) for path in paths}
         records = []
         for source in sorted(sources):
             no_links(source)
             try:
-                logical = source.relative_to(project_root)
+                logical = source.resolve().relative_to(project_root.resolve())
             except ValueError:
                 raise ValueError(f"Explicit dependencies must be inside the project: {source}") from None
             if any(part.lower() in EXCLUDED for part in logical.parts):

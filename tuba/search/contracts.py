@@ -9,7 +9,7 @@ import re
 from typing import Any, Callable, TypeAlias
 
 JsonValue: TypeAlias = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
-CHECK_KINDS = {"cold_model", "cold_clearance", "evidence_verified", "operating_clearance",
+CHECK_KINDS = {"cold_model", "cold_clearance", "design_requirement", "evidence_verified", "operating_clearance",
                "reaction_force", "displacement", "user_evaluator"}
 OUTCOMES = {"rejected_constraint", "evaluation_failed", "incomplete", "feasible_retained",
             "feasible_not_selected", "duplicate", "deferred", "pruned", "selected"}
@@ -144,8 +144,8 @@ class CheckResult(Record):
         if self.comparator not in {None, "max", "min"}:
             raise ValueError("Unsupported comparator")
         if self.comparator:
-            if self.unit not in {"N", "m", "1"} or self.limit is None:
-                raise ValueError("M1 numeric checks require a limit and supported canonical unit")
+            if self.unit not in {"N", "N m", "m", "1"} or self.limit is None:
+                raise ValueError("Numeric checks require a limit and supported canonical unit")
             if self.verdict in {"pass", "fail"}:
                 if self.measured_value is None:
                     raise ValueError("A numeric verdict requires a measurement")
@@ -224,6 +224,15 @@ class SearchDefinition(Record):
                 continue
             if type(value) is not int or value < (1 if name == "candidate_limit" else 0):
                 raise ValueError(f"{name} must be an explicit nonnegative integer budget")
+
+
+@dataclass(frozen=True)
+class EvaluationContext:
+    """Inputs shared by grid searches and source-authored candidate evaluation."""
+    namespace: dict
+    settings: Any
+    check_specs: tuple[CheckSpec, ...]
+    user_evaluator: Callable | None
 
 
 @dataclass(frozen=True)
