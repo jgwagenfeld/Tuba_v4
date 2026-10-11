@@ -2,11 +2,11 @@
 
 Tuba is an open-source Python library for modeling piping systems and their supporting structures, running Code_Aster analyses, and reviewing the results.
 
-We are building an **agent interface for engineering models**: a coding agent can author and revise parametric Python, inspect the structure, check clashes, and run analyses through the CLI or Model Context Protocol (MCP). The model stays in readable source files; stress, displacement and reaction results come from Code_Aster.
+Tuba also provides CLI and MCP (Model Context Protocol) interfaces. Ongoing development aims to automate parts of model building.
 
-**[Explore examples](#examples-to-explore)** · **[Work with an agent](#work-with-an-agent)** · **[Get started](#getting-started)** · **[Documentation](https://jgwagenfeld.github.io/Tuba_v4/)**
+**[Examples](#examples)** · **[CLI and MCP](#cli-and-mcp)** · **[Getting started](#getting-started)** · **[Documentation](https://jgwagenfeld.github.io/Tuba_v4/)**
 
-## Examples to explore
+## Examples
 
 Open these reviews in your browser without installing Tuba. Each example below includes Code_Aster results and Python source you can inspect and adapt.
 
@@ -36,29 +36,25 @@ The thermal-expansion example selects its route geometrically, then checks the s
 
 Choose **Build**, edit `model.py`, and **Update geometry** to [try a browser preview](docs/content/setup.md#try-a-model-in-the-browser). **Review** shows the published analysis; edited geometry needs a new Code_Aster solve.
 
-## Work with an agent
+## CLI and MCP
 
-The agent works on the same project folder you open in Studio: `model.py` defines the structure, `study.py` defines the analysis, and optional `units/` holds reusable construction functions. Parameters, loops and functions keep a generated model editable and reviewable in Git.
+Studio, the CLI and MCP use the same project files: `model.py` defines the structure, `study.py` defines the analysis, and optional `units/` holds reusable construction functions.
 
-1. **Author:** write or revise procedural Python for routes, racks, supports, materials and loads.
-2. **Inspect and verify:** use `inspect_model`, `verify_model` and `check_clashes` through MCP. Tuba reports structural errors, clashes and rule findings so the agent can revise the model.
-3. **Evaluate:** run the project CLI or MCP's `solve_model`. Both use the project's study and verification gate, reuse matching verified evidence, and require Code_Aster for new results.
-4. **Review:** open the geometry and processed results in Studio, or share a browser review bundle with another engineer.
+The CLI runs project studies. MCP provides tools for model inspection, verification, clash checks and solver execution. Both use the project's study settings and require Code_Aster for new results.
 
-After [setup](#getting-started), these commands expose the workflow to your tools:
+After [setup](#getting-started):
 
 ```bash
-python -m tuba.skills --target ~/.config/opencode/skills  # Use your agent's skills directory
-python -m tuba.mcp.server                               # Local MCP server (stdio)
 python -m tuba.project examples/multipipe-rack --output .build/multipipe-review
-python -m tuba.cli_studio examples/multipipe-rack        # Open the same project in Studio
+python -m tuba.mcp.server                         # Local MCP server (stdio)
+python -m tuba.cli_studio examples/multipipe-rack  # Open the project in Studio
 ```
 
-Configure the MCP client to launch the server with the Tuba environment's Python, then bind it to the intended project using `init_session(file_path="/path/to/project/model.py", load_existing=True)`. See [CLI and MCP workflow](docs/content/workflow.md#projects-in-studio-the-cli-and-agents) and the shipped [modeling skill](tuba/skills/tuba-modeling/SKILL.md) for the authoring and verification contract.
+See the [CLI and MCP documentation](docs/content/workflow.md#projects-in-studio-the-cli-and-agents) for client setup and project selection. A [modeling skill](tuba/skills/tuba-modeling/SKILL.md) is included for coding agents.
 
 ## A small Python model
 
-The same Python API is available to people, scripts and agents. Define a pipe with anchored ends and an operating load case, solve it with Code_Aster, then display the imported results:
+Define a pipe with anchored ends and an operating load case, solve it with Code_Aster, then display the imported results:
 
 ```python
 from tuba import Model
