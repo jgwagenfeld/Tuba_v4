@@ -2,6 +2,8 @@
 
 Research date: 2026-10-11. This follow-up revises the algorithm priorities in
 [the broader piping-generation report](automated-piping-generation-research-2026-10-11.md).
+The accepted development sequence is now captured in the
+[LLM piping design roadmap](llm-piping-design-roadmap.md).
 It recommends an experiment, not a production qualification. No new piping
 design, Code_Aster evaluation, or optimizer comparison was run for this report.
 

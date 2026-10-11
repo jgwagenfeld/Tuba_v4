@@ -1,5 +1,9 @@
 # Automated piping generation: research and direction for Tuba
 
+Follow-up: the [direct-LLM assessment](direct-llm-piping-generation-research-2026-10-11.md)
+revises this report's algorithm priorities. Use the
+[LLM piping design roadmap](llm-piping-design-roadmap.md) for the current development sequence.
+
 Date: 2026-10-11. Scope: industrial piping routes, thermal flexibility, supports,
 and supporting steelwork. This is a research and product-direction report, not
 an implementation plan or an engineering qualification. Recommendations below
