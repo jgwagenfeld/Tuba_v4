@@ -48,7 +48,10 @@ of their respective responsibilities.
 | L4: Tools justified by measured failures | Optional geometric search, bounded parameter search, or evolutionary search; retrieval/surrogates only with suitable evidence | Improvement over the same agent without the tool under matched requirements and resource budgets |
 | L5: Broader engineering scope | Multiple operations, gravity/pressure, operating clearance, support travel/friction, nozzle requirements, coupled racks and multiple lines | Representative real-solver cases, declared modeling/check coverage, project-owned standard evaluation and independent engineering review |
 
-L1 and L2 are complete for their declared research scope. L3-L5 remain future work.
+L1 and L2 are complete for their declared research scope. L3 is in progress:
+the comparison foundation provides frozen thermal cases, repeated reference
+trials and provider-neutral accounting. A pinned live LLM campaign and matched
+design-space comparisons are still required. L4-L5 remain future work.
 
 ## L1 specification: thermal nozzle-reaction task
 
@@ -124,7 +127,26 @@ The [L2 implementation plan](../superpowers/plans/2026-10-11-llm-piping-iteratio
 and [authored iteration example](../../examples/llm-piping-iteration/README.md)
 cover free-form candidate submission, frozen guide policy, parent source diffs,
 retry/recovery and shared retained history. This remains a coding-agent workflow;
-there is no provider-specific autonomous LLM driver or repeat-run comparison yet.
+there is no provider-specific autonomous LLM driver yet.
 The [L2 measured results and validation](llm-piping-iteration-results.md) record
 two qualified guided-line candidates, retained runtime failures, native evidence
 reopening, browser checks and the exact limits of the qualification.
+
+The [L3 comparison foundation](../../examples/llm-piping-comparison/README.md)
+and [implementation plan](../superpowers/plans/2026-10-11-llm-piping-comparison.md)
+freeze three thermal case variants, a deterministic ascending-loop reference,
+per-trial budgets, method/model/prompt/tool metadata and all planned repeat slots.
+Reports keep invalid candidates, failures and unstarted trials visible, verify
+retained evidence, and group results by case, method and representation. Model
+usage remains explicitly caller reported or unknown.
+
+Next L3 tasks:
+
+1. Select a provider and exact model revision; retain every prompt/response and
+   measured usage in an instrumented adapter, including unsuccessful model calls.
+2. Run repeated live LLM trials under the frozen protocol. Add a common fixed
+   parameter interface for a matched fixed-family comparison, then add a suitable
+   free-topology reference. Do not pool these representation groups.
+3. Broaden the cases beyond these closely related thermal variants, and choose
+   L4 tools from measured failure patterns. Two deterministic repeats qualify
+   execution/accounting, not LLM reliability or optimizer superiority.

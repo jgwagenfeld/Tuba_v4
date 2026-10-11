@@ -63,4 +63,6 @@ Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets
 
 - Pre-flight: Task 1 produces explicit case sessions consumed by Task 2; Task 2 produces report/runner consumed by Task 3. No interface conflict.
 - The existing roadmap supplies the spec. Windows-native commands and this tracked ledger replace shell-only task bookkeeping.
-`n- Task 1: explicit cases implemented; four new tests failed on missing APIs, then all 61 L1/L2/case checks passed (67.69 s). Baseline: 57 passed (48.64 s).
+- Task 1: explicit cases implemented; four new tests failed on missing APIs, then all 61 L1/L2/case checks passed (67.69 s). Baseline: 57 passed (48.64 s).
+
+- Task 2: comparison API, CLI and documentation implemented. Seven missing-API tests failed first; two starter-brief tests then exposed missing source. Final combined L1/L2/comparison run: 72 passed in 80.14 s. Code_Aster bridge doctor ready. Independent final review in progress before native qualification.
