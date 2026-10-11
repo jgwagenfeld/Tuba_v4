@@ -66,3 +66,10 @@ Interfaces: `create_campaign(root, repeats=2, case_ids=..., methods=..., budgets
 - Task 1: explicit cases implemented; four new tests failed on missing APIs, then all 61 L1/L2/case checks passed (67.69 s). Baseline: 57 passed (48.64 s).
 
 - Task 2: comparison API, CLI and documentation implemented. Seven missing-API tests failed first; two starter-brief tests then exposed missing source. Final combined L1/L2/comparison run: 72 passed in 80.14 s. Code_Aster bridge doctor ready. Independent final review in progress before native qualification.
+
+- Final review: four Important findings, no Critical or Minor findings. Fixed session substitution, lost late usage, partial SQLite reporting, and recovery-before-admission. Each regression failed first, then passed; also fixed the reference CLI's unsuccessful-campaign exit status. Five focused regressions passed in 29.46 s.
+- Final: Ruling: native numerical qualification belongs to the following real-solver run, not the read-only review. If that run fails, numerical qualification remains incomplete.
+- Final: Ruling: provider authenticity, live LLM performance and external tool enforcement remain outside this provider-neutral foundation. Caller metadata/usage are labeled; a controlled superiority claim would be invalid without the future instrumented adapter.
+- Final: Ruling: coordinated rewriting of SQLite and all integrity metadata is outside the trusted-local execution boundary. The store detects ordinary damage and session substitution; it is not a hostile-code security boundary.
+- Final: Ruling: an admitted solve may finish after the wall deadline. Its evidence and elapsed time remain counted; the wall budget limits new admissions, not total process lifetime.
+- Final regression after the review fix pass: 77 passed in 106.90 s; no deferred minor findings.

@@ -214,3 +214,72 @@ def test_hot_starter_is_case_correct_and_groups_do_not_pool_representations(tmp_
     assert 'temperature=300.0' in comparison.start_trial(root, 'T002')['starter_source']
     groups = comparison.report_campaign(root)['groups']
     assert {g['representation'] for g in groups} == {'fixed-family', 'free-topology'}
+
+
+def test_swapped_same_case_session_rejected_by_writer_and_report(tmp_path):
+    comparison, root = campaign(tmp_path, case_ids=('thermal-guided-hot-v1',))
+    comparison.start_trial(root, 'T001')
+    comparison.start_trial(root, 'T002')
+    first, second = (root / f'trials/{t}/history.sqlite3' for t in ('T001', 'T002'))
+    second.write_bytes(first.read_bytes())  # test-owned, closed databases
+    with pytest.raises(ValueError, match='identity'):
+        comparison.start_trial(root, 'T002')
+    row = comparison.report_campaign(root)['trials'][1]
+    assert not row['feasible'] and 'identity' in row['integrity_issues'][0]['message']
+
+
+def test_usage_incurred_before_deadline_rejection_is_retained(tmp_path, monkeypatch):
+    comparison, root = campaign(tmp_path, repeats=1, case_ids=('thermal-guided-hot-v1',), methods=[llm_method()])
+    comparison.start_trial(root, 'T001')
+    usage = dict(model=llm_method()['model'], source='fixture', input_tokens=1, output_tokens=2, cost_usd=1.)
+    comparison.submit_trial(root, 'T001', SOURCE.parent, intent='wrong temperature', usage=usage)
+    monkeypatch.setattr(comparison, '_elapsed', lambda *args: 100000)
+    with pytest.raises(ValueError, match='budget'):
+        comparison.submit_trial(root, 'T001', SOURCE.parent, intent='model finished too late', usage=dict(usage, cost_usd=9.))
+    comparison.finish_trial(root, 'T001', reason='deadline')
+    row = comparison.report_campaign(root)['trials'][0]
+    assert row['model_cost_usd'] == 10. and row['input_tokens'] == 2
+    assert row['proposals'] == 1 and row['rejected_submissions'] == 1
+
+
+def test_empty_database_interruption_does_not_hide_other_slots(tmp_path, monkeypatch):
+    comparison, root = campaign(tmp_path)
+    def interrupt(path, **kwargs):
+        path.mkdir(parents=True)
+        (path / 'history.sqlite3').touch()
+        raise KeyboardInterrupt('fixture before schema creation')
+    monkeypatch.setattr(iteration, 'create_session', interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        comparison.start_trial(root, 'T001')
+    rows = comparison.report_campaign(root)['trials']
+    assert len(rows) == 6 and rows[0]['status'] == 'initialization_incomplete'
+    assert rows[0]['integrity_issues']
+    assert all(r['status'] == 'not_started' for r in rows[1:])
+
+
+def test_pending_decision_recovery_precedes_admission(tmp_path, monkeypatch):
+    comparison, root = campaign(tmp_path, repeats=1, case_ids=('thermal-guided-hot-v1',))
+    comparison.start_trial(root, 'T001')
+    comparison.submit_trial(root, 'T001', SOURCE.parent, intent='invalid initial fixture')
+    original = iteration.recover_session
+    def recover(path):
+        # Control-flow fixture only: native acceptance is tested independently.
+        snapshot = original(path)
+        with History.open(path / 'history.sqlite3') as history:
+            decision = next(e['payload'] for e in history.events() if e['kind'] == 'candidate.decision')
+            history.append('candidate.decision', dict(decision, outcome='feasible_retained'), 'C001')
+        return snapshot
+    monkeypatch.setattr(iteration, 'recover_session', recover)
+    with pytest.raises(ValueError, match='stop rule'):
+        comparison.submit_trial(root, 'T001', SOURCE.parent, intent='must not admit another candidate')
+    with History.open(root / 'trials/T001/history.sqlite3', readonly=True) as history:
+        assert len(history.candidates()) == 1
+        assert sum(e['kind'] == 'comparison.proposal' for e in history.events()) == 1
+
+
+def test_reference_cli_returns_nonzero_for_infeasible_campaign(tmp_path, monkeypatch, capsys):
+    from scripts import compare_llm_piping as comparison
+    monkeypatch.setattr(comparison, 'run_reference', lambda root: {'trials': [
+        {'kind': 'reference', 'status': 'finished', 'feasible': False}]})
+    assert comparison.main(['reference', str(tmp_path / 'fixture')]) == 1
+    assert 'false' in capsys.readouterr().out

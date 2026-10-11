@@ -38,7 +38,9 @@ python -m scripts.compare_llm_piping report D:/tuba-runs/comparison-001
 ```
 
 Initialization freezes all six slots (two repeats per case), source, evaluator,
-method, prompt, tools and budgets. Default admission limits per trial are three
+method, prompt, tools and budgets. Each trial is bound to its unique session
+identity; replacing a same-case session cannot count its results as another repeat.
+Default admission limits per trial are three
 proposals, three solver calls and 1800 wall seconds. The timer starts before
 design work; pauses and restarts count. A solve already admitted may finish after
 the wall deadline, and its evidence remains recorded. This is an admission limit,
@@ -46,6 +48,8 @@ not a hard process-kill deadline. Repeats do not reuse solver evidence or result
 
 `reference` resumes an unfinished campaign using its existing timer/history and
 skips finished trials. It never rewrites requirements to accommodate a candidate.
+The reference command returns nonzero if any reference trial is unfinished or
+infeasible; the report command remains a successful read-only inspection.
 An interruption during partial session initialization is reported explicitly; if
 the session directory lacks its history, retain it and initialize a fresh campaign.
 Changing evaluator code requires a fresh campaign; old archives remain inspectable
@@ -97,6 +101,9 @@ A failed generation can be recorded through a submission with its usage and a
 missing/invalid project; that failure still counts. `finish_trial` is a lifecycle
 marker: its text does not set engineering feasibility. Acceptance is derived from
 retained solver evidence. Candidate Python is trusted local code, not sandboxed.
+If generation crosses the admission deadline, the rejected submission retains its
+usage without admitting another candidate or solve. Reports distinguish these
+rejected submissions from admitted proposals.
 
 Model tokens/cost are **caller reported**, independently nullable fields. Missing
 usage never becomes zero; deterministic runs report zero model calls/cost, which

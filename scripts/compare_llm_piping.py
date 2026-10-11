@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import sqlite3
 import uuid
 
 from scripts import iterate_llm_piping as iteration
@@ -140,11 +141,20 @@ def _lifecycle(history, identifier):
     return start, finish
 
 
-def _session(archive, manifest, trial):
+def _binding(history, trial, recorded):
+    bindings = [e['payload'] for e in history.events() if e['kind'] == 'trial.session_bound'
+                and e['payload']['trial_id'] == trial['id']]
+    if (len(bindings) != 1 or bindings[0]['session_run_id'] != recorded['run_id']
+            or bindings[0]['manifest_digest'] != digest(recorded)):
+        raise ValueError('Trial session identity does not match its campaign binding')
+
+
+def _session(archive, manifest, trial, history):
     root = archive.path(f"trials/{trial['id']}")
-    with History.open(root / 'history.sqlite3', readonly=True) as history:
-        case = iteration._validate(ArtifactStore(root), history)
-        recorded = history.manifest()
+    with History.open(root / 'history.sqlite3', readonly=True) as own:
+        case = iteration._validate(ArtifactStore(root), own)
+        recorded = own.manifest()
+        _binding(history, trial, recorded)
         if case != manifest['cases'][trial['case_id']] or recorded['max_solver_calls'] != manifest['budgets']['max_solver_calls']:
             raise ValueError('Trial requirements disagree with campaign')
     return root
@@ -174,7 +184,16 @@ def start_trial(root, trial_id):
                                      max_solver_calls=manifest['budgets']['max_solver_calls'])
         elif not (session / 'history.sqlite3').is_file():
             raise ValueError('Trial initialization interrupted; retain this incomplete campaign and start a fresh one')
-        _session(archive, manifest, trial)
+        bindings = [e['payload'] for e in history.events() if e['kind'] == 'trial.session_bound']
+        if not any(b['trial_id'] == trial_id for b in bindings):
+            with History.open(session / 'history.sqlite3', readonly=True) as own:
+                iteration._validate(ArtifactStore(session), own)
+                recorded = own.manifest()
+                if own.events() or own.candidates() or any(b['session_run_id'] == recorded['run_id'] for b in bindings):
+                    raise ValueError('Cannot bind trial identity to a previously used session')
+            history.append('trial.session_bound', {'trial_id': trial_id, 'session_run_id': recorded['run_id'],
+                                                   'manifest_digest': digest(recorded)})
+        _session(archive, manifest, trial, history)
         return {'trial': trial, 'method': method, 'requirements': manifest['cases'][trial['case_id']],
                 'budgets': manifest['budgets'], 'session': str(session),
                 'starter_source': _starter(archive, manifest, trial['case_id'])}
@@ -211,15 +230,21 @@ def submit_trial(root, trial_id, project, *, intent, dependencies=(), usage=None
         if start is None:
             raise ValueError('Start the trial before design work')
         usage = _usage(usage, method)
-        session = _session(archive, manifest, trial)
+        session = _session(archive, manifest, trial, history)
+        # A completed evaluation may still need its decision after an interruption.
+        iteration.recover_session(session)
         with History.open(session / 'history.sqlite3', readonly=True) as own:
             events, candidates = own.events(), own.candidates()
         proposals = sum(e['kind'] == 'comparison.proposal' for e in events)
         budget = manifest['budgets']
         if (proposals >= budget['max_proposals'] or _elapsed(start['timestamp']) >= budget['max_wall_seconds']
                 or sum(e['kind'] == 'solver.invoked' for e in events) >= budget['max_solver_calls']):
+            with History.open(session / 'history.sqlite3') as own:
+                own.append('comparison.admission_rejected', {'usage': usage, 'intent': intent, 'reason': 'budget'})
             raise ValueError('Trial admission budget exhausted')
         if any(e['kind'] == 'candidate.decision' and e['payload']['outcome'] == 'feasible_retained' for e in events):
+            with History.open(session / 'history.sqlite3') as own:
+                own.append('comparison.admission_rejected', {'usage': usage, 'intent': intent, 'reason': 'first feasible'})
             raise ValueError('Trial stop rule reached: first feasible candidate')
         candidate_id = f'C{proposals + 1:03}'
         with History.open(session / 'history.sqlite3') as own:
@@ -246,7 +271,7 @@ def finish_trial(root, trial_id, *, reason):
             raise ValueError('Trial has not started')
         if finish:
             raise ValueError('Trial already finished')
-        iteration.recover_session(_session(archive, manifest, trial))
+        iteration.recover_session(_session(archive, manifest, trial, history))
         history.append('trial.finished', {'trial_id': trial_id, 'reason': reason})
 
 
@@ -282,7 +307,7 @@ def _trial_report(archive, manifest, history, trial, method):
     row = {**trial, 'representation': method['representation'], 'kind': method['kind'],
            'status': 'not_started', 'feasible': False, 'first_feasible_seconds': None,
            'first_feasible_solver_calls': None, 'wall_seconds': None, 'best_objectives': None,
-           'solver_calls': 0, 'proposals': 0, 'submission_failures': 0, 'candidate_outcomes': {},
+           'solver_calls': 0, 'proposals': 0, 'submission_failures': 0, 'rejected_submissions': 0, 'candidate_outcomes': {},
            'model_cost_usd': None, 'input_tokens': None, 'output_tokens': None,
            'usage_basis': 'not_started', 'integrity_issues': []}
     if start is None:
@@ -292,20 +317,35 @@ def _trial_report(archive, manifest, history, trial, method):
                wall_seconds=_elapsed(start['timestamp'], finish['timestamp'] if finish else None))
     session = archive.path(f"trials/{trial['id']}")
     if not (session / 'history.sqlite3').is_file():
-        row.update(status='initialization_incomplete', usage_basis='unknown')
+        row.update(status='finished' if finish else 'initialization_incomplete', usage_basis='unknown',
+                   integrity_issues=[{'message': 'Trial history is missing'}])
         return row
-    snapshot = inspect_history(session)
+    try:
+        snapshot = inspect_history(session)
+    except (OSError, ValueError, sqlite3.Error, KeyError) as exc:
+        row.update(status='finished' if finish else 'initialization_incomplete', usage_basis='unknown',
+                   integrity_issues=[{'message': f'Trial history unavailable: {exc}'}])
+        return row
+    try:
+        _binding(history, trial, snapshot['run'])
+    except ValueError as exc:
+        row.update(status='finished' if finish else 'integrity_failed', usage_basis='unknown',
+                   integrity_issues=[{'message': str(exc)}])
+        return row
     events = snapshot['events']
     proposals = [e['payload'] for e in events if e['kind'] == 'comparison.proposal']
+    rejected = [e['payload'] for e in events if e['kind'] == 'comparison.admission_rejected']
     row.update(proposals=len(proposals), solver_calls=sum(e['kind'] == 'solver.invoked' for e in events),
+               rejected_submissions=len(rejected),
                submission_failures=sum(e['kind'] == 'comparison.submission_failed' for e in events),
                candidate_outcomes=dict(Counter(c['outcome'] for c in snapshot['candidates'])))
     if method['kind'] == 'reference':
         row.update(model_cost_usd=0., input_tokens=0, output_tokens=0, usage_basis='no_model_calls')
     else:
-        row['usage_basis'] = 'caller_reported' if proposals and all(p['usage'] is not None for p in proposals) else 'unknown'
+        submissions = proposals + rejected
+        row['usage_basis'] = 'caller_reported' if submissions and all(p['usage'] is not None for p in submissions) else 'unknown'
         for column, key in (('model_cost_usd', 'cost_usd'), ('input_tokens', 'input_tokens'), ('output_tokens', 'output_tokens')):
-            values = [(p['usage'] or {}).get(key) for p in proposals]
+            values = [(p['usage'] or {}).get(key) for p in submissions]
             row[column] = sum(values) if values and all(v is not None for v in values) else None
     try:
         recorded = snapshot['run']
@@ -407,7 +447,8 @@ def main(argv=None):
         atomic_json(args.output, result)
     else:
         print(json.dumps(result, indent=2, allow_nan=False))
-    return 0
+    return int(args.command == 'reference' and any(
+        r['kind'] == 'reference' and (r['status'] != 'finished' or not r['feasible']) for r in result['trials']))
 
 
 if __name__ == '__main__':
