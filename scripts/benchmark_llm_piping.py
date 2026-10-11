@@ -41,11 +41,12 @@ CASE = {
 }
 
 
-def _base_model() -> TubaModel:
+def _base_model(*, case=None) -> TubaModel:
+    case = CASE if case is None else case
     model = Model('Benchmark requirements')
-    model.add_material('Steel', **CASE['material'])
-    model.add_pipe_section('DN100', **CASE['section'])
-    model.define_load_case('Hot', **CASE['operation'])
+    model.add_material('Steel', **case['material'])
+    model.add_pipe_section('DN100', **case['section'])
+    model.define_load_case('Hot', **case['operation'])
     return model
 
 
@@ -53,18 +54,20 @@ def _check(identifier: str, passed: bool, message: str) -> dict:
     return {'id': identifier, 'status': 'pass' if passed else 'fail', 'message': message}
 
 
-def _endpoints(model: TubaModel) -> dict[str, str | None]:
+def _endpoints(model: TubaModel, *, case=None) -> dict[str, str | None]:
+    case = CASE if case is None else case
     return {
         label: next((node.id for node in model.nodes.values()
                      if np.allclose(node.coords, point, rtol=0., atol=1e-8)), None)
-        for label, point in CASE['endpoints_m'].items()
+        for label, point in case['endpoints_m'].items()
     }
 
 
-def _bend_data(model, element):
+def _bend_data(model, element, *, case=None):
     """Validate the actual quarter-circle; include exact axis extrema for bounds."""
+    case = CASE if case is None else case
     geometry = element.bend_geometry
-    valid = (element.bend_radius == CASE['bend_radius_m']
+    valid = (element.bend_radius == case['bend_radius_m']
              and abs(element.bend_angle or 0.) == 90. and geometry is not None)
     if not valid or element.n1 not in model.nodes or element.n2 not in model.nodes:
         return False, [], None, None
@@ -102,9 +105,10 @@ def _bend_data(model, element):
     return bool(valid), points, start_direction, end_direction
 
 
-def check_candidate(model: TubaModel) -> list[dict]:
+def check_candidate(model: TubaModel, *, case=None) -> list[dict]:
     """Check compiled engineering requirements independently of candidate source."""
-    payload, expected = model.to_dict(), _base_model().to_dict()
+    case = CASE if case is None else case
+    payload, expected = model.to_dict(), _base_model(case=case).to_dict()
     geometry_fields = {'meta', 'nodes', 'elements', 'supports', 'groups'}
     checks = [
         _check(f'fixed_{key}', payload.get(key) == value,
@@ -114,14 +118,14 @@ def check_candidate(model: TubaModel) -> list[dict]:
     meta = {key: value for key, value in payload['meta'].items() if key != 'project_name'}
     expected_meta = {key: value for key, value in expected['meta'].items() if key != 'project_name'}
     checks.append(_check('fixed_model_settings', meta == expected_meta, 'Keep default model/mesh settings.'))
-    endpoints = _endpoints(model)
+    endpoints = _endpoints(model, case=case)
     checks.append(_check('fixed_endpoints', all(endpoints.values()), 'Keep both nozzle coordinates.'))
     restraints = [{key: value for key, value in support.to_dict().items() if key != 'id'}
                   for support in model.supports]
     required = [{'node': node, 'type': 'anchor'} for node in endpoints.values()]
     checks.append(_check('fixed_supports', len(restraints) == 2 and all(r in restraints for r in required),
                          'Only two unchanged ground anchors at the nozzles are permitted.'))
-    valid_elements = bool(model.elements) and len(model.elements) <= CASE['max_elements']
+    valid_elements = bool(model.elements) and len(model.elements) <= case['max_elements']
     points = [node.coords for node in model.nodes.values()]
     adjacency = {node: [] for node in model.nodes}
     tangents = {node: [] for node in model.nodes}
@@ -134,7 +138,7 @@ def check_candidate(model: TubaModel) -> list[dict]:
         else:
             valid_elements = False
         if element.type == 'pipe_bend':
-            valid_bend, arc, start, end = _bend_data(model, element)
+            valid_bend, arc, start, end = _bend_data(model, element, case=case)
             valid_elements &= valid_bend
             points.extend(arc)
             if start is not None:
@@ -149,7 +153,7 @@ def check_candidate(model: TubaModel) -> list[dict]:
             else:
                 valid_elements = False
     checks.append(_check('allowed_elements', bool(valid_elements),
-                         'Use at most 40 DN100 steel straights and 0.3 m radius 90-degree bends.'))
+                         f"Use at most {case['max_elements']} DN100 steel straights and {case['bend_radius_m']} m radius 90-degree bends."))
     visited, pending = set(), [endpoints['inlet']] if endpoints['inlet'] else []
     while pending:
         node = pending.pop()
@@ -168,28 +172,29 @@ def check_candidate(model: TubaModel) -> list[dict]:
     checks.append(_check('route_tangency', continuous,
                          'Join members tangentially; sharp corners cannot replace the specified bends.'))
     coordinates = np.asarray(points)
-    low, high = np.asarray(CASE['centerline_bounds_m'])
+    low, high = np.asarray(case['centerline_bounds_m'])
     inside = (coordinates.size > 0 and np.isfinite(coordinates).all()
               and (coordinates >= low - 1e-8).all() and (coordinates <= high + 1e-8).all())
     checks.append(_check('route_envelope', bool(inside),
-                         'Keep the planar centerline in x=[0,12], y=[0,4], z=0 m.'))
+                         f"Keep the centerline between {low.tolist()} and {high.tolist()} m."))
     return checks
 
 
-def reaction_checks(model: TubaModel, run: AnalysisRun) -> list[dict]:
+def reaction_checks(model: TubaModel, run: AnalysisRun, *, case=None) -> list[dict]:
     """Return measured endpoint resultants; absent or nonfinite data stays unknown."""
+    case = CASE if case is None else case
     run.validate_for_publication(model)
     if run.study.load_case != 'Hot':
         raise ValueError('Benchmark results must belong to operation Hot.')
     checks = []
-    for label, node in _endpoints(model).items():
+    for label, node in _endpoints(model, case=case).items():
         result = run.results.node_results.get(node)
         raw = None if result is None else result.reaction_force
         values = np.asarray(raw, dtype=float) if raw is not None else np.array([])
         available = values.shape == (6,) and np.isfinite(values).all()
         for quantity, indices, limit, unit in (
-            ('force', slice(0, 3), CASE['force_limit_N'], 'N'),
-            ('moment', slice(3, 6), CASE['moment_limit_Nm'], 'N m'),
+            ('force', slice(0, 3), case['force_limit_N'], 'N'),
+            ('moment', slice(3, 6), case['moment_limit_Nm'], 'N m'),
         ):
             value = float(np.linalg.norm(values[indices])) if available else None
             checks.append({

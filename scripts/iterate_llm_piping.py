@@ -11,6 +11,7 @@ import sqlite3
 import uuid
 
 from scripts import benchmark_llm_piping as benchmark
+from scripts.piping_comparison_cases import CASE_IDS, DEFAULT_CASE_ID, get_case
 from tuba.project import load_project
 from tuba.project.freshness import expected_identity
 from tuba.project.study import StudySettings
@@ -23,27 +24,25 @@ from tuba.search.run import coordinator, digest, objective_values
 
 
 REPO = Path(__file__).resolve().parents[1]
-CASE = {**benchmark.CASE, 'id': 'thermal-guided-design-v1',
-        'solver_options': {**benchmark.CASE['solver_options'], 'timeout_seconds': 600},
-        'support_policy': {'max_guides': 4, 'directions': [[0., 1., 0.], [0., 0., 1.]],
-                           'placement': 'Distinct interior nodes; ideal bilateral ground guides only.'}}
-IMPLEMENTATION = ('scripts/iterate_llm_piping.py', 'scripts/benchmark_llm_piping.py',
+CASE = get_case()
+IMPLEMENTATION = ('scripts/iterate_llm_piping.py', 'scripts/benchmark_llm_piping.py', 'scripts/piping_comparison_cases.py',
                   'tuba/search/contracts.py', 'tuba/search/checks.py', 'tuba/search/evaluate.py',
                   'tuba/search/artifacts.py', 'tuba/search/history.py', 'tuba/search/run.py', 'tuba/search/export.py')
 
 
-def design_checks(model):
+def design_checks(model, *, case=None):
     """Keep L1's fixed engineering problem; apply this case's explicit guide policy."""
-    checks = [c for c in benchmark.check_candidate(model) if c['id'] != 'fixed_supports']
-    endpoints = set(benchmark._endpoints(model).values())
+    case = CASE if case is None else case
+    checks = [c for c in benchmark.check_candidate(model, case=case) if c['id'] != 'fixed_supports']
+    endpoints = set(benchmark._endpoints(model, case=case).values())
     restraints = [{k: v for k, v in support.to_dict().items() if k != 'id'} for support in model.supports]
     anchors = [r for r in restraints if r['node'] in endpoints]
     guides = [r for r in restraints if r['node'] not in endpoints]
     correct = (len(anchors) == 2 and all({'node': node, 'type': 'anchor'} in anchors for node in endpoints)
-               and len(guides) <= CASE['support_policy']['max_guides']
+               and len(guides) <= case['support_policy']['max_guides']
                and len({r['node'] for r in guides}) == len(guides)
                and all(r['node'] in model.nodes and set(r) == {'node', 'type', 'direction'}
-                       and r['type'] == 'guide' and r['direction'] in CASE['support_policy']['directions']
+                       and r['type'] == 'guide' and r['direction'] in case['support_policy']['directions']
                        for r in guides))
     checks.append(benchmark._check('allowed_supports', correct,
                   'Keep nozzle anchors; allow up to four distinct interior ideal Y/Z ground guides.'))
@@ -57,7 +56,8 @@ def _implementation():
             for name in IMPLEMENTATION}
 
 
-def create_session(root: Path, *, max_solver_calls: int = 10):
+def create_session(root: Path, *, max_solver_calls: int = 10, case_id=DEFAULT_CASE_ID):
+    case = get_case(case_id)
     root = Path(root).absolute()
     no_links(root)
     if root.resolve().is_relative_to(REPO) or any((parent / '.git').exists() for parent in (root, *root.parents)):
@@ -66,15 +66,15 @@ def create_session(root: Path, *, max_solver_calls: int = 10):
         raise ValueError('max_solver_calls must be a nonnegative integer')
     root.mkdir(parents=True, exist_ok=False)
     archive = ArtifactStore(root)
-    atomic_json(root / 'requirements.json', CASE)
+    atomic_json(root / 'requirements.json', case)
     source = archive.capture_files(root, ('requirements.json',))
     evaluator = archive.capture_files(REPO, IMPLEMENTATION)
     manifest = {'schema': SCHEMA, 'run_id': 'R' + uuid.uuid4().hex,
-                'mode': 'authored-piping', 'case_id': CASE['id'], 'scope': CASE['scope'],
+                'mode': 'authored-piping', 'case_id': case['id'], 'scope': case['scope'],
                 'source_manifest_ref': source, 'evaluator_manifest_ref': evaluator,
-                'requirements_digest': digest(CASE), 'implementation': _implementation(),
+                'requirements_digest': digest(case), 'implementation': _implementation(),
                 'max_solver_calls': max_solver_calls,
-                'settings': {'operations': ['Hot'], 'solver_options': CASE['solver_options'], 'volume_export': None}}
+                'settings': {'operations': ['Hot'], 'solver_options': case['solver_options'], 'volume_export': None}}
     with History.create(root / 'history.sqlite3', manifest):
         pass
     return manifest
@@ -92,12 +92,14 @@ def _validate(archive, history):
     manifest = history.manifest()
     if manifest.get('mode') != 'authored-piping':
         raise ValueError('Expected an authored piping session')
-    if (manifest['requirements_digest'] != digest(CASE)
+    case = get_case(manifest['case_id'])
+    if (manifest['requirements_digest'] != digest(case)
             or manifest['implementation'] != _implementation()
-            or digest(json.loads(archive.path('requirements.json').read_text())) != digest(CASE)):
+            or digest(json.loads(archive.path('requirements.json').read_text())) != digest(case)):
         raise ValueError('Session frozen requirements/evaluator changed; initialize a new session.')
     archive.verify_inventory(manifest['source_manifest_ref'])
     archive.verify_inventory(manifest['evaluator_manifest_ref'])
+    return case
 
 
 def _source_files(archive, candidate):
@@ -124,14 +126,15 @@ def _source_events(archive, history, candidate):
     return files
 
 
-def _reaction_specs(model):
+def _reaction_specs(model, *, case=None):
+    case = CASE if case is None else case
     return tuple(CheckSpec(f'{label}_{quantity}', 'user_evaluator', True, ('Hot',), (f'node:{node}',),
-                           CASE[f'{quantity}_limit_{suffix}'], unit, {})
-                 for label, node in benchmark._endpoints(model).items()
+                           case[f'{quantity}_limit_{suffix}'], unit, {})
+                 for label, node in benchmark._endpoints(model, case=case).items()
                  for quantity, suffix, unit in (('force', 'N', 'N'), ('moment', 'Nm', 'N m')))
 
 
-def _reactions(context):
+def _reactions(context, *, case=None):
     run = context.runs['Hot']
     evidence = (str(Path(run.study.work_dir) / 'study_reac.csv'),)
     return tuple(CheckResult(check['id'], check['status'], True, 'code_aster',
@@ -140,7 +143,7 @@ def _reactions(context):
                    check['message'], (check['entity'],), evidence, {'components': check['components']},
                    operation='Hot', result_state_id=check['result_state_id'], measured_value=check['value'],
                    limit=check['limit'], unit=check['unit'], comparator='max')
-                 for check in benchmark.reaction_checks(context.model, run))
+                 for check in benchmark.reaction_checks(context.model, run, case=case))
 
 
 def _decision(history, decision):
@@ -184,6 +187,7 @@ def recover_session(root):
 
 
 def _evaluate(archive, history, candidate):
+    case = get_case(history.manifest()['case_id'])
     files = _source_events(archive, history, candidate)
     source = files['model.py']
     parameters_path = archive.path(f'candidates/{candidate.id}/parameters.json')
@@ -197,12 +201,12 @@ def _evaluate(archive, history, candidate):
         model = namespace['model']
         checks = tuple(CheckResult(c['id'], c['status'], True, 'model',
                                   'requirement_satisfied' if c['status'] == 'pass' else 'requirement_changed', c['message'])
-                       for c in design_checks(model))
+                       for c in design_checks(model, case=case))
         specs = (CheckSpec('cold.model', 'cold_model', True, (), (), None, None, {}),
                  CheckSpec('evidence.Hot', 'evidence_verified', True, ('Hot',), (), None, None, {}),
                  *(CheckSpec(c.constraint_id, 'design_requirement', True, (), (), None, None, {}) for c in checks),
-                 *_reaction_specs(model))
-        settings = StudySettings(('Hot',), dict(CASE['solver_options']), None)
+                 *_reaction_specs(model, case=case))
+        settings = StudySettings(('Hot',), dict(case['solver_options']), None)
         # Only well-formed candidates need solver export identities/objectives.
         valid = all(c.verdict == 'pass' for c in checks)
         data = {'design_digest': digest(model.to_dict()), 'source_manifest_ref': candidate.parameters['source_manifest_ref'],
@@ -226,7 +230,7 @@ def _evaluate(archive, history, candidate):
         # Source errors are not measured engineering rejections.
         return _decision(history, Decision(candidate.id, 'build-' + uuid.uuid4().hex, 'evaluation_failed',
                           ('candidate_build_failed',), details={'type': type(exc).__name__, 'message': str(exc)}))
-    context = EvaluationContext({'__search_model_script__': source.read_text(encoding='utf-8-sig')}, settings, specs, _reactions)
+    context = EvaluationContext({'__search_model_script__': source.read_text(encoding='utf-8-sig')}, settings, specs, lambda context: _reactions(context, case=case))
     if valid and sum(e['kind'] == 'solver.invoked' for e in history.events()) >= history.manifest()['max_solver_calls']:
         return _decision(history, Decision(candidate.id, 'budget-' + uuid.uuid4().hex, 'deferred', ('solver_call_budget',)))
 
@@ -282,6 +286,7 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     init = commands.add_parser('init')
     init.add_argument('session', type=Path)
+    init.add_argument('--case', choices=CASE_IDS, default=DEFAULT_CASE_ID)
     init.add_argument('--max-solver-calls', type=int, default=10)
     propose = commands.add_parser('submit')
     propose.add_argument('session', type=Path)
@@ -298,7 +303,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == 'init':
-            result = create_session(args.session, max_solver_calls=args.max_solver_calls)
+            result = create_session(args.session, max_solver_calls=args.max_solver_calls, case_id=args.case)
         elif args.command == 'submit':
             result = submit(args.session, args.project, args.candidate_id, parents=args.parent,
                             intent=args.intent, dependencies=args.dependency)
