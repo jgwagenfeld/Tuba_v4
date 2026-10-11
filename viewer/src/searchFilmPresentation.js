@@ -27,6 +27,7 @@ function objectPoint(scene, id, end = null) {
 
 export function filmPresentation(frame, scene, operation, state) {
   const mode = frame.result_view ?? 'finding';
+  if (mode === 'iteration') return iterationPresentation(frame, scene, operation, state);
   const annotations = [], rows = [];
   let title = frame.check ? `${frame.check.verdict.toUpperCase()}: ${frame.check.constraint_id}` : 'Recorded candidate';
   // Reactions are a nodal quantity. Colour the pipe by its own measured stress
@@ -125,8 +126,86 @@ export function filmPresentation(frame, scene, operation, state) {
     fieldType, unitSystem: fieldType === 'stress' ? 'engineering' : 'si' };
 }
 
+function parameter(value, key) {
+  const label = key.replace(/_m$/, '').replaceAll('_', ' ');
+  return `${label}: ${String(value).replaceAll('_', ' ')}${key.endsWith('_m') ? ' m' : ''}`;
+}
+
+function iterationPresentation(frame, scene, operation, state) {
+  const title = frame.phase === 'selection' ? 'Final choice after testing all layouts'
+    : `Piping iteration ${frame.iteration_index} / ${frame.candidate_count}`;
+  const rows = frame.phase === 'selection' ? [] : [Object.entries(frame.parameters ?? {}).map(([k, v]) => parameter(v, k)).join(' · ')];
+  if (frame.reference_candidate_id && frame.phase !== 'selection') {
+    const changes = frame.parameter_changes ?? [];
+    rows.push(changes.length ? `Changed from ${frame.reference_candidate_id}: ${changes.map(c =>
+      `${parameter(c.before, c.key)} → ${String(c.after).replaceAll('_', ' ')}${c.key.endsWith('_m') ? ' m' : ''}`).join('; ')}`
+      : 'Same layout; evaluation retry.');
+  }
+  const sameState = !frame.native_results || (operation === frame.operation && (!frame.result_state_id || state === frame.result_state_id));
+  const native = frame.native_results && sameState;
+  const base = native ? filmPresentation({ result_view: 'stress' }, scene, operation, state)
+    : { annotations: [], fieldId: null, fieldType: 'stress', component: 'magnitude', unitSystem: 'si' };
+  const annotations = [];
+  const clashes = new Map();
+  const failures = (frame.checks ?? []).filter(c => c.verdict === 'fail' &&
+    (c.operation ?? null) === (native ? operation : null) && (c.result_state_id ?? null) === (native ? state : null));
+  for (const check of failures) {
+    for (const clash of check.details?.clashes ?? []) {
+      const key = JSON.stringify([clash.left?.id, clash.right?.id, clash.location, clash.penetration_m]);
+      if (!clashes.has(key)) clashes.set(key, clash);
+    }
+    if (!(check.details?.clashes ?? []).length) {
+      rows.push(`${check.constraint_id}: ${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`);
+      const finding = filmPresentation({ check }, scene, operation, state);
+      annotations.push(...finding.annotations.filter(a => a.severity !== 'result'));
+    }
+  }
+  for (const [index, clash] of [...clashes.values()].entries()) {
+    if (!point(clash.location)) continue;
+    const clearance = String(clash.severity).includes('clearance');
+    annotations.push({ point: clash.location, severity: 'fail', label:
+      `${index + 1}. ${clash.left?.id ?? 'pipe'} / ${clash.right?.id ?? 'obstacle'}: ${clearance ? 'clearance deficit' : 'overlap'} ${number(clash.penetration_m * 1000)} mm` });
+  }
+  if (clashes.size) rows.push(`${clashes.size} recorded collision / clearance findings. Red rings mark their locations.`);
+  const operating = [...clashes.values()].find(c => finite(c.metadata?.cold_distance_m) && finite(c.metadata?.operating_distance_m));
+  if (operating) rows.push(`Gap to ${operating.right?.id}: cold ${number(operating.metadata.cold_distance_m * 1000)} mm → ${operation} ${number(operating.metadata.operating_distance_m * 1000)} mm.`);
+  if (operating) rows.push('Reference layout; red rings locate the physical operating-check findings.');
+  if (native) {
+    annotations.push(...base.annotations);
+    const counts = frame.check_counts;
+    rows.push(`${counts.pass} checks passed · ${counts.fail} failed · ${counts.unknown} unknown (${frame.completed_operations.join(' + ')}).`);
+    if (!counts.fail && !counts.unknown && frame.phase !== 'selection') rows.push('All declared checks satisfied; retained for comparison.');
+    rows.push(base.rows[0]);
+    if (frame.phase !== 'selection') rows.push('Pipe colours: element maximum FE stress (MPa). Support labels: F (N), M (N m).');
+  } else {
+    rows.push(frame.outcome === 'interrupted' ? 'Attempt interrupted. No completed Code_Aster results; loads and stress unavailable.'
+      : frame.check_counts?.fail && !frame.completed_operations?.length ? 'Rejected before solving. Support loads and stress were not evaluated.'
+      : 'No completed Code_Aster results. Support loads and stress unavailable.');
+    if (frame.check_counts?.unknown) rows.push(`${frame.check_counts.unknown} required checks remain unknown.`);
+  }
+  if (frame.native_results && !sameState) rows.push('Requested solver state unavailable; no substitute results displayed.');
+  if (frame.phase === 'selection') {
+    const order = frame.finalists.find(c => c.candidate_id === frame.candidate_id)?.details?.objective_fields ?? [];
+    rows.push(`Chosen ${frame.candidate_id}: ${number(frame.objectives.pipe_length_m)} m · ${number(frame.objectives.bend_count)} bends · ${number(frame.objectives.support_count)} supports.\nRank order: ${order.map(k => k.replaceAll('_', ' ')).join(', ')}, then proposal order.`);
+    for (const c of frame.finalists.filter(c => c.candidate_id !== frame.candidate_id)) {
+      const winner = frame.objectives;
+      const tied = Object.keys(winner).length && Object.keys(winner).every(k => c.objectives[k] === winner[k]);
+      rows.push(tied && c.reason_codes?.includes('lexicographic_objectives_and_proposal_order') ? `${c.candidate_id}: feasible, tied objectives; earlier proposal selected.`
+        : `${c.candidate_id}: feasible, not selected (${number(c.objectives.pipe_length_m)} m, ${number(c.objectives.bend_count)} bends, ${number(c.objectives.support_count)} supports).`);
+    }
+  } else if (Object.keys(frame.objectives).length) rows.push(`Layout: ${number(frame.objectives.pipe_length_m)} m · ${number(frame.objectives.bend_count)} bends · ${number(frame.objectives.support_count)} supports.`);
+  return { ...base, title, rows: rows.filter(Boolean), annotations, mode: 'iteration' };
+}
+
 export function conciseFilmCaption(frame, presentation, operation, state, error) {
   const outcome = frame.caption.match(/Recorded outcome: ([^\n]+)/)?.[1] ?? 'not recorded';
+  if (frame.result_view === 'iteration') {
+    const labels = { rejected_constraint: 'REJECTED — declared constraint', feasible_retained: 'FEASIBLE — kept for comparison',
+      interrupted: 'INTERRUPTED — no completed result', evaluation_failed: 'EVALUATION FAILED', selected: 'SELECTED' };
+    return [`${frame.candidate_id} · ${presentation.title}`, labels[frame.outcome] ?? outcome.replaceAll('_', ' '),
+      `${operation ?? 'Cold layout'} · ${state ?? 'no solver state'}`,
+      ...(error ? [`View unavailable: ${error}`] : presentation.rows), `Recorded event ${frame.event_sequence}`].join('\n\n');
+  }
   return [`${frame.candidate_id ?? 'Run'} · ${outcome.replaceAll('_', ' ')}`,
     presentation.title, `${operation ?? 'Cold reference'} · ${state ?? 'no solver state'}`,
     ...(error ? [`View unavailable: ${error}`] : presentation.rows),

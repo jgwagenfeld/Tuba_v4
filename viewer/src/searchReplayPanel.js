@@ -197,13 +197,13 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
   }
   render();
   return { select, move, snapshot: () => snapshot,
-    async seek(next, id, attempt, checkIndex = null) {
+    async seek(next, id, attempt, checkIndex = null, reference = false) {
       sequence = next; candidateId = id; evaluationId = attempt;
       render({ displayView: false });
       if (id && selected?.id !== id || attempt && evaluation?.id !== attempt) throw new Error('Film scope not available at this event');
       const check = checkIndex == null ? null : evaluation?.checks?.[checkIndex];
       if (checkIndex != null && !check) throw new Error('Film finding not available at this event');
-      return display(check ? (check.operation ? evaluation.review : selected.preview) : evaluation?.review ?? selected?.preview, check);
+      return display(reference ? selected?.preview : check ? (check.operation ? evaluation.review : selected.preview) : evaluation?.review ?? selected?.preview, reference ? null : check);
     }
   };
 }

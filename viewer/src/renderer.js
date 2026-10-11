@@ -252,6 +252,7 @@ const SCENE_GRAPH_STATE_KEYS = [
   "colorChannel",
   "resultVectorScales",
   "supportReactionPresentation",
+  "searchIterationPresentation",
   "bodyOpacity",
   "sourceMeshObjectIds",
   "subpointMode",
@@ -2832,7 +2833,7 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     config.opacity = Number.isFinite(declared) ? Math.min(declared, bodyLimit) : bodyLimit;
     config.transparent = true;
   }
-  if (state.supportReactionPresentation && sceneStage(state) !== 'build' && String(config.source).includes('obstacle')) {
+  if ((state.supportReactionPresentation || state.searchIterationPresentation) && sceneStage(state) !== 'build' && String(config.source).includes('obstacle')) {
     config.opacity = 0.12; config.transparent = true;
   }
   if (String(asset.format ?? "").toLowerCase() === "vector") {

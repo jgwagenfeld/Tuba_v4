@@ -40,7 +40,7 @@ def test_invalid_options_fail_before_starting_capture(tmp_path, options):
         write_search_film(package(tmp_path), tmp_path / 'film', **options)
 
 
-@pytest.mark.parametrize('events', ['all', 'review'])
+@pytest.mark.parametrize('events', ['all', 'review', 'iterations'])
 def test_cli_passes_film_options_without_a_solver(tmp_path, monkeypatch, capsys, events):
     calls = []
     def capture(replay, output, **options):
@@ -50,6 +50,17 @@ def test_cli_passes_film_options_without_a_solver(tmp_path, monkeypatch, capsys,
     assert calls[0][2]['start'] == 2 and calls[0][2]['end'] == 8
     assert calls[0][2]['fps'] == 30 and calls[0][2]['hold_seconds'] == 1.5
     assert calls[0][2]['events'] == events
+
+
+def test_default_film_follows_iterations_with_readable_holds(tmp_path, monkeypatch):
+    calls = []
+    def capture(replay, output, **options):
+        calls.append(options)
+        return output / 'film.json'
+    monkeypatch.setattr('tuba.search.__main__.write_search_film', capture)
+    assert main(['film', '--replay-dir', str(tmp_path / 'replay'), '--output', str(tmp_path / 'film')]) == 0
+    assert calls[0]['events'] == 'iterations'
+    assert calls[0]['hold_seconds'] == 8.0
 
 
 def test_failed_capture_stops_server_and_reports_retained_failure(tmp_path, monkeypatch):

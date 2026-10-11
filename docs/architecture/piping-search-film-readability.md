@@ -1,5 +1,38 @@
 # Piping search film: readable findings and native results
 
+The default film now follows the **tested piping layouts**, rather than cycling
+through every result field. `--events iterations --hold-seconds 8` shows each
+evaluation and its decision, the dimensions or guide layout changed from the
+previous test, all recorded failures for one operation/state, native support
+forces and moments, and pipe stress together. Failures from different operations
+or increments stay in separate views of that iteration. Duplicate collision
+records from two checks are drawn once; all checks remain in the manifest.
+
+Cold collision rejections show the reference layout through transparent equipment
+and label loads/stress unavailable. An interrupted attempt keeps its reference
+layout and unknown checks without borrowing the successful retry's results.
+Solved iterations display the failed operating state, or Hot when there are no
+failures and Hot is available. The card reports the declared check totals across
+all completed operations; it does not claim the displayed operation governs
+every quantity. Red rings distinguish solid overlap from clearance deficit.
+Operating-clearance cards show the recorded cold and operating gap. The pipe is
+the reference layout; the recorded physical operating check supplies the clash
+locations, rather than an exaggerated animated shape.
+
+The final frame explains the recorded objective comparison. Feasible alternatives
+are not labelled failed; C0010 ties C0009 on the declared objectives and proposal
+order resolves that tie. A generated `index.html` plays the movie and offers
+iteration chapters, including interruption, retry, and final choice.
+
+The iteration movie and validation are retained at
+`D:/tuba-runs/Tuba_v4/search-iterations-20261011`: 12 layouts, one interrupted
+attempt, and one final-selection frame, held eight seconds each (112 seconds).
+The original open player at
+`D:/tuba-runs/Tuba_v4/search-film-readable-20261011/film/index.html` opens this
+iteration movie. Detailed field-tour policies remain available for inspection.
+
+The following describes those detailed review views and their earlier exports.
+
 The original film put long technical captions below a small drawing and held
 each frame for two seconds. Selecting involved objects did not explain the
 failure visibly. Hidden review controls also consumed viewport space.

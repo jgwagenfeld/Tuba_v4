@@ -27,8 +27,8 @@ def _runtime(value, name):
 
 
 def write_search_film(replay_directory, output_directory, *, ffmpeg=None, node=None,
-                      start=1, end=None, events='milestones', fps=25,
-                      hold_seconds=2.0, width=1600, height=900):
+                      start=1, end=None, events='iterations', fps=25,
+                      hold_seconds=8.0, width=1600, height=900):
     """Export held recorded frames; no agent or fresh Code_Aster run is involved.
 
     Requires the source checkout's viewer capture script, Node/Playwright,
@@ -51,7 +51,7 @@ def write_search_film(replay_directory, output_directory, *, ffmpeg=None, node=N
         not 0 < hold_seconds <= 30 or int(fps * hold_seconds + .5) < 1 or
         type(width) is not int or not 640 <= width <= 3840 or width % 2 or
         type(height) is not int or not 360 <= height <= 2160 or height % 2 or
-        events not in ('all', 'milestones', 'review')):
+        events not in ('all', 'milestones', 'review', 'iterations')):
         raise ValueError('Invalid film range, fps, hold, size or events policy')
     encoder = _runtime(ffmpeg or os.environ.get('TUBA_FFMPEG') or 'ffmpeg', 'FFmpeg VP8 encoder')
     node_path = _runtime(node or os.environ.get('TUBA_NODE') or 'node', 'Node/Playwright capture runtime')

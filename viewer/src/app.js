@@ -607,10 +607,19 @@ function initSearchFilm(replay, baseUrl) {
     async show(requested) {
       const frame = plan?.keyframes.find(f => f.frame_id === requested.frame_id);
       if (!frame) throw new Error('Unknown planned film frame');
-      const view = await replay.seek(frame.event_sequence, frame.candidate_id, frame.evaluation_id, frame.check_index);
+      const iteration = frame.result_view === 'iteration';
+      scale.textContent = iteration
+        ? 'Pipe: reference layout + FE stress · Blue: support force (N) · Orange: support moment (N m) · Red rings: failed check locations · Arrow display scales differ'
+        : 'Blue arrows: support force (N) · Orange curved arrows: support moment (N m) · Separate display scales · Physical deformation ×1';
+      const view = await replay.seek(frame.event_sequence, frame.candidate_id, frame.evaluation_id, frame.check_index, iteration && !frame.native_results);
+      currentState = { ...currentState, searchIterationPresentation: iteration };
       dispatch({ type: 'setUnitSystem', unitSystem: 'si' });
       dispatch({ type: 'setVisualDeformationScale', scale: 1 });
-      if (!frame.check) {
+      if (iteration) {
+        dispatch({ type: 'setActiveLoadCase', loadCase: frame.native_results ? frame.operation : null });
+        if (frame.result_state_id || !frame.native_results) dispatch({ type: 'setActiveResultState', resultStateId: frame.native_results ? frame.result_state_id : null });
+        dispatch({ type: 'selectObjects', objectIds: [] });
+      } else if (!frame.check) {
         dispatch({ type: 'setActiveLoadCase', loadCase: frame.operation ?? currentBundle?.scene?.search?.solved_operations?.[0] ?? null });
         dispatch({ type: 'selectObjects', objectIds: [] });
       }
@@ -639,8 +648,8 @@ function initSearchFilm(replay, baseUrl) {
       const pipeLegend = getScalarLegend(currentState);
       return { availability: view.availability, error: view.error ?? null, bundle: view.url,
         candidate_id: dom.canvas.dataset.searchCandidate, attempt_id: dom.canvas.dataset.searchAttempt,
-        operation: frame.check ? dom.canvas.dataset.searchOperation : currentState.activeLoadCase ?? 'cold',
-        result_state: frame.check ? dom.canvas.dataset.searchResultState : currentState.activeResultStateId ?? '',
+        operation: frame.check && !iteration ? dom.canvas.dataset.searchOperation : currentState.activeLoadCase ?? 'cold',
+        result_state: frame.check && !iteration ? dom.canvas.dataset.searchResultState : currentState.activeResultStateId ?? '',
         rendered_objects: Number(dom.canvas.dataset.renderedObjects ?? 0), units: currentState.unitSystem,
         visual_deformation_scale: currentState.visualDeformationScale, camera: viewportRenderer?.cameraSnapshot() ?? null,
         viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent, annotations: presentation.annotations, result_view: presentation.mode, field_id: presentation.fieldId,

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { filmVtt } from '../src/searchFilm.js';
+import { filmPlayer } from '../src/searchFilmPlayer.js';
 
 const execute = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -72,6 +73,7 @@ export async function captureFilm({ url, output, ffmpeg, options = {} }) {
     manifest.movie = { path: 'film.webm', sha256: hash(movie), size_bytes: movie.length };
     manifest.status = 'complete';
     await writeFile(join(output, 'captions.vtt'), filmVtt(manifest));
+    if (manifest.events_policy === 'iterations') await writeFile(join(output, 'index.html'), filmPlayer(manifest));
     await save();
     return manifest;
   } catch (error) {

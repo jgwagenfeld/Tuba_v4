@@ -1,4 +1,5 @@
 import { replayAt } from './searchReplay.js';
+import { iterationFrames } from './searchIterations.js';
 
 const milestones = new Set(['candidate.built', 'evaluation.completed', 'evaluation.failed',
   'evaluation.interrupted', 'evaluation.diagnostic', 'attempt.recovered', 'candidate.decision', 'run.completed']);
@@ -11,11 +12,11 @@ export function planSearchFilm(manifest, options = {}) {
   if (!Number.isInteger(fps) || fps < 1 || fps > 60) throw new Error('Invalid film fps (1–60)');
   if (!Number.isFinite(holdSeconds) || holdSeconds <= 0 || holdSeconds > 30 || Math.round(fps * holdSeconds) < 1) throw new Error('Invalid film hold (one frame to 30 seconds)');
   if (![width, height].every(n => Number.isInteger(n) && n % 2 === 0) || width < 640 || width > 3840 || height < 360 || height > 2160) throw new Error('Invalid film size (even 640–3840 × 360–2160)');
-  if (!['all', 'milestones', 'review'].includes(events)) throw new Error('Invalid film events policy');
+  if (!['all', 'milestones', 'review', 'iterations'].includes(events)) throw new Error('Invalid film events policy');
   if (!Array.isArray(sectionComponents) || !sectionComponents.length || sectionComponents.some(c => !['N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'].includes(c)) || new Set(sectionComponents).size !== sectionComponents.length) throw new Error('Invalid film section components');
   const hold = Math.round(fps * holdSeconds);
-  const keyframes = [];
-  for (const event of manifest.events.filter(e => e.sequence >= start && e.sequence <= end && (events === 'all' || (events === 'review' ? ['candidate.built', 'candidate.decision', 'evaluation.failed', 'evaluation.interrupted', 'run.completed'].includes(e.kind) : milestones.has(e.kind))))) {
+  const keyframes = events === 'iterations' ? iterationFrames(manifest, start, end, hold) : [];
+  for (const event of manifest.events.filter(e => events !== 'iterations' && e.sequence >= start && e.sequence <= end && (events === 'all' || (events === 'review' ? ['candidate.built', 'candidate.decision', 'evaluation.failed', 'evaluation.interrupted', 'run.completed'].includes(e.kind) : milestones.has(e.kind))))) {
     const snapshot = replayAt(manifest, event.sequence);
     const candidate = snapshot.candidates.find(c => c.id === (event.candidate_id ?? event.payload?.selected_candidate_id)) ?? snapshot.candidates.at(-1);
     const exactId = event.kind === 'candidate.decision' ? event.payload.evaluation_id

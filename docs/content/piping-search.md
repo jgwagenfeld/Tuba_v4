@@ -266,10 +266,18 @@ python -m tuba.search film --replay-dir D:/path/to/viewer-replay --output D:/pat
 ```
 
 `--start 100 --end 160` selects an inclusive search-event range. The default
-milestone policy shows builds, sealed evaluations, recovery/diagnostics and
-decisions; `--events all` includes every recorded event. Failed and unknown checks
-receive separate frames with exact recorded measurements, collision details,
-targets and load/state. `--hold-seconds 2 --fps 25 --width 1600 --height 900`
+`iterations` policy follows tested layouts, with their changed parameters,
+recorded outcome, all failure locations for the same operation/state, support
+forces and moments, and pipe stress shown together. It holds each view for eight
+seconds and writes `index.html` with iteration chapters. Interrupted attempts
+appear before their retries; final selection appears after all tests. Repeated
+objective decisions do not replay the same test as a new iteration.
+
+`--events milestones` shows builds, sealed evaluations, recovery/diagnostics and
+decisions; `--events all` includes every recorded event. `--events review` retains
+the detailed result-field tour. In these detailed policies, failed and unknown
+checks receive separate frames with exact recorded measurements, collision
+details, targets and load/state. `--hold-seconds 8 --fps 25 --width 1600 --height 900`
 sets presentation timing and size. It does not reproduce elapsed solver time.
 The output must be new and outside the replay package.
 
@@ -357,4 +365,5 @@ and qualified separately above.
 For the corrected drawing layout, on-drawing failure annotations and native
 reaction/section-force/displacement views, see
 [film readability](../architecture/piping-search-film-readability.md).
-Use `--events review --hold-seconds 5` for the slower review presentation.
+Use `--events iterations --hold-seconds 8` for the iteration-first movie.
+Use `--events review --hold-seconds 5` for a detailed result-field review.
