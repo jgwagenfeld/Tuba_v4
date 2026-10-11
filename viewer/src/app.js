@@ -583,7 +583,7 @@ function initSearchFilm(replay, baseUrl) {
   document.body.dataset.searchFilm = 'true';
   const caption = document.createElement('pre'); caption.dataset.filmCaption = ''; caption.className = 'film-caption';
   const scale = document.createElement('p'); scale.className = 'film-scale';
-  scale.textContent = 'SI units · Physical displacement ×1 · Visual deformation ×1 · Held recorded views · Search time ≠ solver state';
+  scale.textContent = 'Blue arrows: support force (N) · Orange curved arrows: support moment (N m) · Separate display scales · Physical deformation ×1';
   document.body.append(caption, scale);
   let plan, envelope;
   window.tubaSearchFilm = {
@@ -641,7 +641,8 @@ function initSearchFilm(replay, baseUrl) {
         result_state: frame.check ? dom.canvas.dataset.searchResultState : currentState.activeResultStateId ?? '',
         rendered_objects: Number(dom.canvas.dataset.renderedObjects ?? 0), units: currentState.unitSystem,
         visual_deformation_scale: currentState.visualDeformationScale, camera: viewportRenderer?.cameraSnapshot() ?? null,
-        viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent, annotations: presentation.annotations, result_view: presentation.mode, field_id: presentation.fieldId };
+        viewer_identity: __TUBA_VIEWER_BUILD__, caption: caption.textContent, annotations: presentation.annotations, result_view: presentation.mode, field_id: presentation.fieldId,
+        support_glyphs: viewportRenderer?.supportReactionGlyphs() ?? [] };
     }
   };
 }
@@ -665,7 +666,14 @@ async function showSearchView(bundleUrl, request) {
   const accepted = await loadBundle(bundleUrl, { preserve: true, skipSource: true, accept: request.current });
   if (!accepted || !request.current()) return;
   currentBundleUrl = bundleUrl;
-  currentState = { ...currentState, selectedObjectIds: [], hiddenObjectIds: [], isolatedObjectIds: [], stage: "review" };
+  currentState = { ...currentState, selectedObjectIds: [], hiddenObjectIds: [], isolatedObjectIds: [], stage: "review",
+    supportReactionPresentation: Boolean(currentBundle.scene.search?.solved_operations?.length) };
+  if (currentState.supportReactionPresentation) {
+    dispatch({ type: 'setColorChannel', colorChannel: 'results' });
+    for (const layer of Object.values(currentState.layers ?? {})) if (layer.id?.startsWith('physical_envelope:')) {
+      dispatch({ type: 'setLayerVisibility', layerId: layer.id, visible: false });
+    }
+  }
   dom.canvas.dataset.searchCandidate = currentBundle.scene.search?.candidate_id ?? "";
   dom.canvas.dataset.searchAttempt = currentBundle.scene.search?.attempt_id ?? "";
   setStatus(currentBundle.scene.search?.result_status === "unsolved_preview" ? "Reference geometry · no solver results" : "Recorded native Code_Aster review");

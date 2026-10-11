@@ -27,7 +27,7 @@ test('section-force peaks retain sign, endpoint and separate force/moment units'
   const p = filmPresentation({ result_view: 'internal_forces' }, scene, 'Hot', 'state:Hot');
   assert.match(p.rows[0], /N: -100 N.*n1/);
   assert.match(p.rows[5], /MFZ: -70 N m.*n2/);
-  assert.deepEqual(p.annotations[0].point, [1, 0, 0]);
+  assert.deepEqual(p.annotations.find(a => a.label.startsWith('MFZ:')).point, [1, 0, 0]);
 });
 test('cold collisions mark recorded locations without borrowing native results', () => {
   const p = filmPresentation({ check: { verdict: 'fail', constraint_id: 'cold.model', details: {

@@ -52,13 +52,22 @@ export function filmPresentation(frame, scene, operation, state) {
   }
   const reactions = scopedOverlay(scene, 'reaction_force', operation, state);
   const moments = scopedOverlay(scene, 'reaction_moment', operation, state);
+  if (mode !== 'reactions') for (const vector of reactions?.data.vectors ?? []) {
+    const values = reactions.data.values?.[vector.node_id];
+    const m = moments?.data.values?.[vector.node_id];
+    if (!point(values) || !point(vector.start)) continue;
+    const force = number(Math.hypot(...values)), moment = point(m) ?
+      (Math.hypot(...m) < 0.005 ? '<0.01' : number(Math.hypot(...m))) : 'unavailable';
+    annotations.push({ point: vector.start, label: `${vector.node_id}: F ${force} N · M ${moment} N m`, severity: 'result' });
+  }
   if (mode === 'reactions') {
     title = 'Support reactions — global X, Y, Z'; fieldType = 'reaction_force'; component = 'magnitude';
     for (const vector of reactions?.data.vectors ?? []) {
       const values = reactions.data.values?.[vector.node_id];
       if (!point(values) || !point(vector.start)) continue;
       const m = moments?.data.values?.[vector.node_id];
-      const label = `${vector.node_id}: |F| ${number(Math.hypot(...values))} N`;
+      const momentLabel = point(m) ? (Math.hypot(...m) < 0.005 ? '<0.01' : number(Math.hypot(...m))) : 'unavailable';
+      const label = `${vector.node_id}: F ${number(Math.hypot(...values))} N · M ${momentLabel} N m`;
       annotations.push({ point: vector.start, label, severity: 'result' });
       rows.push(`${vector.node_id}  F [${values.map(number).join(', ')}] N\n      M [${point(m) ? m.map(number).join(', ') : 'unavailable'}] N m`);
     }

@@ -251,6 +251,7 @@ const SCENE_GRAPH_STATE_KEYS = [
   "modelColorBy",
   "colorChannel",
   "resultVectorScales",
+  "supportReactionPresentation",
   "bodyOpacity",
   "sourceMeshObjectIds",
   "subpointMode",
@@ -589,6 +590,14 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     cameraSnapshot() {
       return { position: camera.position.toArray(), target: controls.target.toArray(), up: camera.up.toArray(),
         zoom: camera.zoom, left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom };
+    },
+    supportReactionGlyphs() {
+      return (currentGraph?.root.children ?? []).filter(o => o.visible && o.userData.supportReaction)
+        .map(object => {
+          const record = { ...object.userData.supportReaction, meshes: [] };
+          object.traverse(part => { if (part.isMesh && part.visible) record.meshes.push(part.name); });
+          return record;
+        });
     },
     setStandardView(viewId) {
       if (!currentGraph) return;
@@ -2330,6 +2339,9 @@ function rotationArc(radius, tubeRadius, headRadius, headLength, material) {
 }
 
 function createVector(asset, config, format, state) {
+  // Below the displayed 0.01 SI-unit precision, keep the recorded number in
+  // the labels/table and avoid an artificial finite-length zero-result arrow.
+  if (config.reaction_display && config.display_zero) return { format, object: null };
   const start = readPoint(config.start);
   const end = readPoint(config.end);
   if (!start || !end) {
@@ -2354,7 +2366,7 @@ function createVector(asset, config, format, state) {
     const axis = new THREE.ArrowHelper(localAxis, new THREE.Vector3(), length, color, headLength, headWidth);
     axis.name = "moment-axis";
 
-    const arcRadius = length * 0.22;
+    const arcRadius = length * (config.reaction_display ? 0.38 : 0.22);
     const [arc, arcHead] = rotationArc(arcRadius, length * 0.012, length * 0.045, length * 0.12, new THREE.MeshBasicMaterial({ color }));
     arc.name = "moment-rotation-arc";
     arcHead.name = "moment-rotation-head";
@@ -2362,7 +2374,7 @@ function createVector(asset, config, format, state) {
     moment.add(axis, arc, arcHead);
 
     const badgeText = formatLoadBadgeText("moment", config);
-    if (badgeText) {
+    if (badgeText && !config.reaction_display) {
       const badgeLocalPos = new THREE.Vector3(arcRadius + 0.08, length * 0.5, 0);
       const badgeSprite = createLoadBadgeSprite(badgeText, badgeLocalPos, state, "moment");
       if (badgeSprite) {
@@ -2371,7 +2383,22 @@ function createVector(asset, config, format, state) {
     }
 
     moment.name = asset.id;
+    if (config.reaction_display) makeReadableReaction(moment, config, 'moment');
     return { format, object: moment };
+  }
+  if (config.reaction_display) {
+    const group = new THREE.Group(); group.position.copy(start);
+    group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), unitDirection);
+    const tipLength = length * 0.25;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(length * 0.018, length * 0.018,
+      length - tipLength, 10), new THREE.MeshBasicMaterial({ color }));
+    shaft.name = 'reaction-force-shaft'; shaft.position.y = (length - tipLength) / 2;
+    const head = new THREE.Mesh(new THREE.ConeGeometry(length * 0.09, tipLength, 16),
+      new THREE.MeshBasicMaterial({ color }));
+    head.name = 'reaction-force-head'; head.position.y = length - tipLength / 2;
+    group.add(shaft, head); group.name = asset.id;
+    makeReadableReaction(group, config, 'force');
+    return { format, object: group };
   }
   const arrow = new THREE.ArrowHelper(
     unitDirection,
@@ -2400,6 +2427,18 @@ function createVector(asset, config, format, state) {
 
   arrow.name = asset.id;
   return { format, object: arrow };
+}
+
+function makeReadableReaction(group, config, kind) {
+  group.userData.supportReaction = { kind, node_id: config.node_id,
+    components: [...(kind === 'force' ? config.reaction_force_n : config.reaction_moment_nm)],
+    unit: kind === 'force' ? 'N' : 'N m' };
+  group.traverse(part => {
+    part.renderOrder = 800;
+    for (const material of Array.isArray(part.material) ? part.material : part.material ? [part.material] : []) {
+      material.depthTest = false; material.depthWrite = false;
+    }
+  });
 }
 
 function createLineLoadComb(asset, config, format, state) {
@@ -2780,13 +2819,37 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     config.opacity = Number.isFinite(declared) ? Math.min(declared, bodyLimit) : bodyLimit;
     config.transparent = true;
   }
+  if (state.supportReactionPresentation && sceneStage(state) !== 'build' && String(config.source).includes('obstacle')) {
+    config.opacity = 0.12; config.transparent = true;
+  }
   if (String(asset.format ?? "").toLowerCase() === "vector") {
-    return scaleVectorConfig(asset, config, state);
+    return scaleVectorConfig(asset, readableReactionConfig(config, state), state);
   }
   if (String(asset.format ?? "").toLowerCase() === "tuyau_subpoint_glyphs") {
     return subpointDisplayConfig(asset, config, state);
   }
   return scaleVisualDeformationConfig(asset, config, state);
+}
+
+function readableReactionConfig(config, state) {
+  const kind = config.result_type;
+  if (!state.supportReactionPresentation || sceneStage(state) === 'build' || !['reaction_force', 'reaction_moment'].includes(kind) ||
+      config.load_case !== state.activeLoadCase || config.result_state_id !== state.activeResultStateId) return config;
+  const vector = kind === 'reaction_force' ? config.reaction_force_n : config.reaction_moment_nm;
+  if (!Array.isArray(vector) || vector.length !== 3 || !vector.every(Number.isFinite) || !numericPoint(config.start)) return config;
+  const values = (state.overlays ?? []).find(o => o.data?.result_type === kind && o.data.load_case === state.activeLoadCase &&
+    o.data.result_state_id === state.activeResultStateId)?.data.values ?? {};
+  const magnitudes = Object.values(values).filter(v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite)).map(v => Math.hypot(...v));
+  const magnitude = Math.hypot(...vector), maximum = Math.max(magnitude, ...magnitudes);
+  const b = state.bounds;
+  const span = Array.isArray(b) && b.length === 6 ? Math.max(1, ...[0, 1, 2].map(i => b[i + 3] - b[i])) : 8;
+  // Independent display scales for forces and moments. Minimum visible size
+  // is a presentation aid; all labels continue to report the native values.
+  const length = span * Math.max(0.08, maximum > 0 ? 0.16 * magnitude / maximum : 0);
+  return { ...config, reaction_display: true, display_zero: magnitude < 0.005,
+    reference_geometry: false, no_result: false, opacity: 1, transparent: false,
+    color: kind === 'reaction_force' ? '#2563eb' : '#f97316',
+    end: config.start.map((value, i) => value + (magnitude > 0 ? vector[i] / magnitude * length : 0)) };
 }
 
 // How much of the sub-point field reaches the screen, decided from the viewer's

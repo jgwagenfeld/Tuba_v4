@@ -276,7 +276,9 @@ export function applyResultFieldPreset(state) {
   for (const layerId of new Set([...own, ...others])) {
     const layer = state.layers?.[layerId];
     if (!layer) continue;
-    const visible = layer.defaultVisible !== false && (!results || own.has(layerId));
+    const supportReaction = state.supportReactionPresentation &&
+      ['result:reaction_force', 'result:reaction_moment'].includes(layerId);
+    const visible = supportReaction || (layer.defaultVisible !== false && (!results || own.has(layerId)));
     if (layer.visible !== visible) next = setLayerVisibility(next, layerId, visible);
   }
   return next;
