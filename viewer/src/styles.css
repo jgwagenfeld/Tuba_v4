@@ -5298,6 +5298,11 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 
 .profile-library-preview a { color: var(--accent); }
 /* Search replay shares the review rail and the existing engineering viewport. */
+[data-process-schematic] { display: grid; gap: .65rem; font-size: .85rem; }
+[data-process-schematic] p { margin: 0; overflow-wrap: anywhere; }
+.process-schematic-svg { display: block; width: 100%; height: auto; border-radius: 4px; }
+.process-component-detail { display: grid; gap: .4rem; }
+.process-component-detail h3 { margin: 0; overflow-wrap: anywhere; }
 .search-replay-panel { display: grid; gap: 0.65rem; font-size: 0.88rem; }
 .search-replay-panel p { margin: 0; overflow-wrap: anywhere; }
 .search-replay-panel select, .search-replay-panel input[type="range"] { width: 100%; min-width: 0; }

@@ -3,11 +3,13 @@
 Tuba can evaluate a small serial water circuit with pandapipes, transfer its
 verified operating conditions into Code_Aster, and retain each proposed layout
 in the existing search review. The process graph and procedural 3D model are
-separate authored inputs connected by stable route and component IDs.
+separate authored inputs connected by stable route and component IDs. The graph
+also supplies a tagged process schematic linked to the same route and results.
 
 ```mermaid
 flowchart LR
     P[Process graph and operating requirements] --> B[Bind to authored Tuba routes]
+    P --> D[Tagged process schematic]
     G[3D geometry and pipe sections] --> B
     B --> M[pandapipes steady flow]
     M --> C{Velocity, delivery and pressure checks}
@@ -15,6 +17,7 @@ flowchart LR
     C -->|Pass| L[Verified operating load mapping]
     L --> A[Code_Aster]
     A --> R
+    D --> R
 ```
 
 ## Run the small example
@@ -61,6 +64,46 @@ and bulk temperature, labeled with the actual hydraulic solver. Solved candidate
 carry Code_Aster support forces/moments, internal forces, displacement and FE
 stress. Fluid pressure means and element drops are derived from the actual
 evaluated endpoint pressures. They are not structural stress fields.
+
+## Generate and inspect the process schematic
+
+The **Process schematic** section in the review is generated from the retained
+typed graph. The small example shows `SRC-101`, `L-101`, `V-101` and `SNK-101`
+with their actual connection order and hydraulic readings. The restriction is
+shown as an external fixed loss; its tag does not imply a modeled control valve.
+
+Select a component to inspect its values and assumptions. Selecting the pipe
+highlights its associated mechanical route and fluid velocity. The source, sink and external
+restriction have no mechanical elements and are identified accordingly.
+Pressures are labeled absolute; fluid values retain the actual solver basis.
+A hydraulically rejected candidate still has its schematic and measured fluid
+results, while structural results remain unevaluated.
+
+Choose **Download SVG** for sharing or editing in a vector editor. The
+authored Python graph remains the source for engineering changes. Editing SVG
+text or moving a symbol does not change Tuba topology, geometry or simulation
+inputs, and drawing coordinates are never used as physical dimensions.
+
+This is a **process schematic**, not a complete instrumented P&ID. Instrument
+types/tags, control signals, equipment specifications and a graphical model
+editor are outside the current scope. The same stable IDs provide the starting
+point for those later extensions; an LLM must request or declare missing design
+inputs rather than infer instruments from calculated pressure or flow.
+
+Existing review bundles without the graph remain readable. Re-export an intact
+retained campaign with current Tuba to obtain the new schematic without a fresh
+solve, using a new output directory:
+
+```powershell
+python -m tuba.search replay `
+  --run-dir 'D:\tuba-runs\Tuba_v4\my-process-study' `
+  --output 'D:\tuba-runs\Tuba_v4\my-process-study-schematic'
+```
+
+This reuses the archived solver evidence; it does not constitute a new hydraulic
+or Code_Aster evaluation. A changed engineering input requires a new candidate
+and new solves. See the [review vision](../architecture/process-model-review-study.md)
+and [completed schematic qualification](../architecture/process-network-coupling-results.md#tagged-process-schematic-review).
 
 ## Import one real P&ID connection
 
@@ -206,9 +249,9 @@ flow-induced vibration, external-pressure collapse or general fluid-structure
 interaction. Example force/displacement limits are illustrative and FE stress
 display does not establish a piping-code check.
 
-Next: draw a process schematic from the same graph, then extend the declared
-DEXPI subset with qualified valve/pump data and
-branched-network cases; compare bounded LLM
-proposal policies with recorded provider/model/version/costs. FMUs, controls,
-transients and wall thermal dynamics remain later stages. See the
-[roadmap](../architecture/process-network-modelica-and-code-aster-roadmap.md).
+Next: extend the linked schematic with explicit instrument/control definitions,
+qualify valve/pump data and branched-network cases, and extend the declared DEXPI
+exchange profile. Compare bounded LLM proposal policies with recorded
+provider/model/version/costs. Modelica/FMU integration, transients and wall
+thermal dynamics remain optional later stages. See the
+[roadmap](../architecture/process-network-and-code-aster-roadmap.md).

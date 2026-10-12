@@ -229,3 +229,45 @@ The additional installed distributions occupied about 208 MB in the reused
 Python environment, excluding the shared download cache. Structural-only users
 do not require the optional `process` extra. No push, deployment or controlled
 LLM-provider benchmark is implied.
+
+## Tagged process schematic review
+
+On 2026-10-12, the shared process graph was projected into a tagged SVG in the
+existing web review. The diagram preserves component/port IDs, connections,
+measured pipe route associations and explicit hydraulic check IDs. It displays
+recorded pandapipes flow, absolute pressure and velocity. The SVG download is
+editable as a vector drawing; edits do not update the engineering model.
+
+A fresh two-candidate run used pandapipes with `TUBA_OMC` pointing to a
+nonexistent compiler. The small bore was rejected at **4.643 m/s** against the
+3 m/s limit before structural evaluation. Both its routed pipe and external
+restriction display their own failure. The larger bore measured **2.106 m/s**,
+passed the declared checks and completed a real Code_Aster operation. This
+checks the linked drawing against current solver artifacts; the earlier
+three-layout qualification remains the broader numerical reference above.
+
+Browser checks verified selection of the pipe's nine actual mechanical
+elements, empty structural selection for source/sink/external restriction,
+measured component pressure endpoints, keyboard activation and focus,
+candidate switching without inherited selection, reverse route selection, and a real SVG download with
+parseable identity metadata. Both the linked review and the failed drawing
+were visually inspected. Legacy scenes hide the new panel and mismatched bound
+fingerprints refuse the drawing/download. No browser page errors occurred.
+Standalone checks observed only existing optional Studio API probes returning
+404 from the static review server.
+
+Focused validation passed 27 backend/workflow tests, 99 viewer tests and six
+documentation tests. Three generated-site checks were skipped because the site
+was not rebuilt. These are scoped checks, not a full repository suite.
+Re-export enriches the derived scene while retaining the sealed attempts and
+raw hydraulic review bytes.
+
+Evidence is retained under
+`D:/tuba-runs/Tuba_v4/process-schematic-20261012/`: `campaign-1/`,
+`replay-final/`, the inventory validation receipt, `browser-validation.json`,
+`water-circuit.svg`, `rejected-circuit.svg` and their screenshots. The active
+vision and next stages are in the [process review roadmap](process-model-review-study.md).
+
+This milestone supports the existing serial graph. It does not add instrument
+or control semantics, graphical model editing, DEXPI export or piping-code
+certification.

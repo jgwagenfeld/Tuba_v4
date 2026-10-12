@@ -99,6 +99,7 @@ def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_pat
         payload = json.loads(archive.path(f"attempts/{evaluation.attempt_id}/process_review.json").read_text())
         scene = build_visualization_scene(SceneRequest(model))
         attach_process_review(scene, payload)
+        assert "schematic" not in scene.extra["process"]
         assert len(scene.result_fields) == 4
         assert all(field.label.startswith(f"{solver}:") for field in scene.result_fields)
         assert payload["basis"] == basis and payload["provenance"]["solver"] == solver
@@ -107,6 +108,23 @@ def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_pat
         review_path = write_candidate_review(archive.root, candidate.id, tmp_path / "review")
         review = json.loads(review_path.read_text())
         assert review["search"]["result_status"] == f"{basis}_results"
+        schematic = review["process"]["schematic"]
+        assert schematic["network_id"] == bound.network.id
+        assert schematic["bound_fingerprint"] == bound.fingerprint
+        assert [component["id"] for component in schematic["components"]] == [
+            component.id for component in bound.ordered_components]
+        assert schematic["components"][1]["element_ids"] == [
+            segment.element_id for segment in bound.segments if segment.element_id is not None]
+        assert all(not component["element_ids"] for component in schematic["components"]
+                   if component["kind"] != "pipe")
+        associated_failures = [check_id for component in schematic["components"]
+                               for check_id in component["velocity_check_ids"]]
+        assert associated_failures == [check.constraint_id for check in failures]
+        second_review = write_candidate_review(archive.root, candidate.id, tmp_path / "review-again")
+        assert json.loads(second_review.read_text())["process"]["schematic"] == schematic
+        assert archive.verify_inventory(evaluation.evidence_manifest_ref,
+                                       expected_sha256=evaluation.evidence_manifest_sha256) == inventory
+        assert json.loads(archive.path(f"attempts/{evaluation.attempt_id}/process_review.json").read_text()) == payload
         for check in review["search"]["checks"]:
             if check["basis"] == basis:
                 assert all((review_path.parent / ref).is_file() for ref in check["evidence_refs"])

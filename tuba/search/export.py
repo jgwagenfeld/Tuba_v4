@@ -286,7 +286,7 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
         # Only an entry in the already verified sealed inventory may add fluid
         # fields. An untracked JSON file beside an old attempt is not evidence.
         from tuba.process.review import attach_process_review
-        attach_process_review(scene, process_payload)
+        attach_process_review(scene, process_payload, bound=bound)
     if import_payload is not None:
         scene.extra["process_import"] = {"source": import_payload["source"], "source_refs": import_refs,
                                          "bound_fingerprint": import_bound.fingerprint,

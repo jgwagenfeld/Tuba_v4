@@ -87,10 +87,14 @@ reference P&ID, with source IDs and declared operating/layout assumptions retain
 Install the `process` Python extra for this workflow; no OpenModelica installation
 is required. OpenModelica remains an optional comparison backend.
 
-**Vision and roadmap:** review process assumptions, physical routing and solver evidence together.
-Start with shared process inputs and linked revision review; Modelica source inspection
-and reproducible OMEdit downloads remain optional integration work.
-See the [Modelica review study](docs/architecture/modelica-model-review-study.md) for the proposed sequence.
+**Vision and roadmap:** generate a tagged process schematic from the shared graph,
+bind it to the physical route, evaluate flow constraints with pandapipes, and
+review the mapped Code_Aster results together. Engineers and LLMs revise the
+same authored inputs; every evaluated candidate retains its failures and evidence.
+The implemented schematic links SVG component selection to routes and measured
+fluid values; explicit instrumentation and full P&ID exchange follow separately.
+See the [process review vision](docs/architecture/process-model-review-study.md)
+and [implementation roadmap](docs/architecture/process-network-and-code-aster-roadmap.md).
 
 ## Getting started
 

@@ -1,7 +1,7 @@
 # Existing fluid, pipe-stress, and LLM tools
 
 Research date: 2026-10-12. Repository baseline: `c54eab5`.
-This complements the [process-network and Modelica roadmap](process-network-modelica-and-code-aster-roadmap.md)
+This complements the [process-network and pandapipes roadmap](process-network-and-code-aster-roadmap.md)
 and [LLM piping research](llm-piping-reasoning-and-guidance-research-2026-10-12.md).
 The work reviewed primary documentation and research sources. No commercial
 software was installed, no license terms were evaluated, and no hydraulic or
@@ -102,7 +102,7 @@ repository listing does not establish a reuse license, so this note calls it
 public research code rather than assuming an open-source license.
 
 **OpenModelica + Code_Aster through Tuba** remains a proposed open-source
-architecture in the [existing roadmap](process-network-modelica-and-code-aster-roadmap.md).
+architecture in the [existing roadmap](process-network-and-code-aster-roadmap.md).
 The reviewed Tuba baseline does not already provide that fluid/structural bridge.
 This note does not turn the proposal into a completed integration claim.
 
