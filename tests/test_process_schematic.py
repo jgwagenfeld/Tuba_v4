@@ -100,3 +100,21 @@ def test_schematic_rejects_incomplete_or_foreign_result_associations(change):
         attach_process_review(scene, payload, bound=bound)
     assert "process" not in scene.extra
     assert not scene.result_fields
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_pid_projection_preserves_declaration_and_never_changes_measured_results(declared):
+    from tests.test_process_pid import pid
+
+    scene, bound, payload = projection()
+    bound = replace(bound, network=replace(bound.network, pid=pid() if declared else None))
+    payload["bound_fingerprint"] = bound.fingerprint
+    attach_process_review(scene, payload, bound=bound)
+    schematic = scene.extra["process"]["schematic"]
+    if declared:
+        assert schematic["pid"] == pid().to_dict()
+        assert "value" not in schematic["pid"]["instruments"][2]
+    else:
+        assert "pid" not in schematic
+    assert scene.extra["process"]["segments"] == payload["segments"]
+    assert "schematic" not in payload

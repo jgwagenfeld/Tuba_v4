@@ -271,3 +271,47 @@ vision and next stages are in the [process review roadmap](process-model-review-
 This milestone supports the existing serial graph. It does not add instrument
 or control semantics, graphical model editing, DEXPI export or piping-code
 certification.
+
+## Instrumented P&ID review
+
+On 2026-10-12 the shared network gained explicit equipment, instrument taps and
+electrical signal declarations. The authored water example declares supply and
+receiving tanks, a control valve at the existing illustrative fixed-K operating
+point, PT-101 at the pipe inlet, FT-101 at its outlet and the FT-101 -> FIC-101 ->
+FCV-101 control intent. Equipment remains represented by boundary/fixed-loss
+hydraulic approximations and stays outside the mechanical pipe model. No tank
+level, valve motion, controller output or feedback response is simulated.
+
+A fresh pandapipes run, with OpenModelica deliberately unavailable, rejected the
+small bore at **4.643 m/s** against the 3 m/s limit. Its P&ID marks the pipe and
+valve failures while retaining PT-101's calculated **403.273 kPa absolute** and
+FT-101's **10 kg/s**. The larger bore measured **2.106 m/s** and passed the declared
+checks; PT-101 displays **318.304 kPa absolute**, its exact inlet endpoint value.
+The larger candidate completed real Code_Aster evaluation and retains stress,
+all internal-force components, displacement, support forces/moments and TUYAU
+fields. The hydraulically rejected candidate has no structural result fields.
+
+The P&ID is rendered from the same verified graph inside the existing review.
+**Open P&ID** provides a full-size drawing; **Download SVG** exports its symbols,
+connections, tags, calculated values and identity metadata. Pipe and transmitter
+selection links to nine real mechanical elements. Tank/valve/controller selection
+has no fabricated structural association. Controllers display their declared
+signal path and explicitly have no calculated output.
+
+Validation passed 121 backend/network/workflow tests, 14 viewer tests and 14
+example/documentation checks. Real-browser checks cover exact-port values,
+linked and reverse selection, keyboard activation/focus, dialog dismissal,
+candidate reset and downloaded SVG parsing. Accepted and rejected drawings
+were visually inspected after correcting tap-line label clearance. Browser-only
+response checks preserve the old schematic without P&ID declarations and refuse
+missing transmitter taps, duplicate ports and explicit null definitions. No
+browser page or console errors occurred. Sealed inventories and native
+Code_Aster publication identities verify. Two old bound networks round-trip
+unchanged, and absent P&ID definitions retain old fingerprints. These are focused
+checks; the full repository suite and published documentation site were not run.
+
+Evidence: `D:/tuba-runs/Tuba_v4/process-pid-20261012/`, including `campaign-1/`
+and its replay, `validation.json`, browser receipts, accepted/rejected P&ID SVGs
+and screenshots. The [implementation plan](process-pid-implementation-plan.md)
+records the interface, limits and next work. No new solver capability or
+standards-compliance qualification is implied by the equipment symbols.

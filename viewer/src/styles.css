@@ -5346,3 +5346,10 @@ body[data-search-film="true"] .viewport { display: block; }
 body[data-search-film="true"] [data-canvas] { position: absolute; inset: 0; }
 body[data-search-film="true"] .viewport > :not([data-canvas]):not(.viewport-legend) { display: none !important; }
 body[data-search-film="true"] .review-drawer { display: none !important; }
+
+.process-pid-dialog { width: min(96rem, calc(100vw - 2rem)); max-height: 94vh; padding: 1rem; }
+[data-process-drawing] { display: grid; gap: .75rem; margin-top: .75rem; }
+[data-process-drawing] .process-drawing-scroll { overflow-x: auto; }
+[data-process-drawing] .process-schematic-svg { min-width: 1140px; }
+[data-process-drawing] .process-component-detail { border-top: 1px solid var(--graphite-line); padding-top: .75rem; }
+[data-process-drawing] .process-component-detail p { margin: 0; overflow-wrap: anywhere; }

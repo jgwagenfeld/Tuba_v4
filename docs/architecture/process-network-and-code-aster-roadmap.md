@@ -40,7 +40,10 @@ and evaluates them with the bundled Python hydraulic dependency. It prescribes
 solves for required inlet pressure. The 3 m/s maximum and 6 bar absolute
 source-pressure ceiling are example requirements. Constant fluid properties,
 four illustrative bend loss coefficients of 0.2, and a fixed loss coefficient
-of 5 are declared assumptions. That restriction sits outside the mechanical
+of 5 are declared assumptions. Explicit P&ID annotations identify the source
+and sink as tanks and that restriction as `FCV-101`, with a pressure tap, flow
+tap and declared flow-control signal path. These do not add tank or controller
+dynamics or a valve characteristic. The restriction sits outside the mechanical
 outlet anchor; its equipment loads are outside the structural study.
 
 The bounded first milestone is implemented: verified pressure, temperature and
@@ -71,7 +74,7 @@ changing mass, stiffness, clearances, and cost.
 flowchart TD
     P["P&ID connectivity + process data"] --> N["Shared engineering network and requirements"]
     G["Equipment/nozzle positions + obstacles"] --> N
-    N --> D["Tagged schematic linked to route and results"]
+    N --> D["Declared P&ID linked to route and results"]
     N --> A["Engineer or LLM revises procedural Tuba model"]
     A --> R["Measured route geometry and cold checks"]
     R --> H["pandapipes: supported steady hydraulics"]
@@ -174,7 +177,7 @@ optional independent comparison and future advanced-system integration.
 Sources: [pandapipes](https://www.pandapipes.org/),
 [pipe equations and friction models](https://pandapipes.readthedocs.io/en/latest/components/pipe/pipe_component.html).
 
-## Generate the first process schematic
+## Generate the P&ID from the same graph
 
 The implemented drawing milestone projects the existing typed graph into a tagged
 SVG inside the existing review. It shows the source, pipe, external fixed loss
@@ -190,11 +193,28 @@ and vector editing, but graphic edits do not update the graph or simulation.
 Drawing positions never determine physical dimensions. This milestone needs no
 additional drawing dependency, browser graphical editor or second scene system.
 
-A complete P&ID needs explicit instrument types/tags, signal links, control
-loops, equipment specifications and documented symbol conventions. Those data
-are absent from the current serial graph and cannot be inferred from calculated
-flows and pressures. Extend the shared contract deliberately before claiming
-instrumented P&ID generation. An LLM can propose structured changes and identify
+The current P&ID extension adds an optional strict `PidDefinition` to the graph.
+It carries declared equipment annotations, `PT`/`FT` process-port taps,
+`PIC`/`FIC` controllers and compatible electrical signal links. The water
+example declares `TK-101`, `TK-102`, `FCV-101`, `PT-101`, `FT-101` and `FIC-101`.
+A legend explains the supported symbols, solid process/tap lines and dashed
+signals. The existing viewer provides **Open P&ID** and **Download SVG**.
+
+These declarations express design intent. Transmitter displays read calculated
+values at their exact ports; a controller has no fabricated numerical output.
+The equipment remains represented by the graph's existing boundary or fixed-K
+approximation. The signal loop does not control a pandapipes valve or qualify a
+valve curve. Tags, references, signal direction and quantity compatibility
+validate before evaluation. Old graphs preserve their representation and
+imported graphs receive no invented tags.
+
+See the [implementation plan](process-pid-implementation-plan.md) for the
+completed instrumented subset and its acceptance checks. The
+[instrumented P&ID qualification](process-network-coupling-results.md#instrumented-pid-review)
+records fresh pandapipes/Code_Aster evidence, exact-port values, browser
+selection/reset/keyboard/download checks and legacy fallback. General plant
+drawings, standards-compliance claims, dynamic controls and graphical authoring are
+outside its scope. An LLM can propose structured declarations and identify
 missing inputs; validation and engineering review still apply.
 
 DEXPI export is separate future work requiring a declared supported version and
@@ -203,7 +223,7 @@ For broader drawing/exchange tooling, evaluate
 [pyDEXPI](https://github.com/process-intelligence-research/pyDEXPI) against that
 version contract. [pyflowsheet](https://github.com/nukleon84/pyflowsheet) targets
 process-flow diagrams and does not replace P&ID CAD. Neither package is needed
-for the first serial schematic.
+for this serial P&ID subset.
 
 ## Flow constraints and structural loads
 
@@ -246,7 +266,8 @@ project/code assessment explicit and tied to its inputs and evidence.
 | P1: Pandapipes steady hydraulics | Python execution with retained native inputs/results and dependency identity | Qualified bounded cases check mass balance, friction/local losses, elevation, absolute/gauge pressure conversion and failure handling; check delivery as well as velocity. |
 | P2: Code_Aster operating evaluation | Verified pressure, temperature and contents mapping through existing operations | Real cantilever references and the three-layout campaign verify the supported mapping and retain all structural fields and failures. |
 | P3: Linked schematic and existing review | Implemented tagged SVG, component-to-route selection, actual hydraulic values and SVG download | Browser checks pass on fresh rejected/accepted layouts: pipe and nonstructural selection, measured failure display, keyboard operation, scene reset and actual SVG download; topology and SVG content have focused tests. |
-| P4: Explicit P&ID semantics and broader hydraulics | Declared instruments/control links, qualified equipment data and supported branches | Validate each added graph type, drawing convention, equipment correlation and boundary specification against reference cases. Qualify DEXPI export separately. |
+| P4a: Instrumented P&ID (implemented) | Explicit equipment, transmitter taps, controller/signal declarations and full-size/SVG review | Strict declarations, exact-port values and browser checks pass with a fresh small-bore rejection and accepted Code_Aster case; see the [qualification record](process-network-coupling-results.md#instrumented-pid-review). |
+| P4b: Qualified equipment and broader hydraulics | Sourced valve/pump data and supported branches | Validate each added graph type, equipment correlation and boundary specification against reference cases. Qualify DEXPI export separately. |
 | P5: Controlled agent evaluation | Pinned-provider LLM proposals through existing bounded inputs and solver loop | Preserve every candidate, requirement and measured failure; compare proposal policies under recorded model versions, costs and engineering outcomes. |
 
 P0 and the bounded P1/P2 scope are implemented. See the
@@ -260,8 +281,9 @@ P3's first linked schematic is implemented and verified in the existing review.
 Its fresh walkthrough covers the smaller-bore hydraulic rejection and accepted
 larger-bore Code_Aster layout. The earlier three-candidate hydraulic/structural
 qualification remains separate and retains both FE layouts. Richer assumption
-inspection and candidate comparison are next; instrument/control modeling and
-broader circuits follow their own qualification.
+inspection and candidate comparison remain next. P4a now adds declared
+instrument/control drawing semantics with its own acceptance checks; equipment
+behavior and broader circuits require separate numerical qualification.
 
 The existing P4 import subset accepts one selected single-pipe/nozzle-boundary
 connection from the pinned official DEXPI 2.0.1 fixture. Source equipment names

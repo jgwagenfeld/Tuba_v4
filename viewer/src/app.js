@@ -187,6 +187,8 @@ const dom = {
   taskRail: document.querySelector("[data-task-rail]"),
   processSection: document.querySelector('[data-process-section]'),
   processSchematic: document.querySelector('[data-process-schematic]'),
+  processDialog: document.querySelector('[data-process-dialog]'),
+  processDrawing: document.querySelector('[data-process-drawing]'),
   inspector: document.querySelector("[data-inspector]"),
   reviewDrawer: document.querySelector("[data-review-drawer]"),
   reviewTally: document.querySelector("[data-review-tally]"),
@@ -1032,86 +1034,100 @@ function renderRailChrome() {
   }
 }
 
+dom.processDialog.addEventListener('close', () => dom.processSchematic.querySelector('[data-process-open]')?.focus({ preventScroll: true }));
+
 function renderProcessSchematic() {
   const scene = currentBundle?.scene;
   if (processScene !== scene) {
     processScene = scene;
     selectedProcessComponent = null;
+    dom.processDialog.close();
   }
+  const dialogFocus = dom.processDialog.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
   dom.processSchematic.replaceChildren();
+  dom.processDrawing.replaceChildren();
   dom.processSection.hidden = !scene?.process?.schematic;
   if (dom.processSection.hidden) return;
   try {
-    const model = processSchematicModel(scene);
+    const model = processSchematicModel(scene), pid = Boolean(model.graph.pid);
     const selectedIds = new Set(currentState.selectedObjectIds);
-    const selectedPipe = model.nodes.find(node => node.element_ids.some(id => selectedIds.has(resolveEntityObjectId(currentState, `element:${id}`))));
-    if (selectedPipe) selectedProcessComponent = selectedPipe.id;
-    else if (model.nodes.find(node => node.id === selectedProcessComponent)?.kind === 'pipe') selectedProcessComponent = null;
+    const linked = node => node.element_ids.some(id => selectedIds.has(resolveEntityObjectId(currentState, `element:${id}`)));
+    const selectedPipe = model.nodes.find(linked), chosen = model.items.find(node => node.id === selectedProcessComponent);
+    if (selectedPipe && !chosen?.element_ids.some(id => selectedPipe.element_ids.includes(id))) selectedProcessComponent = selectedPipe.id;
+    else if (!selectedPipe && chosen?.element_ids.length) selectedProcessComponent = null;
     const note = document.createElement('p');
     note.className = 'search-note';
-    note.textContent = `${model.graph.network_id} · ${model.solver}. Select a pipe tag to highlight its route and fluid results. This schematic has no instruments or control signals.`;
-    const downloadButton = document.createElement('button');
-    downloadButton.type = 'button';
-    downloadButton.textContent = 'Download SVG';
-    downloadButton.dataset.processDownload = '';
-    downloadButton.dataset.focusKey = 'process:download';
-    downloadButton.addEventListener('click', () => download(new Blob([processSchematicSvg(model, selectedProcessComponent)], { type: 'image/svg+xml' }), 'process-schematic.svg'));
-    const diagram = new DOMParser().parseFromString(processSchematicSvg(model, selectedProcessComponent), 'image/svg+xml');
-    if (diagram.querySelector('parsererror')) throw new Error('Process schematic contains invalid drawing text.');
-    const svg = document.importNode(diagram.documentElement, true);
-    svg.classList.add('process-schematic-svg');
-    for (const button of svg.querySelectorAll('[data-process-component]')) {
-      const node = model.nodes[Number(button.dataset.processComponent)];
-      const select = () => {
-        selectedProcessComponent = node.id;
-        dispatch({ type: 'selectObjects', objectIds: node.element_ids.map(id => resolveEntityObjectId(currentState, `element:${id}`)).filter(Boolean) });
-        const type = node.kind === 'pipe' ? 'fluid_velocity' : 'fluid_pressure';
-        const overlay = scene.overlays.find(item => item.data?.result_type === type && item.data?.basis === scene.process.basis);
-        const field = scene.result_fields.find(item => item.overlay_id === overlay?.id);
-        if (field) {
-          dispatch({ type: 'setActiveLoadCase', loadCase: model.operation });
-          dispatch({ type: 'setActiveResultState', resultStateId: null });
-          dispatch({ type: 'setColorChannel', colorChannel: 'results' });
-          dispatch({ type: 'setColoringField', fieldId: field.id });
-          dispatch({ type: 'setColoringComponent', component: 'magnitude' });
-        }
-        drawSearchAnnotations([]);
-        render();
-      };
-      button.addEventListener('click', select);
-      button.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); }
-      });
+    note.textContent = `${model.graph.network_id} | ${model.solver}. ${pid
+      ? 'Open the P&ID to inspect equipment, port values and declared control signals. Selecting a pipe or its transmitter links to the 3D route.'
+      : 'Select a pipe tag to highlight its route and fluid results. This schematic has no instruments or control signals.'}`;
+    dom.processSchematic.append(note);
+    if (pid) {
+      const open = document.createElement('button');
+      open.type = 'button'; open.textContent = 'Open P&ID'; open.dataset.processOpen = '';
+      open.dataset.focusKey = 'process:open'; open.setAttribute('aria-haspopup', 'dialog');
+      open.addEventListener('click', () => { dom.processDialog.showModal(); render(); });
+      dom.processSchematic.append(open);
     }
-    dom.processSchematic.append(note, downloadButton, svg);
-    const node = model.nodes.find(item => item.id === selectedProcessComponent);
-    if (node) {
-      const detail = document.createElement('div');
-      detail.className = 'process-component-detail';
-      detail.dataset.processDetail = '';
-      detail.setAttribute('aria-live', 'polite');
-      const heading = document.createElement('h3');
-      heading.textContent = node.id;
-      detail.append(heading);
-      for (const value of processComponentDetails(model, node)) {
-        const line = document.createElement('p');
-        line.textContent = value;
-        detail.append(line);
+    for (const [host, scope] of [[dom.processSchematic, 'rail'], ...(pid && dom.processDialog.open ? [[dom.processDrawing, 'dialog']] : [])]) {
+      const downloadButton = document.createElement('button');
+      downloadButton.type = 'button'; downloadButton.textContent = 'Download SVG';
+      downloadButton.dataset.processDownload = ''; downloadButton.dataset.focusKey = `process:${scope}:download`;
+      downloadButton.addEventListener('click', () => download(new Blob([processSchematicSvg(model, selectedProcessComponent)], { type: 'image/svg+xml' }), pid ? 'process-pid.svg' : 'process-schematic.svg'));
+      const diagram = new DOMParser().parseFromString(processSchematicSvg(model, selectedProcessComponent), 'image/svg+xml');
+      if (diagram.querySelector('parsererror')) throw new Error('Process schematic contains invalid drawing text.');
+      const svg = document.importNode(diagram.documentElement, true);
+      svg.classList.add('process-schematic-svg');
+      for (const button of svg.querySelectorAll('[data-process-component]')) {
+        const node = model.items[Number(button.dataset.processComponent)];
+        button.dataset.focusKey = `process:${scope}:component:${button.dataset.processComponent}`;
+        const select = () => {
+          selectedProcessComponent = node.id;
+          dispatch({ type: 'selectObjects', objectIds: node.element_ids.map(id => resolveEntityObjectId(currentState, `element:${id}`)).filter(Boolean) });
+          const controller = ['PIC', 'FIC'].includes(node.instrumentKind);
+          const type = controller ? null : node.kind === 'pipe' || node.instrumentKind === 'FT' ? 'fluid_velocity' : 'fluid_pressure';
+          const overlay = scene.overlays.find(item => type && item.data?.result_type === type && item.data?.basis === scene.process.basis);
+          const field = scene.result_fields.find(item => item.overlay_id === overlay?.id);
+          if (field) {
+            dispatch({ type: 'setActiveLoadCase', loadCase: model.operation });
+            dispatch({ type: 'setActiveResultState', resultStateId: null });
+            dispatch({ type: 'setColorChannel', colorChannel: 'results' });
+            dispatch({ type: 'setColoringField', fieldId: field.id });
+            dispatch({ type: 'setColoringComponent', component: 'magnitude' });
+          }
+          drawSearchAnnotations([]);
+          render();
+        };
+        button.addEventListener('click', select);
+        button.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); }
+        });
       }
-      dom.processSchematic.append(detail);
+      const scroll = document.createElement('div');
+      scroll.className = 'process-drawing-scroll'; scroll.append(svg);
+      host.append(downloadButton, scroll);
+      const node = model.items.find(item => item.id === selectedProcessComponent);
+      if (node) {
+        const detail = document.createElement('div');
+        detail.className = 'process-component-detail'; detail.dataset.processDetail = '';
+        detail.setAttribute('aria-live', 'polite');
+        const heading = document.createElement('h3'); heading.textContent = node.displayTag ?? node.id;
+        detail.append(heading);
+        for (const value of processComponentDetails(model, node)) {
+          const line = document.createElement('p'); line.textContent = value; detail.append(line);
+        }
+        host.append(detail);
+      }
+      for (const check of model.failures.filter(check => !model.nodes.some(node => node.failures.includes(check)))) {
+        const failure = document.createElement('p'); failure.className = 'search-check search-fail';
+        failure.textContent = processFailureReason(check); host.append(failure);
+      }
     }
-    for (const check of model.failures.filter(check => !model.nodes.some(node => node.failures.includes(check)))) {
-      const failure = document.createElement('p');
-      failure.className = 'search-check search-fail';
-      failure.textContent = processFailureReason(check);
-      dom.processSchematic.append(failure);
-    }
+    if (dialogFocus) dom.processDrawing.querySelector(`[data-focus-key="${CSS.escape(dialogFocus)}"]`)?.focus({ preventScroll: true });
   } catch (error) {
     selectedProcessComponent = null;
-    const message = document.createElement('p');
-    message.setAttribute('role', 'alert');
-    message.textContent = error.message;
+    const message = document.createElement('p'); message.setAttribute('role', 'alert'); message.textContent = error.message;
     dom.processSchematic.replaceChildren(message);
+    dom.processDialog.close();
   }
 }
 
@@ -6613,7 +6629,7 @@ function isTypingTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (dom.profileLibrary.open) return;
+  if (dom.profileLibrary.open || dom.processDialog.open) return;
   if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
     event.preventDefault();
     dom.codeMeshToggle?.click();

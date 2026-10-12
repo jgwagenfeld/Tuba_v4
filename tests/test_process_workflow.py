@@ -111,6 +111,10 @@ def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_pat
         schematic = review["process"]["schematic"]
         assert schematic["network_id"] == bound.network.id
         assert schematic["bound_fingerprint"] == bound.fingerprint
+        assert bound.network.pid is not None
+        assert schematic["pid"] == bound.network.pid.to_dict()
+        retained_bound = json.loads(archive.path(f"attempts/{evaluation.attempt_id}/hydraulics/network.json").read_text())
+        assert retained_bound["network"]["pid"] == schematic["pid"]
         assert [component["id"] for component in schematic["components"]] == [
             component.id for component in bound.ordered_components]
         assert schematic["components"][1]["element_ids"] == [

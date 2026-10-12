@@ -19,11 +19,33 @@ def test_route_edit_keeps_imported_connectivity_and_refreshes_measured_geometry(
     first = process_inputs(build_model({"size": "larger", "offset_m": 1.0}), network=imported.network)
     second = process_inputs(build_model({"size": "larger", "offset_m": 3.0}), network=imported.network)
     assert first.network.to_dict() == second.network.to_dict()
+    assert imported.network.pid is first.network.pid is second.network.pid is None
+    assert "pid" not in first.network.to_dict()
     assert [part.id for part in first.ordered_components] == ["Nozzle2", "Pipe2", "Nozzle3"]
     assert first.scenario == second.scenario and first.requirements == second.requirements
     assert first.fingerprint != second.fingerprint
     assert sum(part.length_m for part in second.segments) - sum(part.length_m for part in first.segments) == pytest.approx(4.0)
     assert all(part.element_id is not None for part in first.segments)
+
+
+def test_authored_pid_keeps_declared_taps_and_control_separate_from_steady_physics():
+    bound = process_inputs(build_model({"size": "larger", "offset_m": 1.0}))
+    pid = bound.network.pid
+    assert [(item.tag, item.component_id, item.kind) for item in pid.equipment] == [
+        ("TK-101", "SRC-101", "tank"), ("TK-102", "SNK-101", "tank"),
+        ("FCV-101", "V-101", "control_valve"),
+    ]
+    assert [(item.tag, item.kind, item.port_id) for item in pid.instruments] == [
+        ("PT-101", "PT", "L-101.in"), ("FT-101", "FT", "L-101.out"),
+        ("FIC-101", "FIC", None),
+    ]
+    assert [(signal.source_tag, signal.target_tag) for signal in pid.signals] == [
+        ("FT-101", "FIC-101"), ("FIC-101", "FCV-101"),
+    ]
+    assert [part.id for part in bound.ordered_components] == ["SRC-101", "L-101", "V-101", "SNK-101"]
+    assert bound.scenario.mass_flow_kg_s == 10.0
+    assert bound.ordered_components[2].loss_coefficient == 5.0
+    assert bound.ordered_components[2].mechanical_domain == "external"
 
 
 @pytest.mark.parametrize("arguments", [{"dexpi": FIXTURE}, {"segment": "PipingNetworkSegment2"}])

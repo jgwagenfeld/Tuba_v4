@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 import re
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 from numbers import Real
 
 import numpy as np
@@ -20,6 +20,9 @@ import numpy as np
 from tuba.model import PipeSection, TubaModel, sample_bend_geometry
 from tuba.validation import _validate_bend_geometry_record
 from tuba.physical import element_length
+
+if TYPE_CHECKING:
+    from .pid import PidDefinition
 
 NETWORK_SCHEMA = "tuba.process-network.v1"
 BOUND_SCHEMA = "tuba.bound-process-network.v1"
@@ -232,6 +235,7 @@ class ProcessNetwork:
     id: str
     components: tuple[MassFlowSource | PressureSink | PipeComponent | FixedLossComponent, ...]
     connections: tuple[Connection, ...]
+    pid: PidDefinition | None = None
 
     def __post_init__(self):
         _identifier(self.id)
@@ -245,6 +249,12 @@ class ProcessNetwork:
         routes = [component.route_id for component in self.components if isinstance(component, PipeComponent)]
         if not routes or len(routes) != len(set(routes)):
             raise ValueError("At least one pipe and distinct whole-route bindings are required")
+        if self.pid is not None:
+            from .pid import PidDefinition
+
+            if type(self.pid) is not PidDefinition:
+                raise ValueError("pid must be a PidDefinition record")
+            self.pid.validate_for(self)
 
     @property
     def ordered_components(self) -> tuple:
@@ -299,11 +309,17 @@ class ProcessNetwork:
     def to_dict(self) -> dict:
         return {"schema": NETWORK_SCHEMA, "id": self.id,
                 "components": [component.to_dict() for component in self.components],
-                "connections": [connection.to_dict() for connection in self.connections]}
+                "connections": [connection.to_dict() for connection in self.connections],
+                **({"pid": self.pid.to_dict()} if self.pid is not None else {})}
 
     @classmethod
     def from_dict(cls, data: dict):
-        values = _strict(data, {"schema", "id", "components", "connections"}, cls.__name__)
+        from .pid import PidDefinition
+
+        expected = {"schema", "id", "components", "connections"}
+        if type(data) is dict and "pid" in data:
+            expected.add("pid")
+        values = _strict(data, expected, cls.__name__)
         if values["schema"] != NETWORK_SCHEMA:
             raise ValueError(f"Expected schema {NETWORK_SCHEMA!r}")
         if type(values["components"]) is not list or type(values["connections"]) is not list:
@@ -313,7 +329,8 @@ class ProcessNetwork:
             if type(component) is not dict or component.get("kind") not in COMPONENT_TYPES:
                 raise ValueError("Unsupported process component kind")
             components.append(COMPONENT_TYPES[component["kind"]].from_dict(component))
-        return cls(values["id"], tuple(components), tuple(Connection.from_dict(value) for value in values["connections"]))
+        return cls(values["id"], tuple(components), tuple(Connection.from_dict(value) for value in values["connections"]),
+                   PidDefinition.from_dict(values["pid"]) if "pid" in values else None)
 
     def bind(self, model: TubaModel, scenario: OperatingScenario,
              requirements: HydraulicRequirements) -> BoundProcessNetwork:

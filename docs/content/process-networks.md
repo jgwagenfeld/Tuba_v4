@@ -4,12 +4,13 @@ Tuba can evaluate a small serial water circuit with pandapipes, transfer its
 verified operating conditions into Code_Aster, and retain each proposed layout
 in the existing search review. The process graph and procedural 3D model are
 separate authored inputs connected by stable route and component IDs. The graph
-also supplies a tagged process schematic linked to the same route and results.
+also supplies a P&ID with declared equipment and instruments, linked to the same
+route and results.
 
 ```mermaid
 flowchart LR
     P[Process graph and operating requirements] --> B[Bind to authored Tuba routes]
-    P --> D[Tagged process schematic]
+    P --> D[P&ID with declared equipment and instruments]
     G[3D geometry and pipe sections] --> B
     B --> M[pandapipes steady flow]
     M --> C{Velocity, delivery and pressure checks}
@@ -24,9 +25,12 @@ flowchart LR
 
 The [authored model](../../examples/process_network/model.py) starts with no
 external P&ID file. It defines a mass-flow source, an offset pipe, a downstream
-restriction and a pressure sink. The restriction is explicitly outside the
-mechanical pipe's outlet anchor; its body mass, stiffness and equipment loads
-are outside this structural study.
+restriction and a pressure sink. Explicit P&ID declarations identify the
+boundaries as tanks and the restriction as a control valve at an illustrative
+fixed-loss operating point. Tank dynamics, valve characteristics and control
+response are not simulated. The valve is outside the mechanical pipe's outlet
+anchor; its body mass, stiffness and equipment loads are outside this structural
+study.
 
 ```powershell
 python -m pip install '.[process]'
@@ -65,45 +69,96 @@ carry Code_Aster support forces/moments, internal forces, displacement and FE
 stress. Fluid pressure means and element drops are derived from the actual
 evaluated endpoint pressures. They are not structural stress fields.
 
-## Generate and inspect the process schematic
+## Generate and inspect the P&ID
 
-The **Process schematic** section in the review is generated from the retained
-typed graph. The small example shows `SRC-101`, `L-101`, `V-101` and `SNK-101`
-with their actual connection order and hydraulic readings. The restriction is
-shown as an external fixed loss; its tag does not imply a modeled control valve.
+The review's **Process schematic** section generates its drawing from the
+retained typed graph and optional `PidDefinition`. The example explicitly declares these equipment and instrument
+identities; they are not inferred from its calculated pressures or flow:
 
-Select a component to inspect its values and assumptions. Selecting the pipe
-highlights its associated mechanical route and fluid velocity. The source, sink and external
-restriction have no mechanical elements and are identified accordingly.
-Pressures are labeled absolute; fluid values retain the actual solver basis.
-A hydraulically rejected candidate still has its schematic and measured fluid
-results, while structural results remain unevaluated.
+| P&ID tag | Graph association | Meaning in this example |
+| --- | --- | --- |
+| `TK-101` | `SRC-101` | Supply tank, represented by prescribed mass flow and temperature. |
+| `TK-102` | `SNK-101` | Receiving tank, represented by prescribed absolute pressure. |
+| `FCV-101` | `V-101` | Control valve, represented by an illustrative fixed loss coefficient of 5. |
+| `PT-101` | `L-101.in` | Pressure transmitter tap at the pipe inlet; displays calculated absolute pressure. |
+| `FT-101` | `L-101.out` | Flow transmitter tap at the pipe outlet; displays calculated mass flow in kg/s. |
+| `FIC-101` | `FT-101` -> `FCV-101` | Declared flow indicating controller and electrical signal path; no calculated controller output. |
 
-Choose **Download SVG** for sharing or editing in a vector editor. The
-authored Python graph remains the source for engineering changes. Editing SVG
-text or moving a symbol does not change Tuba topology, geometry or simulation
-inputs, and drawing coordinates are never used as physical dimensions.
+The drawing uses solid process connections and instrument taps, instrument
+bubbles, a panel controller and dashed electrical signals, explained by its
+legend. The controller does not move the valve in pandapipes. The 10 kg/s flow
+is prescribed by the scenario; the valve's `K=5` is a chosen operating-point
+assumption, not a catalogue characteristic or a sizing result. Displayed
+transmitter values are calculated results, not readings from physical sensors.
+The symbol convention is documented by the legend; no standards-compliance
+claim is made.
 
-This is a **process schematic**, not a complete instrumented P&ID. Instrument
-types/tags, control signals, equipment specifications and a graphical model
-editor are outside the current scope. The same stable IDs provide the starting
-point for those later extensions; an LLM must request or declare missing design
-inputs rather than infer instruments from calculated pressure or flow.
+Select a component or instrument to inspect its declared association and
+available results. Pipe and pipe-tap selection links to the corresponding
+mechanical route. Equipment selection resolves to its graph component; tanks
+and the external valve have no structural elements in this example. A
+controller has no fabricated numerical output. A hydraulically rejected
+candidate keeps its drawing, localized failures and measured fluid results,
+while structural results remain unevaluated.
 
-Existing review bundles without the graph remain readable. Re-export an intact
-retained campaign with current Tuba to obtain the new schematic without a fresh
-solve, using a new output directory:
+Choose **Open P&ID** to inspect the drawing at full size, or **Download SVG**
+for sharing and vector editing. The authored Python graph remains the source
+for engineering changes. Editing SVG text or moving a symbol does not change
+Tuba topology, geometry or simulation inputs. Drawing coordinates are never
+used as physical dimensions.
+
+### Author the declarations in Python
+
+When creating a `ProcessNetwork`, pass `pid=PidDefinition(...)`. To add the
+example's declaration to an existing network with components `SRC-101`,
+`L-101`, `V-101` and `SNK-101`:
+
+```python
+from dataclasses import replace
+from tuba.process import EquipmentDefinition, Instrument, PidDefinition, SignalConnection
+
+network = replace(network, pid=PidDefinition(
+    equipment=(
+        EquipmentDefinition("TK-101", "SRC-101", "tank", "Supply tank; prescribed flow"),
+        EquipmentDefinition("TK-102", "SNK-101", "tank", "Receiving tank; prescribed pressure"),
+        EquipmentDefinition("FCV-101", "V-101", "control_valve", "Illustrative fixed K=5; no valve curve"),
+    ),
+    instruments=(
+        Instrument("PT-101", "PT", "L-101.in", "Calculated inlet absolute pressure"),
+        Instrument("FT-101", "FT", "L-101.out", "Calculated outlet mass flow"),
+        Instrument("FIC-101", "FIC", None, "Declared flow control; not simulated"),
+    ),
+    signals=(SignalConnection("FT-101", "FIC-101"),
+             SignalConnection("FIC-101", "FCV-101")),
+))
+```
+
+Definitions validate before binding or solver execution. Equipment and
+instrument tags must be unique; component and tap-port references must exist.
+`PT`/`FT` taps require a process port, while `PIC`/`FIC` controllers have none.
+A controller needs one compatible transmitter input and one declared control
+valve output; signal direction and quantity must match. Equipment type
+annotations do not add pump curves, heat transfer, tank levels or mechanical
+bodies to the numerical model. An LLM must declare missing design inputs
+explicitly rather than infer them from results.
+
+Existing graphs without `pid` continue to show the tagged process schematic.
+Imported graphs receive no invented equipment or instrumentation. Re-export
+an intact retained campaign to refresh its supported drawing without modifying
+the archived evidence, using a new output directory:
 
 ```powershell
 python -m tuba.search replay `
   --run-dir 'D:\tuba-runs\Tuba_v4\my-process-study' `
-  --output 'D:\tuba-runs\Tuba_v4\my-process-study-schematic'
+  --output 'D:\tuba-runs\Tuba_v4\my-process-study-review'
 ```
 
-This reuses the archived solver evidence; it does not constitute a new hydraulic
-or Code_Aster evaluation. A changed engineering input requires a new candidate
-and new solves. See the [review vision](../architecture/process-model-review-study.md)
-and [completed schematic qualification](../architecture/process-network-coupling-results.md#tagged-process-schematic-review).
+This reuses the archived solver evidence; it is not a new hydraulic or
+Code_Aster evaluation. P&ID declarations participate in the bound input
+fingerprint: authoring or changing them requires a new candidate, rather than
+adding tags to a sealed old run. New geometry or operating inputs also require
+new solves. See the [review vision](../architecture/process-model-review-study.md)
+and [implementation plan](../architecture/process-pid-implementation-plan.md).
 
 ## Import one real P&ID connection
 
@@ -249,9 +304,10 @@ flow-induced vibration, external-pressure collapse or general fluid-structure
 interaction. Example force/displacement limits are illustrative and FE stress
 display does not establish a piping-code check.
 
-Next: extend the linked schematic with explicit instrument/control definitions,
-qualify valve/pump data and branched-network cases, and extend the declared DEXPI
-exchange profile. Compare bounded LLM proposal policies with recorded
-provider/model/version/costs. Modelica/FMU integration, transients and wall
+Next: qualify valve/pump data and branched-network cases, improve candidate
+comparison, and extend the declared DEXPI exchange profile. Dynamic controls,
+valve sizing, a graphical P&ID editor and SVG-to-model round-tripping are outside
+the current instrumented drawing subset. Compare bounded LLM proposal policies
+with recorded provider/model/version/costs. Modelica/FMU integration, transients and wall
 thermal dynamics remain optional later stages. See the
 [roadmap](../architecture/process-network-and-code-aster-roadmap.md).

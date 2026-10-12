@@ -112,3 +112,157 @@ test('retained OpenModelica results keep their own label and new candidates have
   assert.match(processSchematicSvg(model), /OpenModelica · WaterOperating/);
   assert.doesNotMatch(processSchematicSvg(model), /class="component[^"\n]* selected"/);
 });
+
+
+function pidFixture() {
+  const scene = fixture();
+  scene.process.schematic.pid = {
+    schema: 'tuba.process-pid.v1',
+    equipment: [
+      { tag: 'TK-101', component_id: 'SOURCE-101', kind: 'tank', description: 'Supply tank' },
+      { tag: 'FCV-101', component_id: 'LOSS-101', kind: 'control_valve', description: 'Valve approximated by fixed K' },
+      { tag: 'TK-102', component_id: 'SINK-101', kind: 'tank', description: 'Receiving tank' }
+    ],
+    instruments: [
+      { tag: 'PT-101', kind: 'PT', port_id: 'line.in', description: 'Upstream pressure tap' },
+      { tag: 'PT-102', kind: 'PT', port_id: 'line.out', description: 'Downstream pressure tap' },
+      { tag: 'FT-101', kind: 'FT', port_id: 'line.out', description: 'Outlet mass flow tap' },
+      { tag: 'FIC-101', kind: 'FIC', port_id: null, description: 'Flow control intention' }
+    ],
+    signals: [{ source_tag: 'FT-101', target_tag: 'FIC-101' }, { source_tag: 'FIC-101', target_tag: 'FCV-101' }]
+  };
+  return scene;
+}
+
+test('P&ID maps equipment and exact port readings to the real component without inventing controller results', () => {
+  const model = processSchematicModel(pidFixture()), item = tag => model.items.find(node => node.id === tag);
+  assert.equal(model.nodes[0].displayTag, 'TK-101');
+  assert.deepEqual(model.nodes[0].element_ids, []);
+  assert.match(processComponentDetails(model, model.nodes[0]).join('\n'), /boundary approximation; outside the mechanical model/);
+  assert.deepEqual(item('PT-101').values, ['Port line.in', 'Calculated p 500 kPa abs']);
+  assert.deepEqual(item('PT-102').values, ['Port line.out', 'Calculated p 450 kPa abs']);
+  assert.deepEqual(item('FT-101').values, ['Port line.out', 'Calculated flow 10 kg/s']);
+  assert.deepEqual(item('PT-101').element_ids, ['E1', 'E2']);
+  assert.deepEqual(item('FT-101').element_ids, ['E1', 'E2']);
+  assert.deepEqual(item('PT-101').failures, []);
+  assert.match(processComponentDetails(model, item('PT-101')).join('\n'), /Associated LINE-101: flow.velocity.0/);
+  assert.deepEqual(item('FIC-101').element_ids, []);
+  assert.deepEqual(item('FIC-101').values, ['Design intent only; no controller output calculated.']);
+  assert.equal(item('FIC-101').signals.length, 2);
+  assert.doesNotMatch(processComponentDetails(model, item('FIC-101')).join('\n'), /kPa|kg\/s/);
+});
+
+test('P&ID SVG uses process symbols, instrument bubbles and typed signal links with explicit limitations', () => {
+  const scene = pidFixture();
+  scene.process.schematic.components[2].velocity_check_ids = ['flow.velocity.2'];
+  scene.search.checks.push({ ...scene.search.checks[0], entity_refs: [], constraint_id: 'flow.velocity.2' });
+  const model = processSchematicModel(scene), svg = processSchematicSvg(model, 'PT-102');
+  assert.equal(svg, processSchematicSvg(model, 'PT-102'));
+  assert.equal((svg.match(/role="button" tabindex="0"/g) ?? []).length, 8);
+  assert.match(svg, /data-component-id="PT-102" aria-pressed="true"[^>]*class="component selected"/s);
+  assert.match(svg, /data-component-id="LOSS-101" data-pid-tag="FCV-101"[^>]*class="component failed"/s);
+  assert.doesNotMatch(svg, /data-component-id="PT-10[12]"[^>]*class="component failed/);
+  assert.match(svg, /class="tap-line"/);
+  assert.match(svg, /class="signal-line" data-signal-source="FT-101" data-signal-target="FIC-101"/);
+  assert.match(svg, /class="signal-line" data-signal-source="FIC-101" data-signal-target="FCV-101"/);
+  assert.match(svg, /stroke-dasharray:7 5/);
+  assert.match(svg, /Panel controller/);
+  assert.match(svg, /pressure absolute/);
+  assert.match(svg, /Calculated hydraulic values, not sensor readings/);
+  assert.match(svg, /Controllers do not simulate valve motion/);
+  assert.match(svg, /&quot;port_id&quot;:&quot;line.out&quot;/);
+  assert.match(svg, /&quot;bound_fingerprint&quot;:&quot;abc&quot;/);
+  assert.match(svg, /&quot;basis&quot;:&quot;pandapipes&quot;/);
+  assert.match(svg, /FAIL: 4.25 &gt; 3 m\/s/);
+  assert.doesNotMatch(svg, /No instrumentation|not a control valve/);
+  assert.doesNotMatch(svg, /<script|href=|onclick=/);
+});
+
+test('P&ID render refuses broken tap, equipment and electrical-signal associations', () => {
+  for (const mutate of [
+    pid => { pid.schema = 'unsupported'; },
+    pid => { pid.equipment[0].tag = 101; },
+    pid => { pid.equipment[0].description = ' '; },
+    pid => { pid.equipment[0].kind = 'toString'; },
+    pid => { pid.instruments[0].tag = 'PT-'; },
+    pid => { pid.instruments[0].description = ''; },
+    pid => { pid.instruments[0].port_id = 'missing.port'; },
+    pid => { delete pid.instruments[0].port_id; },
+    pid => { pid.instruments[0].port_id = null; },
+    pid => { pid.instruments[0].port_id = 123; },
+    pid => { pid.instruments[0].tag = 'FT-101'; },
+    pid => { pid.instruments[3].port_id = 'line.in'; },
+    pid => { pid.equipment[1].component_id = 'LINE-101'; },
+    pid => { pid.equipment[0].tag = 'SINK-101'; },
+    pid => { pid.equipment.push({ ...pid.equipment[0], tag: 'TK-103' }); },
+    pid => { pid.signals[0].source_tag = 'PT-101'; },
+    pid => { pid.signals[0].source_tag = 'FCV-101'; },
+    pid => { pid.signals[0].source_tag = 'missing'; },
+    pid => { pid.signals.pop(); },
+    pid => { pid.signals.push({ ...pid.signals[0] }); }
+  ]) {
+    const scene = pidFixture(); mutate(scene.process.schematic.pid);
+    assert.throws(() => processSchematicModel(scene), /does not match/);
+  }
+});
+
+test('P&ID free-form descriptions are escaped and no symbols alter the existing solver graph', () => {
+  const scene = pidFixture(), before = structuredClone(scene);
+  scene.process.schematic.pid.equipment[0].description = '<script>alert("equipment")</script>';
+  scene.process.schematic.pid.instruments[0].description = '<img onerror="bad"> & tap';
+  const svg = processSchematicSvg(processSchematicModel(scene));
+  assert.doesNotMatch(svg, /<script|<img/);
+  assert.match(svg, /&lt;script&gt;alert\(&quot;equipment&quot;\)&lt;\/script&gt;/);
+  assert.match(svg, /&lt;img onerror=&quot;bad&quot;&gt; &amp; tap/);
+  assert.deepEqual(scene.process.segments, before.process.segments);
+  assert.deepEqual(scene.process.schematic.components, before.process.schematic.components);
+});
+
+test('supported boundary symbols and manual valves keep their declared hydraulic approximations', () => {
+  for (const kind of ['pump', 'heat_exchanger']) {
+    const scene = pidFixture(); scene.process.schematic.pid.equipment[0].kind = kind;
+    const model = processSchematicModel(scene);
+    assert.match(processSchematicSvg(model), /data-pid-tag="TK-101"/);
+    assert.deepEqual(model.nodes[0].element_ids, []);
+  }
+  const scene = pidFixture(), pid = scene.process.schematic.pid;
+  pid.equipment[1].kind = 'manual_valve'; pid.instruments.pop(); pid.signals = [];
+  assert.match(processSchematicSvg(processSchematicModel(scene)), /Manual valve/);
+});
+
+
+test('tap placement follows inlet/outlet topology even when instrument declarations are reversed', () => {
+  const scene = pidFixture();
+  const tapLines = svg => [...svg.matchAll(/<path class="tap-line" d="([^"]+)"/g)].map(match => match[1]).sort();
+  const before = tapLines(processSchematicSvg(processSchematicModel(scene)));
+  scene.process.schematic.pid.instruments.reverse();
+  assert.deepEqual(tapLines(processSchematicSvg(processSchematicModel(scene))), before);
+  const horizontalSpans = before.map(path => {
+    const [, edge, corridor, tap] = path.match(/^M([\d.]+) 267H([\d.]+)V365H([\d.]+)V440$/);
+    const side = Math.sign(Number(corridor) - Number(edge)), center = Number(edge) - side * 28;
+    assert.equal(Math.abs(Number(corridor) - center), 75, 'Vertical tap leg stays outside the 144px instrument label area');
+    return [Number(tap), Math.min(Number(tap), Number(corridor)), Math.max(Number(tap), Number(corridor))];
+  });
+  for (const a of horizontalSpans) for (const b of horizontalSpans) {
+    if (a[0] !== b[0]) assert.ok(a[2] < b[1] || b[2] < a[1]);
+  }
+});
+
+
+test('exact taps reject duplicate graph ports and malformed explicit P&ID declarations', () => {
+  const scene = pidFixture();
+  scene.process.schematic.components[0].outlet_port = 'line.out';
+  scene.process.schematic.connections[0].source_port = 'line.out';
+  assert.throws(() => processSchematicModel(scene), /does not match/);
+  for (const invalid of [null, false, 0, '']) {
+    const invalidScene = pidFixture(); invalidScene.process.schematic.pid = invalid;
+    assert.throws(() => processSchematicModel(invalidScene), /does not match/);
+  }
+  for (const invalid of [undefined, null, '', 101, 'invalid port']) {
+    const invalidScene = pidFixture(); invalidScene.process.schematic.components[1].inlet_port = invalid;
+    assert.throws(() => processSchematicModel(invalidScene), /does not match/);
+  }
+  const extraPort = pidFixture(); extraPort.process.schematic.components[0].inlet_port = 'fake.in';
+  extraPort.process.schematic.pid.instruments[0].port_id = 'fake.in';
+  assert.throws(() => processSchematicModel(extraPort), /does not match/);
+});

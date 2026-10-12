@@ -43,7 +43,8 @@ def _schematic(bound: BoundProcessNetwork, payload: dict) -> dict:
     return {"schema": "tuba.process.schematic.v1", "network_id": bound.network.id,
             "bound_fingerprint": bound.fingerprint, "components": components,
             "connections": [connection.to_dict() for connection in bound.network.connections],
-            "scenario": bound.scenario.to_dict(), "requirements": bound.requirements.to_dict()}
+            "scenario": bound.scenario.to_dict(), "requirements": bound.requirements.to_dict(),
+            **({"pid": bound.network.pid.to_dict()} if bound.network.pid is not None else {})}
 
 
 def attach_process_review(scene, payload, *, bound: BoundProcessNetwork | None = None):

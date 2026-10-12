@@ -7,22 +7,22 @@ separately records completed numerical and structural checks.
 
 ## Vision
 
-Let an engineer define a small process network, see its tagged schematic and
+Let an engineer define a small process network, see its instrumented P&ID and
 physical pipe route together, evaluate flow constraints with pandapipes, and
 inspect the resulting Code_Aster stresses, displacements and support loads.
 Each candidate keeps its inputs, actual solver evidence and rejection reasons.
 An LLM can propose the next route or bore change through the same authored
 inputs and evaluation tools used by a person.
 
-The shared process graph owns component and port identities, connections and
-operating requirements. Procedural Python owns the physical model. The diagram
-shows connectivity; actual 3D geometry supplies bore, length, elevation and
+The shared process graph owns component and port identities, connections,
+operating requirements and optional explicit P&ID declarations. Procedural
+Python owns the physical model. The diagram shows connectivity; actual 3D geometry supplies bore, length, elevation and
 fitting data. Neither drawing coordinates nor an LLM's estimate become measured
 pipe dimensions.
 
 ```mermaid
 flowchart TD
-    P[Authored process graph and requirements] --> D[Tagged process schematic]
+    P[Authored process graph and requirements] --> D[P&ID with declared equipment and instruments]
     P --> B[Bind component IDs to measured Tuba routes]
     G[Procedural 3D model] --> B
     B --> H[pandapipes: supported steady hydraulics]
@@ -46,6 +46,7 @@ retains its measured fluid results and explicitly unevaluated structural checks.
 | Boundary | Current role |
 | --- | --- |
 | `tuba/process/network.py` | Typed components, ports, connections, scenarios, requirements and associations to measured routes and elements. |
+| `tuba/process/pid.py` | Explicit equipment annotations, instrument taps and validated electrical control-signal declarations; independent of numerical equipment/control behavior. |
 | `tuba/process/pandapipes.py` | In-process Python hydraulic execution, retained native network/results, dependency identities and convergence diagnostics. |
 | `HydraulicResults.verify_for` | Matches solve-issued evidence, unchanged artifacts and raw measurements to the current bound candidate. |
 | `tuba/process/structural.py` | Explicit pressure-reference conversion, filled-bore contents density and caller-declared wall-temperature approximation. |
@@ -81,11 +82,38 @@ remains the editable engineering source. This is a one-way projection: changing
 the downloaded drawing does not update topology, geometry, solver inputs or
 existing evidence. Layout coordinates are presentation data only.
 
-This first drawing is a **process schematic**, not a complete instrumented P&ID.
-The current graph contains no instrument specification, signal/control network
-or complete equipment design. Instrument tags and loops require explicit
-engineering inputs in a later model extension. A browser graphical editor,
-graphic-to-model round-trip and DEXPI export are outside this milestone.
+## Instrumented P&ID extension
+
+The current extension adds an optional `PidDefinition` to the same process
+graph. The authored water example explicitly declares two tanks, one control
+valve, pressure and flow transmitter taps, and a flow indicating controller.
+Solid process lines and taps, instrument bubbles, a panel controller and dashed
+electrical signals have a drawing legend. **Open P&ID** provides a full-size
+view; the same drawing is available as editable SVG.
+
+Transmitter selection resolves an exact declared process port and displays its
+calculated absolute pressure or mass flow. Equipment selection resolves its
+graph component and any actual mechanical association. A controller has no
+numerical output: the declared signal path does not simulate a feedback loop.
+The source still prescribes 10 kg/s, and the external valve still uses the
+illustrative fixed `K=5` operating point. No tank levels, valve curve, actuator
+response or equipment body is added to the numerical model by its symbol.
+
+Tags, tap ports, compatible transmitter/controller quantities and signal
+directions validate before execution. Definitions round-trip with the graph
+and participate in its bound fingerprint. Old graphs with no declaration keep
+their previous representation; imported graphs do not receive invented tags.
+The [implementation plan](process-pid-implementation-plan.md) records the
+completed scope. The [instrumented P&ID qualification](process-network-coupling-results.md#instrumented-pid-review)
+records fresh pandapipes/Code_Aster cases and browser checks for exact-port
+values, selection, keyboard operation, candidate reset and SVG download. Legacy
+drawings remain readable; invalid P&ID declarations fail explicitly.
+
+This is an instrumented P&ID subset with documented symbols, not a claim of
+standards compliance or complete plant design. Dynamic controls, valve sizing,
+a browser graphical editor, graphic-to-model round-trip and DEXPI export remain
+outside this milestone. The [process guide](../content/process-networks.md)
+shows the authored Python declaration and exact scope.
 
 ## Linked evidence and inspection
 
@@ -120,8 +148,8 @@ structural evidence must stay unavailable when selecting or comparing diagrams.
 | Order | Work package | Completion evidence |
 | --- | --- | --- |
 | 1: Implemented | Tagged SVG schematic and linked selection in the existing review | Fresh hydraulic rejection and accepted Code_Aster layout verified in the browser: nine pipe elements select together; boundary/loss selection clears them; failure labels, keyboard selection, scene-change reset and actual SVG download pass. |
-| 2 | Richer assumption and candidate comparison | Offset/bore edits show changed hydraulic geometry, losses and mapped mechanical loads while preserving earlier candidates and their measured failures. |
-| 3 | Explicit instruments and control connections | Declared tags, instrument types and signal links validate and render with documented symbols; no inference of controls from hydraulic results. |
+| 2: Implemented | Explicit instruments and control connections | Fresh hydraulic rejection and accepted Code_Aster case, strict declarations, exact-port values, linked selection, full-size/SVG output and legacy fallback passed [qualification](process-network-coupling-results.md#instrumented-pid-review). |
+| 3 | Richer assumption and candidate comparison | Offset/bore edits show changed hydraulic geometry, losses and mapped mechanical loads while preserving earlier candidates and their measured failures. |
 | 4 | Qualified equipment and broader circuits | Sourced valve/pump data and each new topology have boundary-condition, conservation and independent reference checks before expanding the supported scope. |
 | 5 | P&ID exchange and agent iteration | A declared DEXPI export profile preserves supported identities; pinned-provider LLM trials compare permitted edits using the same solver checks, retained history and costs. |
 

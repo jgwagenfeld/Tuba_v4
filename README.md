@@ -78,23 +78,12 @@ run.results.plot_deformed_stress(model=model)
 
 For browser display, see the [web-scene workflow](docs/content/workflow.md#reviewable-web-scene) and an [example result view](docs/content/assets/figures/code_aster_review.png). Scene bundles include geometry, analysis meshes, results and run metadata. The [modeling guide](docs/content/modeling.md) covers beam, `TUYAU` pipe-wall and 3D solid idealisations, supports and fluid contents by operation.
 
-The [process-network example](docs/content/process-networks.md) connects a typed
-water-circuit graph and authored route to pandapipes, then transfers verified
-pressure, temperature and contents loads into Code_Aster. Its retained candidate
-review includes hydraulic failures and structural results for solved layouts.
-It also imports a selected pipe connection from the official DEXPI 2.0.1
-reference P&ID, with source IDs and declared operating/layout assumptions retained.
-Install the `process` Python extra for this workflow; no OpenModelica installation
-is required. OpenModelica remains an optional comparison backend.
+The [process-network example](docs/content/process-networks.md) connects a typed water circuit and authored route to pandapipes, then transfers verified pressure, temperature and contents loads into Code_Aster. Its review retains hydraulic failures and structural results for solved layouts.
+It also imports one selected connection from the official DEXPI 2.0.1 reference P&ID, preserving source IDs and declared study assumptions. Install the `process` Python extra; no OpenModelica installation is required. OpenModelica remains an optional comparison backend.
 
-**Vision and roadmap:** generate a tagged process schematic from the shared graph,
-bind it to the physical route, evaluate flow constraints with pandapipes, and
-review the mapped Code_Aster results together. Engineers and LLMs revise the
-same authored inputs; every evaluated candidate retains its failures and evidence.
-The implemented schematic links SVG component selection to routes and measured
-fluid values; explicit instrumentation and full P&ID exchange follow separately.
-See the [process review vision](docs/architecture/process-model-review-study.md)
-and [implementation roadmap](docs/architecture/process-network-and-code-aster-roadmap.md).
+**Vision and roadmap:** generate an instrumented P&ID from the shared graph, bind it to the physical route, and review pandapipes and mapped Code_Aster results together. Engineers and LLMs revise the same authored inputs; each candidate retains its failures and evidence.
+Declared equipment, transmitter taps and control signals share the graph with the linked SVG review. Controls are drawn, not simulated; full P&ID exchange and qualified equipment characteristics remain separate work.
+See the [process review vision](docs/architecture/process-model-review-study.md) and [implementation roadmap](docs/architecture/process-network-and-code-aster-roadmap.md).
 
 ## Getting started
 

@@ -1,4 +1,4 @@
-"""A small P&ID-like water circuit and an editable procedural Tuba route.
+"""An instrumented water-circuit P&ID and an editable procedural Tuba route.
 
 The fixed loss is downstream of the mechanical outlet anchor, outside this
 structural study. Loss coefficients and support limits are demo assumptions.
@@ -7,6 +7,7 @@ structural study. Loss coefficients and support limits are demo assumptions.
 import math
 
 from tuba import Model
+from tuba.process import EquipmentDefinition, Instrument, PidDefinition, SignalConnection
 from tuba.process.network import (
     Connection, FixedLossComponent, HydraulicRequirements, MassFlowSource,
     OperatingScenario, PipeComponent, PressureSink, ProcessNetwork,
@@ -56,7 +57,21 @@ def process_inputs(model, *, network=None):
             PressureSink("SNK-101", "SNK-101.in"),
         ), connections=(Connection("SRC-101.out", "L-101.in"),
                         Connection("L-101.out", "V-101.in"),
-                        Connection("V-101.out", "SNK-101.in")))
+                        Connection("V-101.out", "SNK-101.in")), pid=PidDefinition(
+            equipment=(
+                EquipmentDefinition("TK-101", "SRC-101", "tank", "Supply tank; prescribed mass-flow boundary"),
+                EquipmentDefinition("TK-102", "SNK-101", "tank", "Receiving tank; prescribed pressure boundary"),
+                EquipmentDefinition("FCV-101", "V-101", "control_valve",
+                                    "Illustrative K=5 operating point; no valve characteristic or control dynamics"),
+            ),
+            instruments=(
+                Instrument("PT-101", "PT", "L-101.in", "Calculated pipe inlet absolute pressure"),
+                Instrument("FT-101", "FT", "L-101.out", "Calculated pipe outlet mass flow"),
+                Instrument("FIC-101", "FIC", None, "Declared flow-control loop; not simulated"),
+            ),
+            signals=(SignalConnection("FT-101", "FIC-101"),
+                     SignalConnection("FIC-101", "FCV-101")),
+        ))
     scenario = OperatingScenario("WaterOperating", mass_flow_kg_s=10.0,
         source_temperature_k=333.15, sink_pressure_pa=300_000.0,
         external_pressure_pa=101_325.0, mechanical_reference_temperature_k=293.15)
