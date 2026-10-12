@@ -44,6 +44,9 @@ tuba-viewer = "tuba.visualization.viewer:main"
 tuba-skill = "tuba.skills:main"
 
 [project.optional-dependencies]
+process = [
+    "pandapipes==0.15.0",
+]
 # PyVista (pulls VTK, ~100 MB) backs the tuba.plotting quick-look/export path
 # only; the web-review path (tuba.visualization + viewer/) does not need it.
 viz = [

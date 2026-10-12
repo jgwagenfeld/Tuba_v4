@@ -1,15 +1,17 @@
 // Film annotations are presentations of recorded checks and native scene data.
 // Never fill a missing operation/state with another operation's results.
+import { hydraulicSolverLabel } from './searchReplay.js';
+
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const point = value => Array.isArray(value) && value.length === 3 && value.every(finite);
 const number = value => finite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : 'unavailable';
 export const SECTION_COMPONENTS = ['N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'];
 
-export function scopedOverlay(scene, type, operation, state) {
+export function scopedOverlay(scene, type, operation, state, basis = null) {
   const fluid = type.startsWith('fluid_');
   if (!operation || (!fluid && !state)) return null;
   return scene?.overlays?.find(o => o.data?.result_type === type && o.data.load_case === operation &&
-    (fluid ? o.data.basis === 'openmodelica' && !o.data.result_state_id : o.data.result_state_id === state)) ?? null;
+    (fluid ? hydraulicSolverLabel(o.data.basis) && (!basis || o.data.basis === basis) && !o.data.result_state_id : o.data.result_state_id === state)) ?? null;
 }
 
 function objectPoint(scene, id, end = null) {
@@ -28,9 +30,11 @@ function objectPoint(scene, id, end = null) {
 
 function hydraulicPresentation(frame, scene, operation) {
   const check = frame.check;
+  const basis = frame.hydraulic_basis ?? check?.basis ?? frame.checks?.find(c => hydraulicSolverLabel(c.basis))?.basis ?? scene?.process?.basis;
+  const solver = hydraulicSolverLabel(basis) ?? 'Hydraulic';
   const pressure = check?.unit === 'Pa';
   const fieldType = pressure ? 'fluid_pressure' : 'fluid_velocity';
-  const overlay = scopedOverlay(scene, fieldType, operation, null);
+  const overlay = hydraulicSolverLabel(basis) ? scopedOverlay(scene, fieldType, operation, null, basis) : null;
   const field = scene?.result_fields?.find(f => f.overlay_id === overlay?.id);
   const unit = pressure ? 'Pa' : 'm/s';
   const quantity = pressure ? 'mean absolute fluid pressure' : 'fluid velocity';
@@ -38,7 +42,7 @@ function hydraulicPresentation(frame, scene, operation) {
   const peak = Object.entries(overlay?.data.values ?? {}).filter(([, value]) => finite(value))
     .sort((a, b) => b[1] - a[1])[0];
   rows.push(peak ? `Largest recorded ${quantity}: ${number(peak[1])} ${unit} - ${peak[0].replace('object:element:', '')}`
-    : `OpenModelica ${quantity} unavailable for this recorded scenario.`);
+    : `${solver} ${quantity} unavailable for this recorded scenario.`);
   if (check) {
     if (finite(check.measured_value) || finite(check.limit)) rows.push(`${check.constraint_id}: ${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`);
     if (check.message) rows.push(check.message);
@@ -50,17 +54,17 @@ function hydraulicPresentation(frame, scene, operation) {
     const p = objectPoint(scene, peak[0]);
     if (p) annotations.push({ point: p, label: `${peak[0].replace('object:element:', '')}: ${number(peak[1])} ${unit}`, severity: 'result' });
   }
-  rows.push('OpenModelica steady hydraulics; fluid pressures are absolute.');
+  rows.push(`${solver} steady hydraulics; fluid pressures are absolute.`);
   rows.push(frame.completed_operations?.length || scene?.search?.solved_operations?.length
     ? 'Code_Aster structural results are retained separately.' : 'Code_Aster structural results were not evaluated.');
-  return { title: `OpenModelica: ${quantity} (${unit})`, rows, annotations,
+  return { title: `${solver}: ${quantity} (${unit})`, rows, annotations, solver,
     fieldId: field?.id ?? null, fieldType, component: 'magnitude', unitSystem: 'si', mode: 'hydraulics' };
 }
 
 export function filmPresentation(frame, scene, operation, state) {
   const mode = frame.result_view ?? 'finding';
   if (mode === 'iteration') return iterationPresentation(frame, scene, operation, state);
-  if (frame.fluid_results || frame.check?.basis === 'openmodelica') return hydraulicPresentation(frame, scene, operation);
+  if (frame.fluid_results || hydraulicSolverLabel(frame.check?.basis)) return hydraulicPresentation(frame, scene, operation);
   const annotations = [], rows = [];
   let title = frame.check ? `${frame.check.verdict.toUpperCase()}: ${frame.check.constraint_id}` : 'Recorded candidate';
   // Reactions are a nodal quantity. Colour the pipe by its own measured stress
@@ -213,8 +217,8 @@ function iterationPresentation(frame, scene, operation, state) {
     : { annotations: [], fieldId: null, fieldType: 'stress', component: 'magnitude', unitSystem: 'si' };
   const annotations = [];
   const clashes = new Map();
-  const failures = (frame.checks ?? []).filter(c => c.verdict === 'fail' && (fluid ? c.basis === 'openmodelica'
-    : c.basis !== 'openmodelica' && (c.operation ?? null) === (native ? operation : null) &&
+  const failures = (frame.checks ?? []).filter(c => c.verdict === 'fail' && (fluid ? hydraulicSolverLabel(c.basis) && (!frame.hydraulic_basis || c.basis === frame.hydraulic_basis)
+    : !hydraulicSolverLabel(c.basis) && (c.operation ?? null) === (native ? operation : null) &&
       (c.result_state_id ?? null) === (native ? state : null)));
   for (const check of failures) {
     for (const clash of check.details?.clashes ?? []) {
@@ -276,13 +280,13 @@ export function conciseFilmCaption(frame, presentation, operation, state, error)
     const labels = { rejected_constraint: 'REJECTED — declared constraint', feasible_retained: 'FEASIBLE — kept for comparison',
       interrupted: 'INTERRUPTED — no completed result', evaluation_failed: 'EVALUATION FAILED', selected: 'SELECTED' };
     return [`${frame.candidate_id} · ${presentation.title}`, labels[frame.outcome] ?? outcome.replaceAll('_', ' '),
-      frame.fluid_results ? `OpenModelica - ${operation ?? 'scenario unavailable'} - steady hydraulics`
+      frame.fluid_results ? `${presentation.solver ?? 'Hydraulic'} - ${operation ?? 'scenario unavailable'} - steady hydraulics`
         : `${operation ?? 'Cold layout'} · ${state ?? 'no solver state'}`,
       ...(error ? [`View unavailable: ${error}`] : presentation.rows), `Recorded event ${frame.event_sequence}`].join('\n\n');
   }
   return [`${frame.candidate_id ?? 'Run'} · ${outcome.replaceAll('_', ' ')}`,
-    presentation.title, frame.fluid_results || frame.check?.basis === 'openmodelica'
-      ? `OpenModelica - ${operation ?? 'scenario unavailable'} - steady hydraulics`
+    presentation.title, frame.fluid_results || hydraulicSolverLabel(frame.check?.basis)
+      ? `${presentation.solver ?? 'Hydraulic'} - ${operation ?? 'scenario unavailable'} - steady hydraulics`
       : `${operation ?? 'Cold reference'} · ${state ?? 'no solver state'}`,
     ...(error ? [`View unavailable: ${error}`] : presentation.rows),
     `Recorded event ${frame.event_sequence} · ${frame.search_timestamp ?? 'time not recorded'}`].join('\n\n');

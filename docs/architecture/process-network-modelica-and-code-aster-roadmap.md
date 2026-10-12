@@ -5,13 +5,16 @@ the small working starter was added against `f3a4e4f`.
 This extends the [LLM design roadmap](llm-piping-design-roadmap.md) and
 [reasoning/guidance research](llm-piping-reasoning-and-guidance-research-2026-10-12.md).
 It defines the production architecture and implementation sequence. The bounded
-serial-water implementation now runs real OpenModelica, maps verified operating
+serial-water implementation now defaults to pandapipes, maps verified operating
 loads into Code_Aster, and retains combined candidate reviews. See the
 [implementation guide](../content/process-networks.md) and
 [qualification results](process-network-coupling-results.md). A narrow DEXPI XML
 2.0.1 adapter now imports a selected single-pipe connection from the official
 reference P&ID, preserving source IDs and explicit study boundaries. Broader
 DEXPI coverage, branched circuits, equipment libraries and FMUs remain future work.
+OpenModelica remains an optional comparison/integration backend. Users of the
+default hydraulic workflow need the `process` Python extra, not a Modelica
+compiler installation.
 
 ## Start with one authored circuit
 
@@ -30,8 +33,8 @@ flowchart LR
 
 The [coupled example](../../examples/process_network/model.py) authors a Tuba
 offset route, measures its bore and actual centerline length including arcs,
-and evaluates Standard Library fluid components with the installed OpenModelica
-compiler. It prescribes 10 kg/s of water and 3 bar absolute at the outlet, then
+and evaluates them with the bundled Python hydraulic dependency. It prescribes
+10 kg/s of water and 3 bar absolute at the outlet, then
 solves for required inlet pressure. The 3 m/s maximum and 6 bar absolute
 source-pressure ceiling are example requirements. Constant fluid properties,
 four illustrative bend loss coefficients of 0.2, and a fixed loss coefficient
@@ -50,8 +53,8 @@ remains a diagnostic experiment, incomplete for engineering evaluation.
 
 Develop Tuba into the Python coordinator for a shared engineering network with
 separate process, geometry, and structural projections. Keep authored procedural
-Python and construction units as the editable physical design. Use Modelica for
-the supported fluid/equipment equations and real Code_Aster for structural
+Python and construction units as the editable physical design. Use pandapipes
+for the supported steady hydraulics and real Code_Aster for structural
 evaluation, then combine their findings for the design agent and review scene.
 
 The design is an iteration loop, not a one-time translation from P&ID to flow
@@ -68,7 +71,7 @@ flowchart TD
     G["Equipment/nozzle positions + obstacles"] --> N
     N --> A["LLM authors or revises procedural Tuba model"]
     A --> R["Measured route geometry and cold checks"]
-    R --> H["Modelica: supported flow and equipment model"]
+    R --> H["pandapipes: supported steady hydraulics"]
     H --> F["Flow findings + explicit structural-load mapping"]
     F --> S["Code_Aster: pipe, support and rack evaluation"]
     S --> C["Combined checks and existing review scene/history"]
@@ -107,7 +110,7 @@ Its runtime qualification is recorded separately in the linked results document.
 | [Fluid-contents example](../../examples/fluid_contents.py) | Density already contributes filled-bore weight independently of pressure. This is not a flow calculation. |
 | [Search checks/history](../../tuba/search/contracts.py) and [candidate evaluation](../../tuba/search/evaluate.py) | The preparation stage now retains fluid evidence/checks and gates Code_Aster while preserving failure and unknown semantics. |
 | [Review scenes](../../tuba/visualization/scene.py) and `viewer/` | The same review surface now carries fluid fields and combined findings, keeping structural values backed by matching Code_Aster evidence. |
-| [Process package](../../tuba/process/) and [coupled example](../../examples/process_network/run.py) | Strict serial graph, measured route associations, real OpenModelica execution, verified operating-load mapping, bounded proposals and combined reviews. |
+| [Process package](../../tuba/process/) and [coupled example](../../examples/process_network/run.py) | Strict serial graph, measured route associations, pandapipes or optional OpenModelica execution, verified operating-load mapping, bounded proposals and combined reviews. |
 
 General P&ID import, branches, equipment models and transient coupling remain
 outside this implementation. The current adapter supports one declared DEXPI
@@ -151,7 +154,47 @@ later as a proposed graph with unresolved/uncertain links. Sources:
 [DEXPI specifications](https://dexpi.org/specifications/),
 [pyDEXPI implementation](https://github.com/process-intelligence-research/pyDEXPI).
 
-## Modelica integration
+## Default Python hydraulic execution
+
+The selected runtime is pandapipes 0.15.0. It evaluates the existing bound
+serial-water graph in Python without an external compiler. Preserve actual
+solver provenance throughout the recorded checks, structural-load mapping,
+review and iteration film. Never label pandapipes output as OpenModelica.
+
+The first qualified scope uses constant-property water and Prandtl-Colebrook
+friction at pipe Reynolds numbers >= 4,000. Unit conversion, absolute versus
+gauge pressure, junction elevation and declared local losses require explicit
+verification. A package's broader capabilities do not automatically expand
+Tuba's supported graph or qualify its component data. Retain OpenModelica as an
+optional independent comparison and future advanced-system integration.
+Sources: [pandapipes](https://www.pandapipes.org/),
+[pipe equations and friction models](https://pandapipes.readthedocs.io/en/latest/components/pipe/pipe_component.html).
+
+## Generating a P&ID from the shared graph
+
+This is planned drawing work, not implemented P&ID generation. Generate the
+schematic from the same typed equipment, ports, connections and stable tags
+that feed the hydraulic model; retain separate drawing positions. The drawing
+must not assign physical pipe length or 3D coordinates.
+
+Start with a small editable SVG process schematic. Then add explicit instrument
+tags, signal connections, control loops and documented symbol conventions. The
+current serial hydraulic graph does not contain that instrumentation, equipment
+behavior or complete plant design; a full P&ID cannot be inferred from its
+calculated pressures and flows. An LLM may propose structured graph edits and
+explain assumptions; topology/schema checks and engineering review precede use.
+
+Selecting a line in the diagram should select its Tuba route and actual fluid
+results. Export a declared DEXPI version when a corresponding export adapter
+has been qualified; the current 2.0.1 import does not establish export support.
+
+Evaluate [pyDEXPI](https://github.com/process-intelligence-research/pyDEXPI) for
+structured P&ID/SVG tooling, checking its supported DEXPI dialect against ours.
+[pyflowsheet](https://github.com/nukleon84/pyflowsheet) targets simpler process
+flow diagrams and explicitly does not replace P&ID CAD. No new drawing package
+is installed by the hydraulic-backend change.
+
+## Optional Modelica integration
 
 Use an optional Python-managed external OpenModelica adapter. Compile a
 supported network assembled from tested component templates and `connect`
@@ -248,10 +291,10 @@ project/code assessment explicit and tied to its inputs and evidence.
 | --- | --- | --- |
 | S0: Working starter | One authored connection graph and physical route, evaluated by installed OpenModelica | Implemented as a bounded example; real-run evidence and limits are recorded below. This does not complete P0/P1's general contracts and qualification. |
 | P0: Shared contract | Typed network, scenarios, requirements and route associations, kept beside the structural model; one small Python-authored liquid circuit | Reject missing/contradictory inputs; retain stable IDs through physical edits; derive bore, arc length, elevations and fittings from the built model. |
-| P1: Real steady fluid evaluation | Optional OpenModelica/OMPython adapter and results contract; one explicit component subset | Run real supported circuits; verify mass balance and an independent friction/loss reference; diagnose unavailable runtime, convergence failure and unsupported components. Check velocity **and** required delivery. |
+| P1: Real steady fluid evaluation | Default pandapipes and optional OpenModelica adapter with retained results; one explicit component subset | Run real supported circuits; verify mass balance and an independent friction/loss reference; diagnose unavailable runtime, convergence failure and unsupported components. Check velocity **and** required delivery. |
 | P2: Fluid-to-structure mapping | Reuse existing operation/load compilation and run real Code_Aster | Verify absolute/differential pressure conventions, temperature conversion, contents weight and association completeness; compare reactions/stresses to appropriate references for a pressure/thermal liquid circuit. |
 | P3: Combined LLM design/review loop | Candidate evaluation combines flow and structural findings; existing scene/history displays both | Preserve every proposal and measured failure; route revisions refresh hydraulic inputs; acceptance requires all declared checks and matching evidence. Compare skill/context variants under a pinned model. |
-| P4: P&ID exchange and broader circuits | One explicitly supported DEXPI adapter, branches, equipment libraries and operation modes | Confirm import coverage and source-ID preservation; verify actual component correlations and boundary specifications. Image extraction remains provisional until checked. |
+| P4: P&ID authoring, exchange and broader circuits | Generate a tagged SVG schematic from the shared graph, add explicit instrumentation/control connections, then extend DEXPI exchange and supported circuits | Preserve component IDs across drawing, hydraulics and 3D route; validate diagram connectivity and each declared DEXPI version. Qualify new component correlations and boundary specifications. Image extraction remains provisional until checked. |
 | P5: Dynamics and portable subsystems | FMU interface, startup/control scenarios, wall thermal dynamics; selected transient/coupling models | Verify events, discretization and time convergence. Introduce synchronized coupling only when the physical problem requires it and qualify the particular model. |
 
 **Implementation status:** P0 and the bounded steady-liquid portions of P1/P2

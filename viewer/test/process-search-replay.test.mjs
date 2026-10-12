@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planSearchFilm } from '../src/searchFilm.js';
 import { filmPresentation, conciseFilmCaption } from '../src/searchFilmPresentation.js';
-import { reviewForCheck } from '../src/searchReplay.js';
+import { hydraulicSolverLabel, reviewForCheck } from '../src/searchReplay.js';
 import { filmPlayer } from '../src/searchFilmPlayer.js';
 
-const flowCheck = (unit = 'm/s') => ({ constraint_id: unit === 'Pa' ? 'flow.source_pressure' : unit === 'kg/s' ? 'flow.delivery' : 'flow.velocity.0',
-  basis: 'openmodelica', verdict: 'fail', operation: null, result_state_id: null,
+const flowCheck = (unit = 'm/s', basis = 'openmodelica') => ({ constraint_id: unit === 'Pa' ? 'flow.source_pressure' : unit === 'kg/s' ? 'flow.delivery' : 'flow.velocity.0',
+  basis, verdict: 'fail', operation: null, result_state_id: null,
   entity_refs: unit === 'm/s' ? ['element:E1'] : [], measured_value: unit === 'Pa' ? 700000 : unit === 'kg/s' ? 8 : 4.64,
   limit: unit === 'Pa' ? 600000 : unit === 'kg/s' ? 10 : 3, unit,
   message: 'Declared hydraulic requirement exceeded', details: { scenario_id: 'WaterOperating' } });
@@ -23,8 +23,8 @@ function fixture(checks = [flowCheck()], completed = []) {
     ] };
 }
 
-function fluidScene(operation = 'WaterOperating') {
-  const overlay = (type, value, unit) => ({ id: type, data: { result_type: type, basis: 'openmodelica', load_case: operation,
+function fluidScene(operation = 'WaterOperating', basis = 'openmodelica') {
+  const overlay = (type, value, unit) => ({ id: type, data: { result_type: type, basis, load_case: operation,
     result_state_id: '', scenario_id: 'WaterOperating', unit, values: { 'object:element:E1': value } } });
   return { objects: [{ id: 'object:element:E1', geometry_asset_id: 'E1' }],
     geometry_assets: [{ id: 'E1', generation_config: { points: [[0, 0, 0], [2, 0, 0]] } }],
@@ -229,4 +229,58 @@ test('hydraulic grouping compares exact measurements and limits before display r
   assert.match(presentation.rows.join(), /flow.velocity.1: 4.64 \/ limit 3 m\/s/);
   assert.match(presentation.rows.join(), /flow.velocity.2: 4.64 \/ limit 2 m\/s/);
   assert.match(presentation.rows.join(), /flow.pressure.0: 700,000 \/ limit 600,000 Pa/);
+});
+
+for (const unit of ['m/s', 'Pa', 'kg/s']) test(`pandapipes ${unit} rejection keeps solver provenance, findings and sealed review`, () => {
+  const manifest = fixture([flowCheck(unit, 'pandapipes')]);
+  const frame = iteration(manifest);
+  const scene = fluidScene('WaterOperating', 'pandapipes');
+  assert.equal(frame.view.bundle, 'reviews/C1/E1');
+  assert.equal(frame.hydraulic_basis, 'pandapipes');
+  assert.equal(frame.fluid_results, true);
+  assert.equal(frame.native_results, false);
+  assert.match(frame.caption, /Recorded pandapipes hydraulic evidence/);
+  assert.doesNotMatch(frame.caption, /OpenModelica|Recorded Code_Aster/);
+  const presentation = filmPresentation(frame, scene, 'WaterOperating', null);
+  assert.equal(presentation.fieldId, unit === 'Pa' ? 'flow-pressure' : 'flow-velocity');
+  assert.equal(presentation.solver, 'pandapipes');
+  assert.match(presentation.rows.join(), /Code_Aster structural results were not evaluated/);
+  assert.doesNotMatch(presentation.rows.join(), /OpenModelica|MPa|N0: F/);
+  if (unit === 'm/s') {
+    assert.equal(presentation.annotations.length, 1);
+    assert.equal(presentation.annotations[0].severity, 'fail');
+    assert.match(presentation.annotations[0].label, /E1: 4.64 \/ limit 3 m\/s/);
+  }
+  assert.match(conciseFilmCaption(frame, presentation, 'WaterOperating', null), /pandapipes.*steady hydraulics/);
+  const generic = planSearchFilm(manifest, { events: 'review', start: 4, end: 4 }).keyframes.find(f => f.check);
+  assert.equal(generic.hydraulic_basis, 'pandapipes');
+  const finding = filmPresentation(generic, scene, 'WaterOperating', null);
+  assert.equal(finding.fieldId, presentation.fieldId);
+  assert.match(finding.title, /^pandapipes:/);
+  const html = filmPlayer(planSearchFilm(manifest, { events: 'iterations' }));
+  assert.match(html, /Fluid fields come from retained pandapipes evaluations/);
+  assert.match(html, /Hydraulic rejections show retained pandapipes fluid fields/);
+  assert.doesNotMatch(html, /OpenModelica/);
+});
+
+test('hydraulic checks cannot borrow another backend or an unsupported result basis', () => {
+  for (const [checkBasis, sceneBasis] of [['pandapipes', 'openmodelica'], ['openmodelica', 'pandapipes'], ['pandapipes', 'prediction']]) {
+    const presentation = filmPresentation({ check: flowCheck('m/s', checkBasis) }, fluidScene('WaterOperating', sceneBasis), 'WaterOperating', null);
+    assert.equal(presentation.fieldId, null);
+    assert.equal(presentation.annotations.length, 0);
+    assert.match(presentation.rows.join(), /unavailable/);
+  }
+  for (const basis of ['prediction', 'toString', null, undefined]) assert.equal(hydraulicSolverLabel(basis), null);
+});
+
+test('pandapipes hydraulic basis preserves completed Code_Aster structural field selection', () => {
+  const native = { constraint_id: 'structural.force', verdict: 'fail', operation: 'WaterOperating', result_state_id: 'state:structural', basis: 'code_aster',
+    entity_refs: ['node:N0'], measured_value: 5, limit: 4, unit: 'N' };
+  const frame = iteration(fixture([{ ...flowCheck('m/s', 'pandapipes'), verdict: 'pass' }, native], ['WaterOperating']));
+  assert.equal(frame.native_results, true);
+  assert.equal(frame.fluid_results, false);
+  const presentation = filmPresentation(frame, fluidScene('WaterOperating', 'pandapipes'), 'WaterOperating', 'state:structural');
+  assert.equal(presentation.fieldId, 'native-stress');
+  assert.ok(presentation.annotations.some(annotation => /N0: F 5 N/.test(annotation.label)));
+  assert.match(presentation.rows.join(), /25 MPa/);
 });

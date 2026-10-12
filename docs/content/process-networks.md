@@ -1,6 +1,6 @@
-# Process networks, Modelica and pipe stress
+# Process networks, pandapipes and pipe stress
 
-Tuba can evaluate a small serial water circuit with OpenModelica, transfer its
+Tuba can evaluate a small serial water circuit with pandapipes, transfer its
 verified operating conditions into Code_Aster, and retain each proposed layout
 in the existing search review. The process graph and procedural 3D model are
 separate authored inputs connected by stable route and component IDs.
@@ -9,7 +9,7 @@ separate authored inputs connected by stable route and component IDs.
 flowchart LR
     P[Process graph and operating requirements] --> B[Bind to authored Tuba routes]
     G[3D geometry and pipe sections] --> B
-    B --> M[OpenModelica steady flow]
+    B --> M[pandapipes steady flow]
     M --> C{Velocity, delivery and pressure checks}
     C -->|Fail| R[Retained reasons and fluid fields]
     C -->|Pass| L[Verified operating load mapping]
@@ -26,21 +26,26 @@ mechanical pipe's outlet anchor; its body mass, stiffness and equipment loads
 are outside this structural study.
 
 ```powershell
+python -m pip install '.[process]'
 $env:TUBA_CODE_ASTER_EXEC_METHOD = 'wsl'
 $env:TUBA_CODE_ASTER_WSL_DISTRO = 'Ubuntu'
 python -m examples.process_network.run `
-  --omc 'C:\Program Files\OpenModelica1.27.0-dev-64bit\bin\omc.exe' `
   --output 'D:\tuba-runs\Tuba_v4\my-process-study'
 ```
 
-Use a new output directory outside the checkout. The compiler path and WSL
-distribution are local installation choices. `OpenModelicaBackend` also accepts
-`TUBA_OMC` or discovers `omc` on PATH; Code_Aster uses Tuba's existing runtime
-configuration. No additional Python bridge dependency is required for Modelica.
-MSL 4.1.0 must be installed: the generated script requests that exact version.
+Use a new output directory outside the checkout. The `process` extra installs
+the pinned pandapipes Python dependency; a packaged application can include it.
+No external hydraulic compiler or OpenModelica installation is required.
+Code_Aster uses Tuba's existing runtime configuration; the WSL distribution
+above is a local installation choice.
+
+For the optional OpenModelica comparison, pass `--backend openmodelica`. It
+requires an installed compiler and MSL 4.1.0. `--omc PATH`, `TUBA_OMC` and PATH
+discovery remain supported; passing `--omc` alone selects OpenModelica for
+compatibility with earlier commands. `--backend pandapipes --omc PATH` is refused.
 
 The default run proposes a smaller bore, a larger bore, then a longer offset.
-It retains raw fluid CSV, generated Modelica inputs, compiler/library identities,
+It retains raw hydraulic inputs/results, solver/dependency identities,
 mapping records, Code_Aster artifacts and native search history. Runtime failure
 stops further scheduling and retains diagnostics. Hydraulic rejection keeps its
 measured fluid results and leaves structural checks unevaluated.
@@ -52,7 +57,7 @@ python -m tuba.visualization.viewer 'D:\tuba-runs\Tuba_v4\my-process-study\repla
 ```
 
 The review offers fluid velocity, mean absolute pressure, element pressure drop
-and bulk temperature, labeled **OpenModelica**. Solved candidates additionally
+and bulk temperature, labeled with the actual hydraulic solver. Solved candidates additionally
 carry Code_Aster support forces/moments, internal forces, displacement and FE
 stress. Fluid pressure means and element drops are derived from the actual
 evaluated endpoint pressures. They are not structural stress fields.
@@ -68,7 +73,6 @@ pipe `Pipe2`, between pump `P4711` and heat exchanger `H1007`.
 python -m examples.process_network.run `
   --dexpi examples/process_network/dexpi_reference/reference_pid.xml `
   --segment PipingNetworkSegment2 `
-  --omc 'C:\Program Files\OpenModelica1.27.0-dev-64bit\bin\omc.exe' `
   --output 'D:\tuba-runs\Tuba_v4\my-dexpi-study'
 ```
 
@@ -118,8 +122,10 @@ a route for a support does not invent a P&ID junction. The graph validates
 connectivity and rejects unsupported branches, cycles and implicit reducers.
 
 ```python
+from tuba.process import PandapipesBackend, apply_fluid_loads
+
 bound = network.bind(model, scenario, requirements)
-fluid = OpenModelicaBackend().solve(bound, fresh_output_directory)
+fluid = PandapipesBackend().solve(bound, fresh_output_directory)
 mapping = apply_fluid_loads(
     model, bound, fluid,
     operation_name="WaterOperating",
@@ -179,9 +185,17 @@ controlled model-provider benchmark or an autonomous optimizer.
 ## Current scope and next work
 
 The supported subset is forward, fully filled, steady serial liquid water,
-using `Modelica.Media.Water.ConstantPropertyLiquidWater`, 273.15–353.15 K and
-evaluated absolute pressures of 0.1–10 MPa. Fluid properties are constant in
-this selected medium, including at the example's 60 °C operating temperature.
+273.15–353.15 K and evaluated absolute pressures of 0.1–10 MPa. The explicit
+constant-property water model retains the same values as the earlier
+`Modelica.Media.Water.ConstantPropertyLiquidWater` study: density 995.586 kg/m³
+and viscosity 0.001 Pa s. These are constant assumptions, including at the
+example's 60 °C, rather than a temperature-dependent water-property calculation.
+Pandapipes uses Prandtl-Colebrook friction and currently requires pipe Reynolds
+numbers of at least 4,000. Lower-flow regimes fail explicitly; they are not
+qualified by this adapter. Bulk temperature is prescribed uniformly: the
+adapter runs isothermal hydraulics and does not solve heat transport.
+The optional OpenModelica backend keeps its own
+friction formulation and validity checks.
 Bend and fixed-loss coefficients require a declared source or assumption; the
 example uses illustrative values, not qualified equipment catalogue data.
 
@@ -192,7 +206,8 @@ flow-induced vibration, external-pressure collapse or general fluid-structure
 interaction. Example force/displacement limits are illustrative and FE stress
 display does not establish a piping-code check.
 
-Next: extend the declared DEXPI subset with qualified valve/pump data and
+Next: draw a process schematic from the same graph, then extend the declared
+DEXPI subset with qualified valve/pump data and
 branched-network cases; compare bounded LLM
 proposal policies with recorded provider/model/version/costs. FMUs, controls,
 transients and wall thermal dynamics remain later stages. See the

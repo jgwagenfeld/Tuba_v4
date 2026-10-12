@@ -1,4 +1,4 @@
-import { branchIds, latestViewRequest, parameterDiff, replayAt, reviewForCheck, safeReplayUrl } from "./searchReplay.js";
+import { branchIds, hydraulicSolverLabel, latestViewRequest, parameterDiff, replayAt, reviewForCheck, safeReplayUrl } from "./searchReplay.js";
 
 const text = value => value === undefined || value === null ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value);
 const label = value => String(value ?? "").replaceAll("_", " ");
@@ -159,8 +159,8 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
         const callout = element("details", undefined, `search-check search-${check.verdict}`);
         callout.dataset.searchConstraint = check.constraint_id;
         callout.open = check.verdict === "fail" || check.verdict === "unknown";
-        callout.append(element("summary", `${label(check.verdict)} · ${check.constraint_id} · ${check.operation ?? (check.basis === "openmodelica" ? check.details?.scenario_id ?? "hydraulic scenario" : "cold")}`),
-          element("p", `${check.required ? "Required" : "Advisory"} · ${check.basis} · ${check.result_state_id ?? (check.basis === "openmodelica" ? "steady hydraulic result" : "reference geometry")}`),
+        callout.append(element("summary", `${label(check.verdict)} · ${check.constraint_id} · ${check.operation ?? (hydraulicSolverLabel(check.basis) ? check.details?.scenario_id ?? "hydraulic scenario" : "cold")}`),
+          element("p", `${check.required ? "Required" : "Advisory"} · ${check.basis} · ${check.result_state_id ?? (hydraulicSolverLabel(check.basis) ? "steady hydraulic result" : "reference geometry")}`),
           element("p", `${check.message ?? check.reason_text ?? ""} (${label(check.reason_code)})`), element("p", `Targets: ${(check.entity_refs ?? []).join(", ") || "whole model"}`));
         if (check.measured_value != null || check.limit != null) callout.append(element("p", `${text(check.measured_value)} ${check.comparator ?? "against"} ${text(check.limit)} ${check.unit ?? ""}`));
         for (const clash of check.details?.clashes ?? []) callout.append(element("p", `Collision at ${text(clash.location)} m; native distance ${text(clash.distance_m)} m; penetration ${text(clash.penetration_m)} m`));

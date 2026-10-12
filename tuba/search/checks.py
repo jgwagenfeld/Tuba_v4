@@ -205,7 +205,7 @@ def evaluate_checks(model, runs, check_specs, *, user_evaluator=None, candidate_
 
 def render_reason(result: CheckResult) -> str:
     scope = "/".join(part for part in (result.operation, result.result_state_id) if part) or (
-        f"fluid/{result.details.get('scenario_id', 'steady')}" if result.basis == "openmodelica" else "cold")
+        f"fluid/{result.details.get('scenario_id', 'steady')}" if result.basis in ("openmodelica", "pandapipes") else "cold")
     numeric = f"; {result.measured_value} {result.unit} {result.comparator} {result.limit} {result.unit}" if result.comparator else ""
     targets = ", ".join(result.entity_refs) or "declared model scope"
     evidence = ", ".join(result.evidence_refs) or "no solver evidence"

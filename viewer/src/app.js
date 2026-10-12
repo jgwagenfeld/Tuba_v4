@@ -1,7 +1,7 @@
 import { filmPresentation, conciseFilmCaption } from './searchFilmPresentation.js';
 import { previewProtocols } from "./localAuth.js";
 import { loadSearchReplay } from "./searchReplay.js";
-import { safeReplayUrl } from './searchReplay.js';
+import { hydraulicSolverLabel, safeReplayUrl } from './searchReplay.js';
 import { planSearchFilm } from './searchFilm.js';
 import { readBoundedJson } from './sceneBudget.js';
 import { initSearchReplay } from "./searchReplayPanel.js";
@@ -609,7 +609,7 @@ function initSearchFilm(replay, baseUrl) {
       if (!frame) throw new Error('Unknown planned film frame');
       const iteration = frame.result_view === 'iteration';
       scale.textContent = frame.fluid_results
-        ? 'Pipe: OpenModelica fluid result · Red rings: failed check locations · Structural results not evaluated'
+        ? `Pipe: ${hydraulicSolverLabel(frame.hydraulic_basis ?? frame.check?.basis ?? frame.checks?.find(c => hydraulicSolverLabel(c.basis))?.basis) ?? 'Hydraulic'} fluid result · Red rings: failed check locations · Structural results not evaluated`
         : iteration
         ? 'Pipe: reference layout + FE stress · Blue: support force (N) · Orange: support moment (N m) · Red rings: failed check locations · Arrow display scales differ'
         : 'Blue arrows: support force (N) · Orange curved arrows: support moment (N m) · Separate display scales · Physical deformation ×1';
@@ -694,8 +694,8 @@ async function showSearchView(bundleUrl, request) {
   dom.canvas.dataset.searchAttempt = currentBundle.scene.search?.attempt_id ?? "";
   setStatus(currentBundle.scene.process
     ? currentBundle.scene.search?.solved_operations?.length
-      ? "Recorded OpenModelica and Code_Aster review"
-      : "Recorded OpenModelica fluid results · structure not evaluated"
+      ? `Recorded ${hydraulicSolverLabel(currentBundle.scene.process.basis) ?? 'hydraulic'} and Code_Aster review`
+      : `Recorded ${hydraulicSolverLabel(currentBundle.scene.process.basis) ?? 'hydraulic'} fluid results · structure not evaluated`
     : currentBundle.scene.search?.result_status === "unsolved_preview" ? "Reference geometry · no solver results" : "Recorded native Code_Aster review");
   render();
   if (!searchHasView && currentState.objects.length) { viewportRenderer?.resetView(); searchHasView = true; }
@@ -733,7 +733,7 @@ function drawSearchAnnotations(annotations) {
 }
 
 function highlightSearchCheck(check) {
-  const fluid = check.basis === 'openmodelica';
+  const fluid = Boolean(hydraulicSolverLabel(check.basis));
   dispatch({ type: "setActiveLoadCase", loadCase: check.operation ?? (fluid ? currentBundle?.scene?.process?.operation : null) ?? null });
   dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id ?? null });
   const ids = (check.entity_refs ?? []).map(ref => resolveEntityObjectId(currentState, ref)).filter(Boolean);
@@ -1130,7 +1130,7 @@ function renderApplicabilityFact() {
   if (!notice) return;
   dom.applicabilityFact.textContent = notice;
   dom.applicabilityFact.title =
-    notice.startsWith("OpenModelica")
+    /^(OpenModelica|pandapipes)\b/.test(notice)
       ? "Pressure and velocity come from the retained steady fluid evaluation. Structural fields come from Code_Aster."
       : "The selected result has the applicability stated here; a displayed field alone does not establish code compliance.";
   dom.applicabilityFact.setAttribute("role", "note");

@@ -276,7 +276,7 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
     local_checks = tuple(replace(check, evidence_refs=tuple(f"artifacts/{check.operation}/{Path(ref).name}"
                          for ref in check.evidence_refs)) if check.operation in staged else
                          replace(check, evidence_refs=tuple(f"artifacts/hydraulics/{Path(ref).name}"
-                         for ref in check.evidence_refs)) if process_payload and check.basis == "openmodelica" else check
+                         for ref in check.evidence_refs)) if process_payload and check.basis in ("openmodelica", "pandapipes") else check
                          for check in checks)
     scene = build_visualization_scene(SceneRequest(model, options=SceneBuildOptions(include_physical_envelopes=True),
                    analysis_runs=tuple(staged.values()), clash_results=_clashes(checks, operating=False),
@@ -296,7 +296,7 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                 "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": outcome,
                 "current_candidate_outcome": row["outcome"], "attempt_decisions": attempt_decisions,
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
-                "result_status": "code_aster_results" if staged else "openmodelica_results" if scene.extra.get("process") else "unsolved_preview", "scope": snapshot["run"]["scope"],
+                "result_status": "code_aster_results" if staged else f"{scene.extra['process']['basis']}_results" if scene.extra.get("process") else "unsolved_preview", "scope": snapshot["run"]["scope"],
                 "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
     if import_refs is not None:
         metadata["process_source_refs"] = import_refs

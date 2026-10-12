@@ -5,6 +5,7 @@
 // field yields one legend yields one colour map - the viewer never picks a
 // field by guessing which overlay happens to carry numbers.
 
+import { hydraulicSolverLabel } from './searchReplay.js';
 import {
   ENVELOPE_FIELD_ID,
   buildEnvelope,
@@ -275,7 +276,8 @@ export function getComplianceNotice(state) {
     ? "visualization_only_not_asme_code_stress" : null);
   if (!role) return null;
   if (role === "hydraulic_result_not_structural_acceptance") {
-    return "OpenModelica steady fluid result; structural acceptance is evaluated separately";
+    const basis = state.overlays?.find(overlay => overlay.id === field.overlay_id)?.data?.basis;
+    return `${hydraulicSolverLabel(basis) ?? 'Hydraulic'} steady fluid result; structural acceptance is evaluated separately`;
   }
   if (role === "visualization_only_not_asme_code_stress") {
     return "FE stress - not ASME code stress";

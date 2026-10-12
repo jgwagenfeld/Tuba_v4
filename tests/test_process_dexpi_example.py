@@ -34,6 +34,17 @@ def test_import_requires_both_explicit_file_and_selection(tmp_path, arguments):
     assert not output.exists()
 
 
+@pytest.mark.parametrize("arguments, message", [
+    ({"backend": "unknown"}, "backend must be"),
+    ({"backend": "pandapipes", "omc": "omc"}, "omc is only valid"),
+])
+def test_conflicting_backend_options_fail_before_creating_evidence(tmp_path, arguments, message):
+    output = tmp_path / "study"
+    with pytest.raises(ValueError, match=message):
+        run(output, **arguments)
+    assert not output.exists()
+
+
 def test_imported_nominal_size_cannot_be_silently_changed(tmp_path):
     output = tmp_path / "study"
     proposals = [{"id": "wrong-bore", "parent_ids": [],

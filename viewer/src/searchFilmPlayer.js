@@ -1,5 +1,7 @@
 // A player for the encoded movie, with layout chapters rather than a result
 // field menu. It uses the held-frame times from the capture manifest.
+import { hydraulicSolverLabel } from './searchReplay.js';
+
 export function filmPlayer(plan) {
   const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   const chapters = plan.keyframes.map((frame, index) => ({ time: frame.start_frame / plan.fps,
@@ -7,6 +9,8 @@ export function filmPlayer(plan) {
       : plan.keyframes.slice(0, index).some(f => f.candidate_id === frame.candidate_id && f.evaluation_id !== frame.evaluation_id) ? ' · retry' : ''}`,
     description: frame.caption.split('\n\n').slice(0, 2).join(' · ') }));
   const fluid = plan.keyframes.some(frame => frame.fluid_results);
+  const solvers = [...new Set(plan.keyframes.filter(frame => frame.fluid_results).map(frame =>
+    hydraulicSolverLabel(frame.hydraulic_basis ?? frame.check?.basis ?? frame.checks?.find(c => hydraulicSolverLabel(c.basis))?.basis) ?? 'hydraulic solver'))].join(' and ');
   const duration = `${Math.floor(plan.duration_seconds / 60)}:${String(Math.round(plan.duration_seconds % 60)).padStart(2, '0')}`;
   return `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -18,8 +22,8 @@ export function filmPlayer(plan) {
 <p id="current-view" class="active">${escape(chapters[0]?.description ?? 'Recorded search')}</p>
 <video controls preload="metadata" poster="${escape(plan.keyframes[0]?.png ?? '')}" src="film.webm"></video>
 <nav aria-label="Piping iterations">${chapters.map((c, i) => `<button data-chapter="${i}">${escape(c.label)}</button>`).join('')}</nav>
-<p>${fluid ? 'Hydraulic rejections show retained OpenModelica fluid fields; Code_Aster loads and stress remain unavailable until evaluated.' : 'Layouts rejected before a solve show their geometry findings; their loads and stress are unavailable.'} Interrupted attempts stay separate from successful retries. Feasible layouts stay labelled feasible until the final comparison.</p>
-<p>${fluid ? 'Fluid fields come from retained OpenModelica evaluations (m/s, absolute Pa and K). Structural fields come from retained Code_Aster evaluations.' : 'Results come from retained Code_Aster evaluations.'} Pipe colours show element maximum FE von Mises stress in MPa; blue and orange glyphs show reactions on the model in N and N m. The pipe is the reference layout; collision markers use the recorded cold or physical operating-check locations. These checks do not establish piping-code compliance.</p>
+<p>${fluid ? `Hydraulic rejections show retained ${escape(solvers)} fluid fields; Code_Aster loads and stress remain unavailable until evaluated.` : 'Layouts rejected before a solve show their geometry findings; their loads and stress are unavailable.'} Interrupted attempts stay separate from successful retries. Feasible layouts stay labelled feasible until the final comparison.</p>
+<p>${fluid ? `Fluid fields come from retained ${escape(solvers)} evaluations (m/s, absolute Pa and K). Structural fields come from retained Code_Aster evaluations.` : 'Results come from retained Code_Aster evaluations.'} Pipe colours show element maximum FE von Mises stress in MPa; blue and orange glyphs show reactions on the model in N and N m. The pipe is the reference layout; collision markers use the recorded cold or physical operating-check locations. These checks do not establish piping-code compliance.</p>
 <script>
 const chapters=${JSON.stringify(chapters).replaceAll('<', '\\u003c')};
 const video=document.querySelector('video'), status=document.querySelector('#current-view');

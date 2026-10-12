@@ -1,4 +1,4 @@
-"""Retain bounded proposals evaluated by real OpenModelica and Code_Aster.
+"""Retain bounded proposals evaluated by pandapipes and Code_Aster.
 
 python -m examples.process_network.run --output D:/tuba-runs/Tuba_v4/new-circuit
 Optional --proposals takes JSON edits from a person or LLM. No generated code
@@ -16,6 +16,7 @@ import uuid
 from tuba.project.study import StudySettings
 from tuba.process.dexpi import MAX_XML_BYTES, import_dexpi_segment
 from tuba.process.modelica import OpenModelicaBackend
+from tuba.process.pandapipes import PandapipesBackend
 from tuba.process.structural import WALL_TEMPERATURE_MODEL
 from tuba.process.workflow import evaluate_process_candidate, hydraulic_check_specs
 from tuba.search.artifacts import ArtifactStore, atomic_json, no_links
@@ -69,7 +70,12 @@ def structural_checks(model, operation):
     )
 
 
-def run(output, *, omc=None, proposals=None, dexpi=None, segment=None):
+def run(output, *, omc=None, proposals=None, dexpi=None, segment=None, backend=None):
+    backend_name = backend or ("openmodelica" if omc is not None else "pandapipes")
+    if backend_name not in {"pandapipes", "openmodelica"}:
+        raise ValueError("backend must be pandapipes or openmodelica")
+    if backend_name == "pandapipes" and omc is not None:
+        raise ValueError("omc is only valid with the openmodelica backend")
     if (dexpi is None) != (segment is None):
         raise ValueError("Supply both dexpi XML and segment ID, or neither")
     imported = None
@@ -124,15 +130,17 @@ def run(output, *, omc=None, proposals=None, dexpi=None, segment=None):
         "settings": {"operations": settings.operations, "solver_options": settings.solver_options, "volume_export": None},
         "check_specs": [spec.to_dict() for spec in base_checks],
         "definition": {"policy": "bounded supplied proposals", "proposal_limit": 10,
+                       "hydraulic_backend": backend_name,
                        "process_source": "DEXPI 2.0.1 selected segment" if imported else "authored graph"},
         "scope": "Steady serial water; pressure/temperature/contents loads. Demo losses and limits; no piping-code compliance or flow-induced-stress qualification.",
     }
-    rows, backend = [], OpenModelicaBackend(omc=omc)
+    rows = []
+    hydraulic_backend = PandapipesBackend() if backend_name == "pandapipes" else OpenModelicaBackend(omc=omc)
     with History.create(archive.path("history.sqlite3"), manifest) as history:
         for candidate, model, bound in zip(candidates, models, bounds, strict=True):
             history.record_candidate(candidate)
             evaluation, decision = evaluate_process_candidate(candidate, model, bound,
-                backend=backend, archive=archive, history=history, settings=settings,
+                backend=hydraulic_backend, archive=archive, history=history, settings=settings,
                 structural_checks=structural_checks(model, settings.operations[0]),
                 wall_temperature_model=WALL_TEMPERATURE_MODEL, process_import=imported)
             rows.append({"candidate_id": candidate.id, "decision": decision.to_dict(),
@@ -154,12 +162,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--omc", type=Path)
+    parser.add_argument("--backend", choices=("pandapipes", "openmodelica"),
+                        help="Default: pandapipes; supplying --omc selects openmodelica")
     parser.add_argument("--proposals", type=Path)
     parser.add_argument("--dexpi", type=Path, help="DEXPI 2.0.1 XML containing a supported DN80 pipe segment")
     parser.add_argument("--segment", help="Exact source PipingNetworkSegment ID; requires --dexpi")
     args = parser.parse_args()
     proposals = json.loads(args.proposals.read_text(encoding="utf-8")) if args.proposals else None
-    print(run(args.output, omc=args.omc, proposals=proposals, dexpi=args.dexpi, segment=args.segment))
+    print(run(args.output, omc=args.omc, proposals=proposals, dexpi=args.dexpi, segment=args.segment,
+              backend=args.backend))
 
 
 if __name__ == "__main__":

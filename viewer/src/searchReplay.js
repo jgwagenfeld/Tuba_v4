@@ -1,5 +1,7 @@
 import { readBoundedJson } from "./sceneBudget.js";
 
+export const hydraulicSolverLabel = basis => basis === 'openmodelica' ? 'OpenModelica' : basis === 'pandapipes' ? 'pandapipes' : null;
+
 export function safeReplayUrl(base, relative) {
   if (typeof relative !== "string" || !relative) throw new Error("Unsafe relative replay path");
   let decoded = relative;
@@ -110,6 +112,6 @@ export function latestViewRequest() {
 
 // Hydraulic checks use their sealed attempt even without a structural operation.
 export function reviewForCheck(candidate, evaluation, check) {
-  return check ? (check.operation || check.basis === 'openmodelica' ? evaluation?.review : candidate?.preview)
+  return check ? (check.operation || hydraulicSolverLabel(check.basis) ? evaluation?.review : candidate?.preview)
     : evaluation?.review ?? candidate?.preview;
 }

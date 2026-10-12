@@ -30,8 +30,12 @@ def hydraulic_check_specs(bound):
 
 
 def hydraulic_checks(bound, results):
-    """Only unchanged, verified real OpenModelica measurements establish verdicts."""
+    """Only unchanged, verified hydraulic solver measurements establish verdicts."""
     results.verify_for(bound)
+    solver = results.provenance.get("solver")
+    if solver not in ("OpenModelica", "pandapipes"):
+        raise ValueError("Unsupported hydraulic solver provenance")
+    basis = solver.lower()
     segments = {segment.segment_id: segment for segment in results.segments}
     measured = [(segments[segment.segment_id].velocity_m_s, "max") for segment in bound.segments]
     measured.extend([(results.mass_flow_kg_s, "min"), (results.source_pressure_pa, "max"),
@@ -40,14 +44,15 @@ def hydraulic_checks(bound, results):
     for spec, (value, comparator) in zip(hydraulic_check_specs(bound), measured, strict=True):
         passed = value <= spec.limit if comparator == "max" else value >= spec.limit
         checks.append(CheckResult(
-            spec.id, "pass" if passed else "fail", True, "openmodelica",
+            spec.id, "pass" if passed else "fail", True, basis,
             "hydraulic_limit_satisfied" if passed else spec.id.rsplit(".", 1)[0] + "_limit_exceeded"
             if comparator == "max" else "hydraulic_delivery_or_pressure_insufficient",
             f"{spec.id}: {value:.6g} {spec.unit}; {comparator} {spec.limit:.6g} {spec.unit}",
             entity_refs=spec.target_refs,
-            evidence_refs=(results.manifest_path, results.artifacts["csv"]["path"]),
+            evidence_refs=(results.manifest_path, *(results.artifacts[name]["path"]
+                           for name in ("solver_network", "csv") if name in results.artifacts)),
             details={"scenario_id": bound.scenario.id, "bound_fingerprint": bound.fingerprint,
-                     "solver": "OpenModelica", "pressure_reference": "absolute"},
+                     "solver": solver, "pressure_reference": "absolute"},
             measured_value=value, limit=spec.limit, unit=spec.unit, comparator=comparator,
         ))
     return tuple(checks)
@@ -107,7 +112,7 @@ def evaluate_process_candidate(candidate, model, bound, *, backend, archive, his
             bound.verify_for(model)
             checks = hydraulic_checks(bound, hydraulic)
             projection = {
-                "schema": "tuba.process.review.v1", "basis": "openmodelica",
+                "schema": "tuba.process.review.v1", "basis": hydraulic.provenance["solver"].lower(),
                 "operation": operation, "scenario_id": bound.scenario.id,
                 "bound_fingerprint": bound.fingerprint,
                 "geometry_fingerprint": bound.geometry_fingerprint,

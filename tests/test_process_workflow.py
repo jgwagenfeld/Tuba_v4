@@ -69,9 +69,18 @@ class UnavailableFlow:
         raise RuntimeError("OpenModelica runtime unavailable")
 
 
-def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_path, monkeypatch):
+@pytest.mark.parametrize("basis, solver, result_suffix", [
+    ("openmodelica", "OpenModelica", "_res.csv"),
+    ("pandapipes", "pandapipes", "pandapipes-results.csv"),
+])
+def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_path, monkeypatch, basis, solver, result_suffix):
     model, bound, archive, history, candidate = setup_case(tmp_path)
-    backend, _ = install_execution_fixture(tmp_path, monkeypatch, bound)
+    if basis == "openmodelica":
+        backend, _ = install_execution_fixture(tmp_path, monkeypatch, bound)
+    else:
+        pytest.importorskip("pandapipes")
+        from tuba.process.pandapipes import PandapipesBackend
+        backend = PandapipesBackend()
     monkeypatch.setattr(StudySettings, "solver", lambda *args: pytest.fail("Hydraulic rejection must prevent FEA"))
     with history:
         evaluation, decision = evaluate(model, bound, archive, history, candidate, backend)
@@ -79,29 +88,33 @@ def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_pat
         assert evaluation.status == "not_started"
         assert evaluation.completed_operations == () and not model.operations
         failures = [check for check in evaluation.checks if check.verdict == "fail"]
-        assert failures and all(check.basis == "openmodelica" for check in failures)
+        assert failures and all(check.basis == basis for check in failures)
+        assert all(check.details["solver"] == solver for check in failures)
         assert all(check.measured_value > 3 for check in failures)
         inventory = archive.verify_inventory(evaluation.evidence_manifest_ref,
                                               expected_sha256=evaluation.evidence_manifest_sha256)
         files = [entry["path"] for entry in inventory["files"]]
-        assert any(path.endswith("_res.csv") for path in files)
+        assert any(path.endswith(result_suffix) for path in files)
         assert not any(path.endswith(".rmed") for path in files)
         payload = json.loads(archive.path(f"attempts/{evaluation.attempt_id}/process_review.json").read_text())
         scene = build_visualization_scene(SceneRequest(model))
         attach_process_review(scene, payload)
         assert len(scene.result_fields) == 4
-        assert all(field.label.startswith("OpenModelica:") for field in scene.result_fields)
+        assert all(field.label.startswith(f"{solver}:") for field in scene.result_fields)
+        assert payload["basis"] == basis and payload["provenance"]["solver"] == solver
         assert all(overlay.kind != "result_state" for overlay in scene.overlays)
         assert all(value > 3 for value in scene.overlays[-4].data["values"].values())
         review_path = write_candidate_review(archive.root, candidate.id, tmp_path / "review")
         review = json.loads(review_path.read_text())
-        assert review["search"]["result_status"] == "openmodelica_results"
+        assert review["search"]["result_status"] == f"{basis}_results"
         for check in review["search"]["checks"]:
-            if check["basis"] == "openmodelica":
+            if check["basis"] == basis:
                 assert all((review_path.parent / ref).is_file() for ref in check["evidence_refs"])
+                if basis == "pandapipes":
+                    assert any(ref.endswith("pandapipes-results.json") for ref in check["evidence_refs"])
         with pytest.raises(ValueError, match="new Candidate ID"):
             evaluate(model, bound, archive, history, candidate, backend)
-        csv_path = archive.path(next(path for path in files if path.endswith("_res.csv")))
+        csv_path = archive.path(next(path for path in files if path.endswith(result_suffix)))
         csv_path.write_text("altered evidence", encoding="utf-8")
         with pytest.raises(ValueError, match="integrity"):
             archive.verify_inventory(evaluation.evidence_manifest_ref)
@@ -143,11 +156,23 @@ def test_geometry_edit_during_fluid_solve_cannot_publish_a_stale_rejection(tmp_p
         archive.verify_inventory(evaluation.evidence_manifest_ref)
 
 
-def test_scene_rejects_missing_pipe_associations():
+@pytest.mark.parametrize("basis", ["openmodelica", "pandapipes"])
+def test_scene_rejects_missing_pipe_associations(basis):
     model = build_model({"size": "larger", "offset_m": 1.0})
     scene = build_visualization_scene(SceneRequest(model))
     with pytest.raises(ValueError, match="cover"):
-        attach_process_review(scene, {"schema": "tuba.process.review.v1", "basis": "openmodelica", "segments": []})
+        attach_process_review(scene, {"schema": "tuba.process.review.v1", "basis": basis, "segments": []})
+
+
+@pytest.mark.parametrize("basis, provenance", [
+    ("prediction", {}), ("pandapipes", {"solver": "OpenModelica"}),
+    ("openmodelica", {"solver": "pandapipes"}),
+])
+def test_scene_rejects_unsupported_or_mismatched_hydraulic_provenance(basis, provenance):
+    scene = build_visualization_scene(SceneRequest(build_model({"size": "larger", "offset_m": 1.0})))
+    with pytest.raises(ValueError, match="supported|provenance"):
+        attach_process_review(scene, {"schema": "tuba.process.review.v1", "basis": basis,
+                                     "provenance": provenance, "segments": []})
 
 
 def test_preparation_cannot_relax_a_declared_required_failure(tmp_path, monkeypatch):

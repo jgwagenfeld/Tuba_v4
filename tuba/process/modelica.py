@@ -107,20 +107,31 @@ class HydraulicResults:
             path = Path(artifact["path"])
             if not path.is_file() or _sha(path) != artifact["sha256"]:
                 raise ValueError(f"Hydraulic {name} artifact is missing or modified")
-        if _library_sha(Path(self.provenance["library_source"])) != self.provenance["library_sha256"]:
-            raise ValueError("The evaluated Modelica library sources have changed")
         network_path = Path(self.artifacts["network"]["path"])
         if json.loads(network_path.read_text(encoding="utf-8")) != _json_value(bound.to_dict()):
             raise ValueError("Hydraulic network artifact does not match this bound network")
-        source = Path(self.artifacts["modelica_source"]["path"]).read_text(encoding="utf-8")
-        if source != modelica_source(bound):
-            raise ValueError("Hydraulic Modelica source does not match this bound network")
-        _validate_log(Path(self.artifacts["compiler_log"]["path"]).read_text(encoding="utf-8"),
-                      Path(self.artifacts["csv"]["path"]))
-        parsed = _read_csv(Path(self.artifacts["csv"]["path"]), bound)
+        solver = self.provenance.get("solver", "OpenModelica").lower()
+        if solver == "openmodelica":
+            parsed = _verify_modelica_raw(self, bound)
+        elif solver == "pandapipes":
+            from .pandapipes import _verify_raw
+            parsed = _verify_raw(self, bound)
+        else:
+            raise ValueError(f"Unsupported hydraulic solver provenance: {solver}")
         if parsed != (self.segments, self.port_pressures_pa, self.source_pressure_pa,
                       self.sink_pressure_pa, self.mass_flow_kg_s):
-            raise ValueError("Hydraulic measurements do not match their raw solver CSV")
+            raise ValueError("Hydraulic measurements do not match their raw solver outputs")
+
+
+def _verify_modelica_raw(result: HydraulicResults, bound: BoundProcessNetwork) -> tuple:
+    if _library_sha(Path(result.provenance["library_source"])) != result.provenance["library_sha256"]:
+        raise ValueError("The evaluated Modelica library sources have changed")
+    source = Path(result.artifacts["modelica_source"]["path"]).read_text(encoding="utf-8")
+    if source != modelica_source(bound):
+        raise ValueError("Hydraulic Modelica source does not match this bound network")
+    _validate_log(Path(result.artifacts["compiler_log"]["path"]).read_text(encoding="utf-8"),
+                  Path(result.artifacts["csv"]["path"]))
+    return _read_csv(Path(result.artifacts["csv"]["path"]), bound)
 
 
 def _json_value(value):

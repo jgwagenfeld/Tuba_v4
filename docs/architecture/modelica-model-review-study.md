@@ -6,6 +6,13 @@ implemented by this document.
 **Code inspected:** `6e2c975`, including the existing process-network adapter,
 coupled evaluator, review exporter and user documentation.
 
+**Direction update, 2026-10-12:** the user selected pandapipes for the default
+steady hydraulic workflow so users need no OpenModelica installation. The
+shared process-input/review goals below still apply. Modelica source inspection,
+OMEdit reproduction and broader Modelica integration are optional follow-on
+work; the original OpenModelica-specific roadmap below records that proposal.
+See the current [process guide](../content/process-networks.md).
+
 ## Vision
 
 Let an engineer inspect the process connections, hydraulic assumptions,

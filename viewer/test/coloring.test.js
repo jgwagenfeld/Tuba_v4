@@ -21,13 +21,13 @@ import {
 import { getAveragingBasis } from "../src/trustFacts.js";
 import { createViewerState } from "../src/sceneLoader.js";
 
-test("hydraulic fields describe OpenModelica without implying structural acceptance", () => {
-  const state = {resultFields: [{id: "fluid", overlay_id: "o", label: "OpenModelica: fluid velocity",
+for (const [basis, solver] of [['openmodelica', 'OpenModelica'], ['pandapipes', 'pandapipes']]) test(`hydraulic fields describe ${solver} without implying structural acceptance`, () => {
+  const state = {resultFields: [{id: "fluid", overlay_id: "o", label: `${solver}: fluid velocity`,
     load_case: "WaterOperating", result_state_id: "", components: ["magnitude"], unit: "m/s",
     compliance_role: "hydraulic_result_not_structural_acceptance"}],
-    overlays: [{id: "o", data: {basis: "openmodelica", result_type: "fluid_velocity"}}],
+    overlays: [{id: "o", data: {basis, result_type: "fluid_velocity"}}],
     coloring: {fieldId: "fluid", loadCase: "WaterOperating"}};
-  assert.equal(getComplianceNotice(state), "OpenModelica steady fluid result; structural acceptance is evaluated separately");
+  assert.equal(getComplianceNotice(state), `${solver} steady fluid result; structural acceptance is evaluated separately`);
 });
 import { preserveViewerStateForReload } from "../src/viewerState.js";
 

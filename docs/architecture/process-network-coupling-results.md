@@ -4,6 +4,9 @@ Validated locally on 2026-10-12. This qualifies the bounded example in the
 [process-network guide](../content/process-networks.md), not arbitrary equipment,
 networks or piping-code compliance.
 
+The initial sections retain the OpenModelica qualification. The final section
+records the fresh pandapipes qualification for the new default backend.
+
 ## Three retained layouts
 
 Each layout delivers 10 kg/s of the selected constant-property water medium.
@@ -156,3 +159,73 @@ frames were visually inspected: FE stress colours use a shared legend, both
 supports show force arrows and moment arcs with measured labels, and the
 rejected layout marks its four displacement failures in red. Browser capture
 completed without page errors; the frame and movie hashes match `film.json`.
+
+## Pandapipes default-backend qualification
+
+On 2026-10-12, pandapipes 0.15.0 evaluated the same three authored layouts and
+transferred their verified loads into real Code_Aster TUYAU_3M operations. The
+default command ran with `TUBA_OMC` deliberately pointing to a nonexistent
+compiler. OpenModelica was neither required nor invoked.
+
+| Candidate | Velocity | Total pressure drop | Outcome |
+| --- | ---: | ---: | --- |
+| Small bore, 1 m offset | 4.643 m/s | 103.273 kPa | Rejected before FEA: velocity exceeds 3 m/s |
+| Larger bore, 1 m offset | 2.106 m/s | 18.304 kPa | All declared checks pass; retained |
+| Larger bore, 3 m offset | 2.106 m/s | 20.527 kPa | Rejected: four authored nodes exceed 50 mm displacement |
+
+The two solved layouts retain maximum displayed displacements of 17.456 and
+100.905 mm, support-force magnitudes of 801.383 and 1,092.856 N, support-moment
+magnitudes of 1,243.562 and 2,491.743 N m, and peak FE von Mises stresses of
+95.107 and 102.901 MPa, respectively. Their scenes contain all six internal-force
+components and force/moment vectors at both supports. These are measured FE
+results for the declared model; they do not establish piping-code compliance.
+
+Independent Colebrook/Darcy-Weisbach calculations, with each declared K loss
+counted once, reproduce the campaign pressure drops. Additional rising and
+falling routes at different absolute elevations pass independent segment-level
+friction, bend/restriction loss and hydrostatic checks at tolerances of
+`rel=1e-6, abs=1e-4 Pa`. These tests include the conversion between Tuba's
+absolute Pa and pandapipes' gauge bar and height-dependent atmospheric pressure.
+
+Comparison with the earlier **archived** OpenModelica qualification gives less
+than 0.013% difference in pressure drop and unchanged rounded velocities and
+outcomes. This was not a fresh OpenModelica run. The solvers use slightly
+different Colebrook correlations and gravity constants, recorded in provenance;
+bit-for-bit equality is not expected.
+
+The real cantilever qualification passed three Code_Aster operations: mapped
+hydraulic loads, a separately authored native reference and isolated thermal
+expansion. It measured 800.487558277 N vertical reaction,
+-1,200.731337416 N m bending moment and 1.440000014 mm free thermal expansion,
+matching the independent references above. All original-node displacement and
+reaction components matched the native operation within the test tolerances.
+
+The adapter is restricted to forward, steady, isothermal, fully filled serial
+water with pipe Reynolds number at least 4,000. Density 995.586 kg/m³ and
+viscosity 0.001 Pa s remain explicit constant assumptions. Bulk temperature is
+prescribed; no heat-transport, transient, pump-curve or branched-network model
+is qualified here. Optional Python dependencies replace the separate hydraulic
+compiler installation, while Code_Aster remains required for structural results.
+
+Retained evidence: `D:/tuba-runs/Tuba_v4/pandapipes-20261012/`:
+
+- `campaign-1/` and its `replay/`: three sealed attempts, raw pandapipes inputs,
+  output tables, dependency hashes, convergence logs and actual Code_Aster artifacts.
+- `validation.json`: verified inventory hashes, independent hydraulic references,
+  structural field coverage and the hashed archived OpenModelica comparison.
+- `qualification/real-tests-2/`: the successful real integration cases and their
+  `qualification.json` receipts; `qualification/pytest-real-2.txt` reports three passed.
+- `film/`: the iteration capture, its player and frame/movie provenance.
+- Focused checks: 76 backend/workflow/film Python tests, 57 network/example Python
+  tests and 75 viewer tests passed. The full repository suite was not run.
+
+The 24-second, 1600 x 900 film contains three visually inspected frames: nine
+velocity-failure markers on the first layout, force/moment glyphs at both
+supports on each solved layout, and four displacement-failure markers on the
+last. Browser capture has no page errors. Frame/movie hashes match, and decoded
+seeks at 1, 9, 17 and 23 seconds reproduce the corresponding captured views.
+
+The additional installed distributions occupied about 208 MB in the reused
+Python environment, excluding the shared download cache. Structural-only users
+do not require the optional `process` extra. No push, deployment or controlled
+LLM-provider benchmark is implied.
