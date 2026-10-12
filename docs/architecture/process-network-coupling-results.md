@@ -103,3 +103,56 @@ Runtime: OpenModelica `v1.27.0-dev-574-g5a19131b33`, MSL 4.1.0; Code_Aster throu
 the existing Ubuntu WSL runtime. Exact solver identities and versions remain in
 the execution records. No remote deployment or controlled LLM-provider
 benchmark is implied by this local qualification.
+
+## DEXPI 2.0.1 import qualification
+
+The next local qualification on 2026-10-12 imports the unmodified official
+reference P&ID from DEXPI release commit
+`eef0f0c6e8edfe84582e7a45d109c396bdc544f8`. The pinned fixture passed its pinned
+official XSD. Attribution, source URLs and byte hashes are in the
+[fixture record](../../examples/process_network/dexpi_reference/README.md).
+
+Selected line `47122` / `PipingNetworkSegment2` contains `Pipe2`, from pump
+`P4711` at `Nozzle2` / `PipingNode3` to heat exchanger `H1007` at `Nozzle3` /
+`PipingNode4`. The adapter preserves these identities and records the other
+292 identified objects as outside the selected model. Physical layout and
+operating data are separately authored; the demo substitutes water for the
+uninterpreted `MNb` fluid code and does not simulate pump or heat-exchanger
+behavior. Both layouts keep the source DN80 and both anchor endpoints fixed.
+
+Two new OpenModelica and Code_Aster evaluations produced:
+
+| Measurement | 1 m offset | 3 m offset |
+| --- | ---: | ---: |
+| Actual centerline length | 9.885 m | 13.885 m |
+| Fluid velocity | 2.106 m/s | 2.106 m/s |
+| Pressure drop across the imported pipe span | 7.262 kPa | 9.486 kPa |
+| Peak displayed displacement, including solver nodes | 17.457 mm | 100.905 mm |
+| Maximum support force magnitude | 801.393 N | 1,092.856 N |
+| Maximum support moment magnitude | 1,243.565 N m | 2,491.743 N m |
+| Peak FE von Mises stress | 95.109 MPa | 102.903 MPa |
+| Declared-check outcome | Retained | Rejected: four authored nodes exceed 50 mm |
+
+The imported span contains no external restriction. Its pressure drop therefore
+excludes the illustrative K=5 restriction in the earlier authored circuit.
+Independent Darcy-Weisbach/Colebrook plus declared bend-loss references agree
+within **0.012%**. Source topology/associations remain identical across the route
+edit; the measured length and bound-result fingerprints change.
+
+Validation verified every sealed attempt inventory, rechecked the final importer
+against both retained sources, and checked the detached review's source bytes,
+assumptions, attribution and structural fields. Final importer/example tests
+passed 61 cases, including contradictory nominal-size metadata; 32 native
+workflow/export/replay tests and the additional attribution check also passed.
+These are focused checks, not a full repository test run.
+
+Evidence is retained at `D:/tuba-runs/Tuba_v4/dexpi-import-20261012/`:
+`campaign-1/`, its `replay/`, `validation.json`, the pinned schema-validation
+receipt under `reference/`, and the iteration film under `film/`. The prior
+viewer build is reused because viewer source did not change in this milestone.
+
+The 16-second, 1600 x 900 film contains one eight-second view per layout. Both
+frames were visually inspected: FE stress colours use a shared legend, both
+supports show force arrows and moment arcs with measured labels, and the
+rejected layout marks its four displacement failures in red. Browser capture
+completed without page errors; the frame and movie hashes match `film.json`.

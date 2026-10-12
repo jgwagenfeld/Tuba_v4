@@ -41,21 +41,22 @@ def build_model(parameters):
     return model
 
 
-def process_inputs(model):
-    """Associate stable process ports with the built route; explicit SI data."""
-    network = ProcessNetwork("WaterCircuit", components=(
-        MassFlowSource("SRC-101", "SRC-101.out"),
-        PipeComponent("L-101", "L-101.in", "L-101.out", "L-101",
-                      roughness_m=4.6e-5, bend_loss_coefficient=0.2,
-                      bend_loss_source="Demo assumption: excess zeta per bend"),
-        FixedLossComponent("V-101", "V-101.in", "V-101.out",
-                           bore_m=model.sections["WaterPipe"].ID,
-                           loss_coefficient=5.0, loss_source="Demo downstream restriction",
-                           mechanical_domain="external"),
-        PressureSink("SNK-101", "SNK-101.in"),
-    ), connections=(Connection("SRC-101.out", "L-101.in"),
-                    Connection("L-101.out", "V-101.in"),
-                    Connection("V-101.out", "SNK-101.in")))
+def process_inputs(model, *, network=None):
+    """Bind a supplied or authored graph to the route and explicit demo SI data."""
+    if network is None:
+        network = ProcessNetwork("WaterCircuit", components=(
+            MassFlowSource("SRC-101", "SRC-101.out"),
+            PipeComponent("L-101", "L-101.in", "L-101.out", "L-101",
+                          roughness_m=4.6e-5, bend_loss_coefficient=0.2,
+                          bend_loss_source="Demo assumption: excess zeta per bend"),
+            FixedLossComponent("V-101", "V-101.in", "V-101.out",
+                               bore_m=model.sections["WaterPipe"].ID,
+                               loss_coefficient=5.0, loss_source="Demo downstream restriction",
+                               mechanical_domain="external"),
+            PressureSink("SNK-101", "SNK-101.in"),
+        ), connections=(Connection("SRC-101.out", "L-101.in"),
+                        Connection("L-101.out", "V-101.in"),
+                        Connection("V-101.out", "SNK-101.in")))
     scenario = OperatingScenario("WaterOperating", mass_flow_kg_s=10.0,
         source_temperature_k=333.15, sink_pressure_pa=300_000.0,
         external_pressure_pa=101_325.0, mechanical_reference_temperature_k=293.15)

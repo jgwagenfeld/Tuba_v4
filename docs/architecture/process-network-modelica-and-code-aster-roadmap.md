@@ -8,8 +8,10 @@ It defines the production architecture and implementation sequence. The bounded
 serial-water implementation now runs real OpenModelica, maps verified operating
 loads into Code_Aster, and retains combined candidate reviews. See the
 [implementation guide](../content/process-networks.md) and
-[qualification results](process-network-coupling-results.md). DEXPI import,
-branched circuits, equipment libraries and FMUs remain future work.
+[qualification results](process-network-coupling-results.md). A narrow DEXPI XML
+2.0.1 adapter now imports a selected single-pipe connection from the official
+reference P&ID, preserving source IDs and explicit study boundaries. Broader
+DEXPI coverage, branched circuits, equipment libraries and FMUs remain future work.
 
 ## Start with one authored circuit
 
@@ -108,7 +110,9 @@ Its runtime qualification is recorded separately in the linked results document.
 | [Process package](../../tuba/process/) and [coupled example](../../examples/process_network/run.py) | Strict serial graph, measured route associations, real OpenModelica execution, verified operating-load mapping, bounded proposals and combined reviews. |
 
 General P&ID import, branches, equipment models and transient coupling remain
-outside this implementation.
+outside this implementation. The current adapter supports one declared DEXPI
+2.0.1 pipe-only segment profile; its raw P&ID and import assumptions travel with
+the native candidate evidence and detached review.
 
 ## Shared network and association contract
 
@@ -256,10 +260,16 @@ combined retained evaluation/review; repeated pinned-provider comparisons remain
 open. The example's external fixed loss uses a declared demonstration
 coefficient, so qualified catalogue equipment is still an outstanding task.
 
-**Next:** use a real P&ID interchange fixture for one declared DEXPI version and
-qualify the corresponding equipment data. Preserve stable process/port IDs and
-the existing association and solver contracts. Add branches only with hydraulic
-reference cases and boundary-condition checks.
+**P4 subset:** a pinned official DEXPI 2.0.1 fixture and single-pipe/nozzle-boundary
+adapter are implemented. The example imports line 47122 / Pipe2, retains the
+original pump/nozzle/heat-exchanger IDs, and supplies an explicitly separate
+water scenario and authored geometry. This does not model those equipment units
+or the reference plant's original fluid service.
+
+**Next:** qualify equipment data and extend beyond the selected pipe-only
+segment. Preserve stable process/port IDs and the existing association and
+solver contracts. Add branches only with hydraulic reference cases and
+boundary-condition checks. Pinned-provider LLM comparisons remain open.
 
 The decisive contract check is an edit: lengthen the offset and prove that the
 derived hydraulic length/fitting inputs change while the P&ID connectivity
@@ -393,14 +403,15 @@ OMPython remains an optional next bridge. Pin its API: the 1.27 guide uses
 [1.27 Python interface](https://openmodelica.org/doc/openmodelica-doc_1.27.0/OpenModelicaUsersGuide/ompython.html),
 [current Python interface](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html).
 
-**Later P&ID import.** DEXPI recommends 2.0.1; version 2.0 introduced DEXPI XML,
+**P&ID import versions.** DEXPI recommends 2.0.1; version 2.0 introduced DEXPI XML,
 distinct from earlier Proteus serialization. pyDEXPI advertises 1.3 support:
 `ProteusSerializer().load(directory_path, filename)` imports that format and
 `GraphLoader().parse_dexpi_to_graph(...)` yields a full `MultiDiGraph`.
 This requires a matching machine-readable export or reference fixture, not an
 arbitrary image/PDF. Map its full model to the supported process contract;
 review abstractions before discarding valves, fittings, or port identities.
-Handle 2.0.1 through a separately qualified adapter, preserving missing layout
-and operating data as missing inputs. Sources:
+The implemented 2.0.1 adapter is separate from pyDEXPI and keeps layout and
+operating data as explicit caller inputs. Its supported profile is documented
+in the [process-network guide](../content/process-networks.md). Sources:
 [DEXPI formats/versions](https://dexpi.org/specifications/),
 [pyDEXPI importer/graph APIs](https://github.com/process-intelligence-research/pyDEXPI).

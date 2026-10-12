@@ -57,6 +57,57 @@ carry Code_Aster support forces/moments, internal forces, displacement and FE
 stress. Fluid pressure means and element drops are derived from the actual
 evaluated endpoint pressures. They are not structural stress fields.
 
+## Import one real P&ID connection
+
+The optional adapter reads **DEXPI XML 2.0.1**. The bundled, unmodified
+[official reference fixture](../../examples/process_network/dexpi_reference/README.md)
+contains a suitable connection: line `47122`, segment `PipingNetworkSegment2`,
+pipe `Pipe2`, between pump `P4711` and heat exchanger `H1007`.
+
+```powershell
+python -m examples.process_network.run `
+  --dexpi examples/process_network/dexpi_reference/reference_pid.xml `
+  --segment PipingNetworkSegment2 `
+  --omc 'C:\Program Files\OpenModelica1.27.0-dev-64bit\bin\omc.exe' `
+  --output 'D:\tuba-runs\Tuba_v4\my-dexpi-study'
+```
+
+This reuses the same coupled evaluation and review. It tests two authored offset
+routes while keeping the imported DN80 connection fixed. The example maps DN80
+to its explicit 88.9 mm OD / 5.49 mm wall section; it refuses undeclared changes
+to a smaller nominal size. A nominal diameter alone does not determine bore.
+
+The imported connection establishes **topology and source identity**. Its
+`Nozzle2` / `PipingNode3` and `Nozzle3` / `PipingNode4` are explicit study
+boundaries. Flow, temperature and outlet pressure are supplied by the demo;
+pump and heat-exchanger behavior are outside those boundaries. The original
+fluid code is `MNb`: water is an explicit demonstration substitution, not an
+inferred original service. The physical route, section, steel properties,
+supports, roughness and bend losses are also supplied engineering assumptions.
+P&ID drawing coordinates never become physical pipe dimensions.
+
+Every attempt retains the exact XML bytes, source SHA-256, original tags/IDs,
+port associations, omitted-object inventory, assumptions and measured route
+binding. A detached review includes `artifacts/process/process_input.xml` and
+`process_import.json`, including when the fluid runtime fails. The review's
+process-import table exposes those assumptions and source references.
+
+The reusable entry point is `tuba.process.import_dexpi_segment`. It requires
+an explicit segment ID, route ID, roughness, bend-loss data and declarations
+for boundary conditions, physical layout and fluid service. The returned
+`DexpiImport.network` binds through the existing process API; pass the import
+object as `process_import=` to `evaluate_process_candidate` to retain it.
+Adapter ports such as `Pipe2.in` are labeled aliases, with the original
+DEXPI endpoint IDs preserved separately.
+
+Only a selected segment containing one pipe between two nozzle boundaries is
+supported. Extra selected equipment, branches, missing/conflicting references,
+duplicate IDs and other DEXPI dialects fail explicitly. The rest of the plant
+remains recorded as outside the selected study. The importer validates this
+profile and never fetches schemas/imports; it does not claim full DEXPI semantic
+validation. The bundled official fixture was separately checked against its
+pinned XSD. DEXPI 1.x Proteus XML is a different format and is unsupported here.
+
 ## The reusable boundary
 
 `tuba.process.network` defines `ProcessNetwork`, typed components/connections,
@@ -141,8 +192,8 @@ flow-induced vibration, external-pressure collapse or general fluid-structure
 interaction. Example force/displacement limits are illustrative and FE stress
 display does not establish a piping-code check.
 
-Next: import one declared DEXPI version into this graph using a real fixture;
-add qualified valve/pump data and branched-network cases; compare bounded LLM
+Next: extend the declared DEXPI subset with qualified valve/pump data and
+branched-network cases; compare bounded LLM
 proposal policies with recorded provider/model/version/costs. FMUs, controls,
 transients and wall thermal dynamics remain later stages. See the
 [roadmap](../architecture/process-network-modelica-and-code-aster-roadmap.md).

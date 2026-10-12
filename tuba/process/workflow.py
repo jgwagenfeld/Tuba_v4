@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import os
 
 from tuba.project.freshness import expected_identity
 from tuba.search.artifacts import atomic_json
@@ -54,7 +55,7 @@ def hydraulic_checks(bound, results):
 
 def evaluate_process_candidate(candidate, model, bound, *, backend, archive, history,
                                settings, structural_checks, wall_temperature_model,
-                               user_evaluator=None):
+                               user_evaluator=None, process_import=None):
     """Evaluate one registered candidate and retain flow, mapping and FEA evidence.
 
     This is a single steady operating case. The caller owns the History run,
@@ -68,6 +69,8 @@ def evaluate_process_candidate(candidate, model, bound, *, backend, archive, his
     if archive.path(f"candidates/{candidate.id}/model.json").exists():
         raise ValueError("This candidate already has retained geometry; give every revision a new Candidate ID")
     bound.verify_for(model)
+    if process_import is not None:
+        process_import.verify_for(bound.network)
     specs = (*hydraulic_check_specs(bound), *structural_checks)
     if len({spec.id for spec in specs}) != len(specs):
         raise ValueError("Coupled check identifiers must be unique")
@@ -82,6 +85,22 @@ def evaluate_process_candidate(candidate, model, bound, *, backend, archive, his
         folder = archive.path(f"attempts/{attempt_id}")
         mapping = None
         try:
+            source_refs = None
+            if process_import is not None:
+                process_import.verify_for(bound.network)
+                source = process_import.to_dict()
+                source_refs = {"xml": f"attempts/{attempt_id}/process_input.xml",
+                               "import": f"attempts/{attempt_id}/process_import.json"}
+                with archive.path(source_refs["xml"]).open("xb") as stream:
+                    stream.write(process_import.source_xml)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                atomic_json(archive.path(source_refs["import"]), {
+                    "schema": "tuba.process.import.v1", "source": source, "bound": bound.to_dict(),
+                })
+                history.append("process.imported", {"attempt_id": attempt_id, "source_refs": source_refs,
+                               "source_sha256": source["source_sha256"],
+                               "bound_fingerprint": bound.fingerprint}, candidate.id)
             hydraulic = backend.solve(bound, folder / "hydraulics")
             # Even a rejected hydraulic preview must describe the geometry
             # currently being archived, including edits made during execution.
@@ -96,6 +115,8 @@ def evaluate_process_candidate(candidate, model, bound, *, backend, archive, his
                 "pressure_reference": "absolute", "limitations": list(hydraulic.limitations),
                 "provenance": hydraulic.provenance,
             }
+            if source_refs is not None:
+                projection["source_refs"] = source_refs
             atomic_json(folder / "process_review.json", projection)
             history.append("process.evaluated", {"attempt_id": attempt_id,
                            "bound_fingerprint": bound.fingerprint,

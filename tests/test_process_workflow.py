@@ -1,5 +1,7 @@
 """Portable coupling gate tests; fixture values are not engineering evidence."""
 
+from dataclasses import replace
+import hashlib
 import json
 from pathlib import Path
 
@@ -33,12 +35,38 @@ def setup_case(tmp_path):
     return model, bound, archive, history, candidate
 
 
-def evaluate(model, bound, archive, history, candidate, backend):
+def evaluate(model, bound, archive, history, candidate, backend, process_import=None):
     return evaluate_process_candidate(candidate, model, bound, backend=backend,
         archive=archive, history=history,
         settings=StudySettings(("WaterOperating",), {}, None),
         structural_checks=structural_checks(model, "WaterOperating"),
-        wall_temperature_model=WALL_TEMPERATURE_MODEL)
+        wall_temperature_model=WALL_TEMPERATURE_MODEL, process_import=process_import)
+
+
+class ImportFixture:
+    """Workflow fixture; the DEXPI parser has its own source-profile tests."""
+    source_xml = b'<Fixture id="source-pipe" />'
+
+    def __init__(self, network):
+        self.network = network
+
+    def verify_for(self, network):
+        if network != self.network:
+            raise ValueError("Import graph does not match the bound process network")
+
+    def to_dict(self):
+        return {"network": self.network.to_dict(),
+                "source_sha256": hashlib.sha256(self.source_xml).hexdigest(),
+                "dexpi_version": "portable-fixture", "profile": "workflow-fixture",
+                "source_attribution": "Portable workflow fixture; no external dataset",
+                "source_associations": {"pipe_id": "source-pipe", "route_id": "L-101"},
+                "study_assumptions": {"layout": "Authored offset; P&ID graphics are not 3-D routing",
+                                      "losses": "Explicit portable-test bend and terminal-loss inputs"}}
+
+
+class UnavailableFlow:
+    def solve(self, bound, output):
+        raise RuntimeError("OpenModelica runtime unavailable")
 
 
 def test_fluid_rejection_retains_raw_evidence_and_never_solves_structure(tmp_path, monkeypatch):
@@ -137,3 +165,89 @@ def test_preparation_cannot_relax_a_declared_required_failure(tmp_path, monkeypa
             archive=archive, history=history, prepare_attempt=lambda _: (failed,))
         assert result.status == "not_started"
         assert result.completed_operations == ()
+
+
+def test_import_is_retained_before_runtime_failure_and_review_is_self_contained(tmp_path, monkeypatch):
+    model, bound, archive, history, candidate = setup_case(tmp_path)
+    imported = ImportFixture(bound.network)
+    class CheckRetainedBeforeFailure:
+        def solve(self, association, output):
+            assert (output.parent / "process_input.xml").read_bytes() == imported.source_xml
+            assert json.loads((output.parent / "process_import.json").read_text())["bound"] == bound.to_dict()
+            raise RuntimeError("OpenModelica runtime unavailable")
+    monkeypatch.setattr(StudySettings, "solver", lambda *args: pytest.fail("Unavailable flow must prevent FEA"))
+    with history:
+        evaluation, decision = evaluate(model, bound, archive, history, candidate,
+                                        CheckRetainedBeforeFailure(), imported)
+        assert decision.outcome == "evaluation_failed" and evaluation.status == "failed"
+        assert not evaluation.completed_operations
+        archive.verify_inventory(evaluation.evidence_manifest_ref)
+        assert not archive.path(f"attempts/{evaluation.attempt_id}/hydraulics/network.json").exists()
+        review_path = write_candidate_review(archive.root, candidate.id, tmp_path / "review")
+    scene = json.loads(review_path.read_text())
+    assert scene["search"]["result_status"] == "unsolved_preview"
+    assert not scene["result_fields"] and "process" not in scene
+    retained = scene["process_import"]
+    assert retained["source"] == imported.to_dict()
+    assert retained["bound_fingerprint"] == bound.fingerprint
+    assert scene["search"]["process_source_refs"] == retained["source_refs"]
+    for reference in retained["source_refs"].values():
+        assert (review_path.parent / reference).is_file()
+    assert (review_path.parent / retained["source_refs"]["xml"]).read_bytes() == imported.source_xml
+    report = json.loads((review_path.parent / "review.json").read_text())
+    table = report["tables"]["process_import"]
+    assert any(row["item"] == "Study assumption: layout" for row in table["rows"])
+    assert any(row == {"item": "Source attribution", "value": imported.to_dict()["source_attribution"]}
+               for row in table["rows"])
+    assert "P&amp;ID graphics are not 3-D routing" in (review_path.parent / "index.html").read_text()
+
+
+def test_hydraulic_rejection_review_keeps_import_links_and_fluid_basis(tmp_path, monkeypatch):
+    model, bound, archive, history, candidate = setup_case(tmp_path)
+    backend, _ = install_execution_fixture(tmp_path, monkeypatch, bound)
+    monkeypatch.setattr(StudySettings, "solver", lambda *args: pytest.fail("Hydraulic rejection must prevent FEA"))
+    with history:
+        evaluation, decision = evaluate(model, bound, archive, history, candidate,
+                                        backend, ImportFixture(bound.network))
+        assert decision.outcome == "rejected_constraint"
+        scene_path = write_candidate_review(archive.root, candidate.id, tmp_path / "review")
+    scene = json.loads(scene_path.read_text())
+    assert scene["process"]["source_refs"] == scene["process_import"]["source_refs"]
+    assert scene["search"]["result_status"] == "openmodelica_results"
+    assert all(field["label"].startswith("OpenModelica:") for field in scene["result_fields"])
+
+
+def test_import_graph_mismatch_prevents_attempt_or_backend_execution(tmp_path):
+    model, bound, archive, history, candidate = setup_case(tmp_path)
+    imported = ImportFixture(replace(bound.network, id="DifferentSourceGraph"))
+    class NeverSolve:
+        def solve(self, *args):
+            pytest.fail("Mismatched import graph must prevent backend execution")
+    with history, pytest.raises(ValueError, match="Import graph"):
+        evaluate(model, bound, archive, history, candidate, NeverSolve(), imported)
+    assert not archive.path("attempts").exists()
+
+
+@pytest.mark.parametrize("target", ["raw_xml", "inventory"])
+def test_import_review_refuses_changed_raw_xml_or_sealed_inventory(tmp_path, target):
+    model, bound, archive, history, candidate = setup_case(tmp_path)
+    with history:
+        evaluation, _ = evaluate(model, bound, archive, history, candidate,
+                                 UnavailableFlow(), ImportFixture(bound.network))
+    reference = (f"attempts/{evaluation.attempt_id}/process_input.xml" if target == "raw_xml"
+                 else evaluation.evidence_manifest_ref)
+    path = archive.path(reference)
+    path.write_bytes(path.read_bytes() + b"changed")
+    with pytest.raises(ValueError, match="integrity"):
+        write_candidate_review(archive.root, candidate.id, tmp_path / "review")
+
+
+def test_review_refuses_unsealed_import_pair(tmp_path):
+    model, bound, archive, history, candidate = setup_case(tmp_path)
+    with history:
+        evaluation, _ = evaluate(model, bound, archive, history, candidate, UnavailableFlow())
+    folder = archive.path(f"attempts/{evaluation.attempt_id}")
+    (folder / "process_input.xml").write_bytes(ImportFixture.source_xml)
+    (folder / "process_import.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="sealed XML and association pair"):
+        write_candidate_review(archive.root, candidate.id, tmp_path / "review")

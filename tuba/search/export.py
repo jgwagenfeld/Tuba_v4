@@ -212,20 +212,55 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
     output = _new_output(output_dir)
     staged = stage_runs(runs, output)
     process_payload = None
+    import_payload, import_bound, import_refs = None, None, None
     if evaluation:
         process_ref = f"attempts/{evaluation.attempt_id}/process_review.json"
         inventory = archive.read_inventory(evaluation.evidence_manifest_ref)
-        if any(entry["path"] == process_ref for entry in inventory["files"]):
+        retained_paths = {entry["path"] for entry in inventory["files"]}
+        source_refs = {"xml": f"attempts/{evaluation.attempt_id}/process_input.xml",
+                       "import": f"attempts/{evaluation.attempt_id}/process_import.json"}
+        if any(ref in retained_paths or archive.path(ref).exists() for ref in source_refs.values()):
+            if not set(source_refs.values()) <= retained_paths:
+                raise ValueError("Process import requires a sealed XML and association pair")
+            from tuba.process.network import BoundProcessNetwork
+            import_payload = json.loads(archive.path(source_refs["import"]).read_text(encoding="utf-8"))
+            if (type(import_payload) is not dict or set(import_payload) != {"schema", "source", "bound"}
+                    or import_payload["schema"] != "tuba.process.import.v1"):
+                raise ValueError("Unsupported retained process import")
+            import_bound = BoundProcessNetwork.from_dict(import_payload["bound"])
+            import_bound.verify_for(model)
+            source = import_payload["source"]
+            if (type(source) is not dict or source.get("source_sha256") != digest_file(archive.path(source_refs["xml"]))
+                    or source.get("network") != import_bound.network.to_dict()):
+                raise ValueError("Process import source or graph does not match its retained association")
+            process_output = output / "artifacts" / "process"
+            process_output.mkdir(parents=True)
+            import_refs = {}
+            for name, ref in source_refs.items():
+                target = process_output / Path(ref).name
+                shutil.copyfile(archive.path(ref), target)
+                expected_hash = next(entry["sha256"] for entry in inventory["files"] if entry["path"] == ref)
+                if digest_file(target) != expected_hash:
+                    raise ValueError("Process import changed during review staging")
+                import_refs[name] = target.relative_to(output).as_posix()
+        if process_ref in retained_paths:
             process_payload = json.loads(archive.path(process_ref).read_text(encoding="utf-8"))
             from tuba.process.network import BoundProcessNetwork
             network_ref = f"attempts/{evaluation.attempt_id}/hydraulics/network.json"
-            if not any(entry["path"] == network_ref for entry in inventory["files"]):
+            if network_ref not in retained_paths:
                 raise ValueError("Process review has no sealed route association")
             bound = BoundProcessNetwork.from_dict(json.loads(archive.path(network_ref).read_text(encoding="utf-8")))
             bound.verify_for(model)
             if (process_payload.get("bound_fingerprint") != bound.fingerprint
                     or process_payload.get("geometry_fingerprint") != bound.geometry_fingerprint):
                 raise ValueError("Process review does not match its evaluated network")
+            if import_bound is not None and (import_bound.fingerprint != bound.fingerprint
+                    or process_payload.get("source_refs") != source_refs):
+                raise ValueError("Process review does not match its retained import")
+            if process_payload.get("source_refs") is not None:
+                if import_refs is None:
+                    raise ValueError("Process review has no sealed import association")
+                process_payload["source_refs"] = import_refs
             fluid_prefix = f"attempts/{evaluation.attempt_id}/hydraulics/"
             fluid_output = output / "artifacts" / "hydraulics"
             fluid_output.mkdir(parents=True)
@@ -252,6 +287,10 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
         # fields. An untracked JSON file beside an old attempt is not evidence.
         from tuba.process.review import attach_process_review
         attach_process_review(scene, process_payload)
+    if import_payload is not None:
+        scene.extra["process_import"] = {"source": import_payload["source"], "source_refs": import_refs,
+                                         "bound_fingerprint": import_bound.fingerprint,
+                                         "geometry_fingerprint": import_bound.geometry_fingerprint}
     metadata = {"run_id": snapshot["run"]["run_id"], "candidate_id": candidate_id,
                 "evaluation_id": evaluation.id if evaluation else None,
                 "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": outcome,
@@ -259,6 +298,8 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
                 "result_status": "code_aster_results" if staged else "openmodelica_results" if scene.extra.get("process") else "unsolved_preview", "scope": snapshot["run"]["scope"],
                 "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
+    if import_refs is not None:
+        metadata["process_source_refs"] = import_refs
     if not include_decisions:
         for key in ("outcome", "current_candidate_outcome", "attempt_decisions", "decisions"):
             metadata.pop(key)
@@ -280,6 +321,30 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                   ("limit", "Limit"), ("unit", "Unit"), ("reason_code", "Reason"), ("evidence_refs", "Evidence"))),
                  tuple(check.to_dict() for check in local_checks), "tuba.search recorded checks")
     review = replace(review, tables=(*review.tables, table))
+    if import_payload is not None:
+        source = import_payload["source"]
+        rows = [{"item": label, "value": source.get(key)} for key, label in
+                (("dexpi_version", "DEXPI version"), ("profile", "Supported import profile"),
+                 ("source_sha256", "Raw source SHA-256"), ("selected_segment", "Selected segment"),
+                 ("source_associations", "Original source and native associations"),
+                 ("source_data", "Retained source tags"),
+                 ("validation", "Import validation scope"))]
+        if "source_attribution" in source:
+            rows.append({"item": "Source attribution", "value": source["source_attribution"]})
+        omitted = source.get("omitted_objects", {})
+        rows.append({"item": "Objects outside selected subset", "value": {
+            "count": omitted.get("count"), "anonymous_count": omitted.get("anonymous_count"),
+            "full_record": import_refs["import"],
+        }})
+        rows.extend({"item": f"Study assumption: {name}", "value": value}
+                    for name, value in source.get("study_assumptions", {}).items())
+        rows.extend(({"item": "Operating scenario (SI, absolute pressure)", "value": import_bound.scenario.to_dict()},
+                     {"item": "Hydraulic requirements (SI, absolute pressure)", "value": import_bound.requirements.to_dict()},
+                     {"item": "Retained source files", "value": import_refs}))
+        table = ReportTable("process_import", "DEXPI source and declared study assumptions",
+                            (ReportColumn("item", "Input"), ReportColumn("value", "Declared value")),
+                            tuple(rows), "Retained input provenance; not solver evidence")
+        review = replace(review, tables=(*review.tables, table))
     source_inventory = archive.verify_inventory(row['parameters'].get('source_manifest_ref')
                                                or snapshot["run"]["source_manifest_ref"])
     source_entry = next((f for f in source_inventory["files"] if f.get("logical_name") == "model.py"), None)

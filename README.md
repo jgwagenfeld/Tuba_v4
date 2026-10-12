@@ -82,6 +82,8 @@ The [process-network example](docs/content/process-networks.md) connects a typed
 water-circuit graph and authored route to OpenModelica, then transfers verified
 pressure, temperature and contents loads into Code_Aster. Its retained candidate
 review includes hydraulic failures and structural results for solved layouts.
+It also imports a selected pipe connection from the official DEXPI 2.0.1
+reference P&ID, with source IDs and declared operating/layout assumptions retained.
 
 ## Getting started
 

@@ -23,3 +23,7 @@ viewer/public/code-aster-review/artifacts/* -text -whitespace
 # byte for byte by `scripts/build_study_cards.py --check`, so their line endings are
 # pinned rather than left to the checkout.
 examples/*/reference/** text eol=lf
+
+# Preserve the pinned upstream DEXPI fixture and schema byte hashes.
+examples/process_network/dexpi_reference/*.xml -text
+examples/process_network/dexpi_reference/*.xsd -text
