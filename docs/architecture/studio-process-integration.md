@@ -1,10 +1,9 @@
 # Studio process integration
 
 **Updated:** 2026-10-12. **Scope:** the supported serial-water process network
-inside normal Studio Build, Solve and Review. The core hydraulic-to-Code_Aster
-workflow has fresh native qualification. Final visible stale/P&ID, restart and
-failure lifecycle checks remain pending; the earlier campaign qualifications
-remain separate evidence.
+inside normal Studio Build, Solve and Review. The hydraulic-to-Code_Aster
+workflow and live Studio lifecycle checks have passed fresh qualification. The
+earlier campaign qualifications remain separate evidence.
 
 ## Authored project contract
 
@@ -86,7 +85,7 @@ logs and manifests with required failure evidence.
 | 3 | Gate mapped structural Solve and Review | A small-bore hydraulic rejection prevents Code_Aster execution. A current passing run enables real `WaterOperating` Code_Aster evaluation. Source/model remain unchanged, and Review contains the corresponding hydraulic and imported structural evidence. |
 | 4 | Verify edits, stale inputs and interruption | Geometry/bore, graph, scenario, requirement and study changes block mismatched evidence. Late jobs cannot publish to newer inputs; failures and restart do not silently restore structural readiness. |
 | 5 | Verify the existing Studio interaction | P&ID is reachable in Build and Review; component and transmitter selection links to the route. Full-size view, keyboard/focus behavior and SVG download pass; pending editor text remains visibly distinct from executed source. |
-| 6 | Qualify the authored project end to end | Source-only project launch, smaller-bore rejection, larger-bore hydraulic pass, real Code_Aster Solve, Review and a requirements-only edit pass in a fresh browser workflow. The requirements edit must invalidate dependent evidence while preserving mechanical identity; backend checks cover geometry and section edits. Record exact commands, dependency/runtime identities, artifact hashes, numerical outcomes and browser receipts. |
+| 6: Qualified | Qualify the authored project end to end | Source-only project launch, smaller-bore rejection, larger-bore hydraulic pass, real Code_Aster Solve, Review and a requirements-only edit passed in a fresh browser workflow. The requirements edit invalidated dependent evidence while preserving mechanical identity; backend checks cover geometry and section edits. Retained receipts record commands, runtime identities, numerical outcomes, native artifact verification and browser checks. |
 
 Focused source, declaration, lifecycle and viewer tests are implementation
 checks. Step 6 also requires real pandapipes and Code_Aster execution plus live
@@ -115,6 +114,22 @@ receipt records `review_stale: false` for this completed revision. FE VMIS is
 labeled as FE stress, not piping-code stress; these results do not establish
 piping-code compliance or broader equipment/circuit qualification.
 
+`browser-validation.json` passed the initial live workflow: unsolved P&ID,
+actual hydraulic rejection and structural gate, editor rerun, passing
+hydraulics, Code_Aster through Studio, linked Review and requirements-only
+staleness. After restarting Studio, `restart-status.json` confirmed
+`not_evaluated`, `can_solve: false` and `review_stale: true`. The final
+`browser-final-validation.json` passed restart gating, a fresh hydraulic
+receipt, reuse of matching Code_Aster evidence, source-error numerical-field
+retirement, source recovery, linked P&ID, visible Close and verification of the
+same native candidate.
+
+The initial fresh Code_Aster execution record remains unchanged. The final
+restart flow verified and reused its matching native artifacts; it did not
+claim a second fresh structural solve. Browser page errors were checked. The
+existing review loader's optional `/build/review.json` discovery probes can
+return expected 404 responses and were excluded from the error assertions.
+
 Validation scope at this checkpoint:
 
 - Focused backend Studio process controls: **24 passed**. Portable fixtures
@@ -133,10 +148,9 @@ Validation scope at this checkpoint:
   the unverified-result trust expectation, the invalid-study error expectation
   and two shell-worker import-count expectations. They remain recorded
   baseline failures in `backend-validation.md`.
-- **The full test suite was not run.** Final live visible stale/P&ID behavior
-  after the requirements-only edit, restart and error workflow remain pending
-  receipt. Passing portable lifecycle tests do not complete those browser
-  acceptance checks.
+- **The full test suite was not run.** The live requirements-only stale/P&ID,
+  restart and source-error workflow passed in the retained browser receipts;
+  those results are separate from portable lifecycle tests.
 
 ## Supported boundaries
 
