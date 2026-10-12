@@ -21,7 +21,63 @@ flowchart LR
     D --> R
 ```
 
-## Run the small example
+## Open the authored project in Studio
+
+The [authored model](../../examples/process_network/model.py) and
+[study](../../examples/process_network/study.py) form an ordinary Studio
+project. Install the optional `process` dependency in the same Python
+environment as Tuba and configure the existing Code_Aster runtime as described
+in [Setup](setup.md). From the checkout:
+
+```powershell
+python -m pip install '.[process]'
+python -m tuba.solver.code_aster_doctor --check
+python -m tuba.cli_studio examples/process_network `
+  --out 'D:\tuba-runs\Tuba_v4\my-process-studio'
+```
+
+Keep the output outside the checkout. For a separate working project, copy
+only `model.py` and `study.py` to a new folder and launch that folder with the
+same command. These two source files depend only on installed Tuba; they need
+no import from the checkout's `examples` package. Solver evidence belongs to
+that working project; copying historical build output is unnecessary.
+
+1. In **Build**, choose **P&ID**. The declared tanks, pipe, valve, instruments
+   and signals are visible before either solver runs. Measured flow and pressure
+   read **Not evaluated** until hydraulic evidence exists. Selecting `L-101`
+   or its transmitter taps links to the physical route.
+2. Choose **Run hydraulics**. Studio runs pandapipes for the current bound
+   graph, geometry, scenario and requirements. The status becomes **Passed** or
+   **Rejected**, and the actual fluid fields and localized check failures become
+   available. Runtime failure is reported as **Failed** with its diagnostic.
+3. After a passing, current hydraulic run, choose **Solve**. Studio maps
+   verified pressure, filled-bore contents weight and the declared steady wall
+   temperature onto a copy, then evaluates `WaterOperating` with Code_Aster.
+4. Open **Review** after Code_Aster completes. The same P&ID remains available
+   alongside imported stress, displacement and reaction results. Hydraulic
+   rejection keeps its measured fluid values and leaves structural results
+   unevaluated.
+
+Edit `PIPE_SIZE = "larger"` or `OFFSET_M = 1.0` near the end of `model.py`.
+The size chooses explicit outside diameter and wall thickness; the hydraulic
+bore is measured from that section. `"small"` is the smaller-bore trial used to
+exercise hydraulic rejection. After an editor change, choose **Run model.py**
+to apply it, then **Run hydraulics** and **Solve** again. Pending editor text
+does not change the last executed P&ID. Geometry, graph, scenario, requirements
+or study edits invalidate dependent evidence; stale results cannot enable
+structural Solve. A restart requires a fresh hydraulic run before process
+loads can be reused.
+
+The cold authored `model` has no `WaterOperating` loads. The separate `process`
+global is a `BoundProcessNetwork`; its scenario ID matches the study's single
+`LOAD_CASES = ("WaterOperating",)`. The study explicitly selects
+`TUYAU_3M` and
+`WALL_TEMPERATURE_MODEL = "bulk-fluid-equals-wall-steady"`. This is a
+caller-declared steady approximation, not a pipe-wall heat-transfer solve.
+The [Studio integration plan](../architecture/studio-process-integration.md)
+records the lifecycle and acceptance checks.
+
+## Run the retained-candidate campaign
 
 The [authored model](../../examples/process_network/model.py) starts with no
 external P&ID file. It defines a mass-flow source, an offset pipe, a downstream

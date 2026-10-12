@@ -29,12 +29,24 @@ def run(project_root, directory):
     study = project.load_study()
     settings = study_settings(study) if study is not None else None
     volume = settings.volume_export if settings else None
-    if mesh_inputs(model, volume) != request["inputs"]:
-        raise ValueError("Loaded Python/policy identity differs from the requested mesh job.")
     for path, expected in request["source_fingerprints"]:
         observed = digest(path) if Path(path).is_file() else None
         if observed != expected:
             raise ValueError(f"Source changed during worker preparation: {path}")
+    if "process_model" in request:
+        from tuba.model import TubaModel
+        from tuba.process.studio import process_bound
+
+        # The host verified hydraulics before issuing this exact model identity.
+        bound = process_bound(namespace)
+        if bound is None:
+            raise ValueError("A process mesh snapshot requires the authored process declaration.")
+        model = TubaModel.from_dict(request["process_model"])
+        bound.verify_for(model)
+        validate_model(model)
+        namespace = namespace | {"model": model}
+    if mesh_inputs(model, volume) != request["inputs"]:
+        raise ValueError("Loaded Python/policy identity differs from the requested mesh job.")
     if request.get("mode") == "convergence":
         from tuba.analysis.mesh_convergence import run_mesh_convergence
         from tuba.project.solve import verify_project

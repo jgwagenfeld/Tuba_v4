@@ -86,6 +86,14 @@ class ProjectStudioServer(PreviewServer):
         # Busy with a review (the startup import or a Solve); _preparing marks the import.
         self._solving = False
         self._preparing = False
+        self._process_running = False
+        self._process_attempt = None
+        self._review_process_inputs = None
+        review_path = self.out_dir / "review" / "scene.json"
+        try:
+            self._review_had_process = bool(json.loads(review_path.read_text(encoding="utf-8")).get("process"))
+        except (OSError, ValueError):
+            self._review_had_process = False
         # The solver port a Solve hands to the project solve: Code_Aster when None, a replay in tests.
         self.solver = solver
         #: The operations the last Solve left unverified (spec decision 18).
@@ -96,6 +104,176 @@ class ProjectStudioServer(PreviewServer):
         from tuba.visualization.preview.mesh import MeshJobManager
 
         self.mesh_jobs = MeshJobManager(self)
+
+    def _process_inputs(self):
+        from tuba.process.studio import process_bound
+
+        bound = process_bound(self.namespace or {})
+        if bound is None:
+            return None
+        sources = getattr(self, "_mesh_source_fingerprints", ())
+        if self._source_error or self._dependency_fingerprints([Path(path) for path, _ in sources]) != sources:
+            raise ValueError("Project source changed; run the current source and rerun hydraulics.")
+        return hashlib.sha256(json.dumps([bound.fingerprint, self.model.to_dict(),
+            [(path, value.hex() if value is not None else None) for path, value in sources]],
+            sort_keys=True, allow_nan=False).encode()).hexdigest()
+
+    def process_info(self):
+        from tuba.process.studio import process_bound
+        from tuba.project.claim import solve_claimed
+
+        bound = (self.namespace or {}).get("process")
+        info = {"available": bound is not None, "status": "not_evaluated", "can_run": False,
+                "error": None, "bound_fingerprint": None}
+        if bound is None:
+            return info
+        try:
+            bound = process_bound(self.namespace)
+            info["bound_fingerprint"] = bound.fingerprint
+            inputs = self._process_inputs()
+        except (TypeError, ValueError) as exc:
+            return info | {"status": "stale", "error": getattr(self, "_process_source_error", None) or str(exc)}
+        attempt = self._process_attempt
+        if attempt:
+            if attempt["inputs"] != inputs:
+                info.update(status="stale", error="Process inputs changed; rerun hydraulics.")
+            else:
+                info.update(status=attempt["status"], error=attempt.get("error"))
+        if info["status"] == "passed":
+            from tuba.process.studio import validate_process_study
+            try:
+                validate_process_study(bound, self.study)
+            except (TypeError, ValueError) as exc:
+                info["error"] = str(exc)
+        info["can_run"] = not (self._solving or self.mesh_jobs.busy or solve_claimed(self.project.root))
+        return info
+
+    def _analysis_namespace(self, *, verify=True):
+        """The same copied operating model powers commands, solve and review freshness."""
+        with self._script_lock:
+            return self._analysis_namespace_locked(verify=verify)
+
+    def _analysis_namespace_locked(self, *, verify=True):
+        from tuba.process.studio import mapped_namespace, process_bound
+
+        bound = process_bound(self.namespace or {})
+        if bound is None:
+            return self.namespace
+        if self.process_info()["status"] != "passed":
+            raise ValueError("Run hydraulics with current passing verified evidence before structural Solve.")
+        attempt = self._process_attempt
+        if verify:
+            try:
+                attempt["hydraulic"].verify_for(bound)
+            except Exception as exc:
+                attempt.update(status="failed", error=f"Hydraulic evidence verification failed: {exc}")
+                raise
+        if attempt.get("namespace") is None:
+            attempt["namespace"] = mapped_namespace(self.namespace, bound, attempt["hydraulic"], self.study)
+        return attempt["namespace"]
+
+    def _mesh_model(self):
+        process = self.process_info()
+        if process["status"] == "passed" and not process["error"]:
+            return self._analysis_namespace(verify=False)["model"]
+        return self.model
+
+    def start_process(self):
+        """Use the existing project job slot and retain each real hydraulic attempt."""
+        from tuba.process.studio import process_bound
+        from tuba.project.claim import claim_solve, solve_claimed, SolveBusy
+        from tuba.search.artifacts import atomic_json
+        from uuid import uuid4
+
+        with self._script_lock:
+            if self.watch_fingerprint() != self._last_fingerprint:
+                self.run_once()
+            if self.namespace is None or self._source_error:
+                return 422, {"ok": False, "error": "model.py must run successfully before hydraulics."}
+            try:
+                bound = process_bound(self.namespace)
+                if bound is None:
+                    raise ValueError("model.py declares no process network.")
+                inputs = self._process_inputs()
+            except (TypeError, ValueError) as exc:
+                return 422, {"ok": False, "error": str(exc)}
+            with self._solve_lock:
+                if self._solving or self.mesh_jobs.busy or solve_claimed(self.project.root):
+                    return 409, {"ok": False, "error": "A hydraulic, mesh, solve or review job already owns this project."}
+                claim = claim_solve(self.project.root)
+                try:
+                    claim.__enter__()
+                except SolveBusy as exc:
+                    return 409, {"ok": False, "error": str(exc)}
+                directory = self.out_dir / "process-attempts" / uuid4().hex
+                attempt = {"inputs": inputs, "status": "running", "directory": directory, "bound": bound}
+                try:
+                    atomic_json(directory / "model.json", self.model.to_dict())
+                    for filename, fingerprint in self._mesh_source_fingerprints:
+                        source = Path(filename)
+                        if source.suffix == ".py" and source.is_file() and source.is_relative_to(self.project.root):
+                            data = source.read_bytes()
+                            if hashlib.sha256(data).digest() != fingerprint:
+                                raise ValueError("Project source changed while retaining hydraulic inputs; retry.")
+                            target = directory / "sources" / source.relative_to(self.project.root)
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            target.write_bytes(data)
+                    atomic_json(directory / "request.json", {"inputs": inputs, "bound": bound.to_dict(),
+                        "source_fingerprints": [(path, value.hex() if value is not None else None)
+                            for path, value in self._mesh_source_fingerprints]})
+                except Exception:
+                    claim.__exit__(None, None, None)
+                    raise
+                self._process_attempt = attempt
+                self._solving = self._process_running = True
+            try:
+                self.broker.broadcast({"type": "process_started", "status": "running"})
+                self._publish_scene(advance_revision=False)
+                threading.Thread(target=self._run_process, args=(attempt, claim), daemon=True,
+                                 name="tuba-studio-hydraulics").start()
+            except Exception as exc:
+                claim.__exit__(None, None, None)
+                with self._solve_lock:
+                    self._solving = self._process_running = False
+                attempt.update(status="failed", error=f"Hydraulic job could not start: {exc}")
+                atomic_json(directory / "status.json", {"status": "failed", "error": attempt["error"]})
+                self.broker.broadcast({"type": "process_failed", **self.process_info()})
+                return 500, {"ok": False, "error": attempt["error"]}
+            return 202, {"ok": True, "status": "running"}
+
+    def _run_process(self, attempt, claim):
+        from tuba.process.pandapipes import PandapipesBackend
+        from tuba.process.studio import process_projection
+        from tuba.search.artifacts import atomic_json
+
+        event_type = "process_finished"
+        try:
+            hydraulic = PandapipesBackend().solve(attempt["bound"], attempt["directory"] / "hydraulics")
+            projection = process_projection(attempt["bound"], hydraulic)
+            atomic_json(attempt["directory"] / "process_review.json", projection)
+            with self._script_lock:
+                attempt.update(hydraulic=hydraulic, projection=projection, status=projection["status"])
+                if self.process_info()["status"] == "stale":
+                    attempt.update(status="stale", error="Process inputs changed during hydraulics; rerun.")
+        except BaseException as exc:
+            event_type = "process_failed"
+            with self._script_lock:
+                attempt.update(status="failed", error=f"{type(exc).__name__}: {exc}")
+        finally:
+            claim.__exit__(None, None, None)
+            with self._script_lock:
+                try:
+                    atomic_json(attempt["directory"] / "status.json", {"status": attempt["status"],
+                                "error": attempt.get("error"), "inputs": attempt["inputs"]})
+                    if self.model is not None and not self._source_error:
+                        self._publish_scene(advance_revision=False)
+                except Exception as exc:
+                    event_type = "process_failed"
+                    attempt.update(status="failed", error=f"Hydraulic publication failed: {exc}")
+                finally:
+                    with self._solve_lock:
+                        self._solving = self._process_running = False
+                self.broker.broadcast({"type": event_type, **self.process_info()})
 
     def _study_settings(self) -> "StudySettings":
         """The study's validated settings; raises when there is no study or they are invalid."""
@@ -150,6 +328,8 @@ class ProjectStudioServer(PreviewServer):
         if not result["ok"]:
             self.broker.broadcast(event)
             return self
+        if self.process_info()["available"]:
+            return self  # restart requires a fresh native hydraulic run before structural import
         artifact_dir = self._declared_artifact_dir()
         operations = self._declared_operations()
         if artifact_dir is None and self._evidence_signature and all(digest is not None for _, digest in self._evidence_signature):
@@ -217,16 +397,27 @@ class ProjectStudioServer(PreviewServer):
             return
         if self.watch_fingerprint() != self._last_fingerprint:
             return  # run pending source edits first, so the importer sees the current model
+        process = self.process_info()
+        if process["available"] and (process["status"] != "passed" or process["error"]):
+            return
         with self._solve_lock:
             if self._solving or self.mesh_jobs.busy or solve_claimed(self.project.root):
                 return
             signature = self._external_evidence_signature()
             if not signature or signature == self._evidence_signature or any(digest is None for _, digest in signature):
                 return
-            self._solving = self._preparing = True
-            artifact_dir = study_artifact_dir(self.project.root, self._declared_operations())
-            threading.Thread(target=self._prepare_review, args=(self.namespace, artifact_dir),
-                             name="tuba-studio-external-review", daemon=True).start()
+            try:
+                namespace = self._analysis_namespace()
+            except Exception as exc:
+                self.review_error = f"{type(exc).__name__}: {exc}"
+            else:
+                self._solving = self._preparing = True
+                artifact_dir = study_artifact_dir(self.project.root, self._declared_operations())
+                threading.Thread(target=self._prepare_review, args=(namespace, artifact_dir),
+                                 name="tuba-studio-external-review", daemon=True).start()
+                return
+        self._publish_scene(advance_revision=False)
+        self.broker.broadcast({"type": "review_failed", "error": self.review_error})
 
     def get_python_script(self) -> dict[str, str]:
         from tuba.project.source import read_source
@@ -292,10 +483,13 @@ class ProjectStudioServer(PreviewServer):
                 source = Path(asset.source_path)
                 self._watched_paths.add(source.resolve() if source.is_absolute() else (self.project.root / source).resolve())
             validate_model(new_model)
+            from tuba.process.studio import process_bound
+            process_bound(namespace)
             self.model = new_model
             # Kept for Solve: a study reviews the script's globals, not just the model.
             self.namespace = namespace
             self._source_error = False
+            self._process_source_error = None
             watched = {self.script_path, self.project.study_path, *self._study_paths}
             watched.update(namespace.get("__tuba_project_dependencies__", ()))
             captured = {Path(path): value for path, value in self._study_fingerprints}
@@ -328,6 +522,12 @@ class ProjectStudioServer(PreviewServer):
             self._watched_paths.update(getattr(exc, "__tuba_project_dependencies__", ()))
             error = f"{type(exc).__name__}: {exc}"
             line = _script_error_line(exc, self.script_path)
+            if previous_model is not None and (previous_namespace or {}).get("process") is not None:
+                self._process_source_error = f"Previous valid model; current source failed: {error}"
+                try:
+                    self._publish_scene(advance_revision=False)
+                except Exception as retirement_error:
+                    error += f"; process scene retirement failed: {retirement_error}"
             return (
                 {"ok": False, "error": error, "line": line, "traceback": traceback.format_exc(), "review_stale": self.review_stale},
                 {"type": "script_error", "error": error, "line": line, "review_stale": self.review_stale},
@@ -374,12 +574,23 @@ class ProjectStudioServer(PreviewServer):
         if settings is None:
             # study.py's solver options are invalid: nothing it would solve can match the review, and a Solve reports why.
             return True
+        if self.process_info()["available"]:
+            try:
+                if self.process_info()["status"] != "passed" or self._review_process_inputs != self._process_inputs():
+                    return (self.out_dir / "review" / "scene.json").is_file()
+                model = self._analysis_namespace(verify=False)["model"]
+            except (TypeError, ValueError):
+                return True
+        else:
+            if self._review_had_process:
+                return True
+            model = self.model
         attested = self._review_identities
         if not attested:
             return False
         try:
             stale = stale_operations(
-                self.model,
+                model,
                 attested,
                 project_root=self.project.root,
                 solver_options=settings.solver_options,
@@ -403,6 +614,22 @@ class ProjectStudioServer(PreviewServer):
         scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=False,
             analysis_meshes=self._current_build_meshes(model),
             volume_export=settings.volume_export if settings else None, clash_results=self._model_clashes(model)))
+        from tuba.process.review import attach_process_declaration, attach_process_review
+        from tuba.process.studio import process_bound
+        bound = process_bound(self.namespace or {})
+        if bound is not None:
+            process = self.process_info()
+            if process["status"] in {"passed", "rejected"}:
+                try:
+                    self._process_attempt["hydraulic"].verify_for(bound)
+                except Exception as exc:
+                    self._process_attempt.update(status="failed", error=f"Hydraulic evidence verification failed: {exc}")
+                    process = self.process_info()
+                else:
+                    attach_process_review(scene, self._process_attempt["projection"], bound=bound)
+            if process["status"] not in {"passed", "rejected"}:
+                attach_process_declaration(scene, bound, error=process["error"])
+                scene.extra["process"]["evaluation_status"] = process["status"]
         comparison = self.mesh_jobs.current_comparison()
         if comparison is not None:
             from tuba.meshing.policy import resolve_mesh_policy
@@ -482,7 +709,7 @@ class ProjectStudioServer(PreviewServer):
             try:
                 for identity in self._review_identities:
                     root = self.out_dir / "review" / ARTIFACTS / operation_folder_name(identity.load_case)
-                    study, mesh, _, attestation = load_and_attest_artifact_chain(self.model, root)
+                    study, mesh, _, attestation = load_and_attest_artifact_chain(self._analysis_namespace(verify=False)["model"], root)
                     if execution_trust(attestation) != "verified":
                         raise ValueError(f"Operation {identity.load_case!r} has no verified mesh attestation.")
                     if mesh is not None:
@@ -522,10 +749,8 @@ class ProjectStudioServer(PreviewServer):
                     time.sleep(0.1)
 
     def _produce_review(self, namespace: dict[str, Any], *, artifact_dir: Path | None) -> None:
-        with self._ifc_lock:
-            self._produce_review_locked(namespace, artifact_dir=artifact_dir)
-        # The expensive review builder owns IFC publication, not source execution.
-        # Release that lock before entering the script -> IFC publication order.
+        self._produce_review_locked(namespace, artifact_dir=artifact_dir)
+        # Build outside source locks; promote under the normal script -> IFC order.
         if self.model is not None and not self._source_error:
             self._publish_scene()
 
@@ -542,13 +767,21 @@ class ProjectStudioServer(PreviewServer):
             from tuba.project.study import import_study_evidence
             import_study_evidence(namespace, settings, artifact_dir)
         root = self._review_builder()(namespace, work, artifact_dir=artifact_dir)
-        self._rewrite_review_references(Path(root))
-        identities = attested_identities(Path(root))
-        self._swap_bundle("review", Path(root))
-        self._review_identities = identities
-        self._review_mapping_meshes = None
-        self._review_mapping_mesh_error = None
-        self.review_error = None
+        with self._script_lock, self._ifc_lock:
+            if namespace.get("process") is not None:
+                if namespace is not self._analysis_namespace() or self.watch_fingerprint() != self._last_fingerprint:
+                    raise ValueError("Process or study inputs changed during structural evaluation; Review was not published.")
+            self._rewrite_review_references(Path(root),
+                process_payload=self._process_attempt["projection"] if namespace.get("process") is not None else None,
+                bound=namespace.get("process"))
+            identities = attested_identities(Path(root))
+            self._swap_bundle("review", Path(root))
+            self._review_process_inputs = self._process_inputs()
+            self._review_had_process = namespace.get("process") is not None
+            self._review_identities = identities
+            self._review_mapping_meshes = None
+            self._review_mapping_mesh_error = None
+            self.review_error = None
         shutil.rmtree(work, ignore_errors=True)
 
     def project_info(self) -> dict[str, Any]:
@@ -566,13 +799,16 @@ class ProjectStudioServer(PreviewServer):
             "viewer_url": f"{self.base_url}?bundle=build&preview_ws={self.ws_url}",
             "launcher_url": getattr(self, "launcher_url", None),
             "has_study": self.study is not None,
-            "can_solve": self.study is not None and self.namespace is not None and not self._source_error,
+            "can_solve": self.study is not None and self.namespace is not None and not self._source_error
+                and (not self.process_info()["available"] or (self.process_info()["status"] == "passed" and not self.process_info()["error"])),
+            "process": self.process_info(),
             "solves": bool(operations),
             "load_cases": list(operations),
             "has_review": (self.out_dir / "review" / "scene.json").is_file(),
             "review_stale": self.review_stale,
             "review_error": self.review_error,
-            "solving": (self._solving and not self._preparing) or (solve_claimed(self.project.root) and not self.mesh_jobs.busy),
+            "solving": (self._solving and not self._preparing and not self._process_running)
+                or (solve_claimed(self.project.root) and not self.mesh_jobs.busy and not self._process_running),
             "preparing_review": self._preparing,
             "mesh": self.mesh_jobs.status(),
             "can_mesh": self.namespace is not None and not self._source_error,
@@ -717,7 +953,7 @@ class ProjectStudioServer(PreviewServer):
                 if size > MAX_REFERENCE_SCENE_BYTES:
                     raise ValueError("IFC merged scene JSON exceeds the 64 MiB receiving limit before publication.")
 
-    def _rewrite_review_references(self, root: Path) -> None:
+    def _rewrite_review_references(self, root: Path, *, process_payload=None, bound=None) -> None:
         from tuba.visualization.scene import VisualizationScene
 
         path = root / "scene.json"
@@ -731,6 +967,9 @@ class ProjectStudioServer(PreviewServer):
             if asset.uri:
                 payload = json.loads((root / asset.uri).read_text(encoding="utf-8"))
                 asset.generation_config = payload["generation_config"]
+        if process_payload is not None:
+            from tuba.process.review import attach_process_review
+            attach_process_review(scene, process_payload, bound=bound)
         self._merge_ifc_references(scene)
         source = root / "source.py"
         source_bytes = source.read_bytes() if source.is_file() else None
@@ -870,7 +1109,10 @@ class ProjectStudioServer(PreviewServer):
                 return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
             if case not in settings.operations:
                 return 404, {"ok": False, "error": f"study.py solves no load case {case!r}."}
-            model = self.model
+            try:
+                model = self._analysis_namespace()["model"] if self.namespace is not None else None
+            except (TypeError, ValueError) as exc:
+                return 422, {"ok": False, "error": str(exc)}
             if model is None:
                 return 400, {"ok": False, "error": "model.py has not run successfully yet."}
         from tuba.project.freshness import export_study
@@ -899,6 +1141,10 @@ class ProjectStudioServer(PreviewServer):
             return 400, {"ok": False, "error": f"{self.project.name} has no study.py to solve."}
         if self.namespace is None:
             return 400, {"ok": False, "error": "model.py has not run successfully yet."}
+        try:
+            namespace = self._analysis_namespace()
+        except (TypeError, ValueError) as exc:
+            return 422, {"ok": False, "error": str(exc)}
         with self._solve_lock:
             if self.mesh_jobs.busy:
                 return 409, {"ok": False, "error": "A mesh job is running; wait or cancel it before solving."}
@@ -909,7 +1155,7 @@ class ProjectStudioServer(PreviewServer):
                 return 409, {"ok": False, "error": "Another process is solving this project."}
             self._solving = True
         threading.Thread(
-            target=self._solve, args=(self.namespace, force), name="tuba-studio-solve", daemon=True
+            target=self._solve, args=(namespace, force), name="tuba-studio-solve", daemon=True
         ).start()
         return 202, {"ok": True}
 

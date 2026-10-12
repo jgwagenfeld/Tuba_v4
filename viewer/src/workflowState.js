@@ -6,13 +6,26 @@
 // results opens on them; a model with none colours by the model.
 export const COLOR_CHANNELS = Object.freeze(["model", "results"]);
 
-// Build is authored input, so it never tints by a solver field - not even when a
-// published gallery enters Build on its solved bundle. The stored channel is
-// left alone, so Review comes back on whatever the reader last chose.
+// Studio Build can show current hydraulics on authored routes. Structural fields
+// and hydraulic values copied from published reviews remain Review-only.
 export function colorChannelOf(state = {}) {
-  if (sceneStage(state) === "build") return "model";
+  if (sceneStage(state) === "build" && !isBuildHydraulicField(state,
+    (state.resultFields ?? []).find(field => field.id === state.coloring?.fieldId) ?? state.resultFields?.[0])) return "model";
   if (COLOR_CHANNELS.includes(state.colorChannel)) return state.colorChannel;
   return hasResultColouring(state) ? "results" : "model";
+}
+
+export function isBuildHydraulicField(state, field) {
+  const process = state.process;
+  const overlay = (state.overlays ?? []).find(item => item.id === field?.overlay_id);
+  return Boolean(state.studioProcessCurrent && process?.schema === 'tuba.process.review.v1' &&
+    ['passed', 'rejected'].includes(process.status) && process.bound_fingerprint &&
+    process.schematic?.bound_fingerprint === process.bound_fingerprint &&
+    process.provenance?.solver?.toLowerCase() === process.basis &&
+    ['pandapipes', 'openmodelica'].includes(process.basis) && overlay?.kind === 'solver_result' &&
+    ['fluid_pressure', 'fluid_velocity', 'fluid_pressure_drop', 'fluid_temperature'].includes(overlay.data?.result_type) &&
+    overlay.data.basis === process.basis && overlay.data.scenario_id === process.scenario_id &&
+    overlay.data.load_case === process.operation);
 }
 
 // A legacy bundle carries solver overlays without the newer result_state

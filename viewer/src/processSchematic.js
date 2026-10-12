@@ -9,11 +9,15 @@ export function processSchematicModel(scene) {
   const process = scene?.process, graph = process?.schematic;
   if (!graph) return null;
   const refuse = () => { throw new Error('Process schematic does not match the retained hydraulic review.'); };
+  const evaluated = process.schema !== 'tuba.process.declaration.v1';
+  if (evaluated ? process.schema !== undefined && process.schema !== 'tuba.process.review.v1'
+    : process.status !== 'not_evaluated' || !['geometry_fingerprint', 'scenario_id', 'operation'].every(key => typeof process[key] === 'string' && process[key].trim()) ||
+      Object.keys(process).some(key => !['schema', 'status', 'bound_fingerprint', 'geometry_fingerprint', 'scenario_id', 'operation', 'schematic', 'evaluation_status', 'error'].includes(key))) refuse();
   if (graph.schema !== 'tuba.process.schematic.v1' || !graph.bound_fingerprint || graph.bound_fingerprint !== process.bound_fingerprint ||
-      !hydraulicSolverLabel(process.basis) || !Array.isArray(graph.components) || graph.components.length < 3 ||
-      !Array.isArray(graph.connections) || !Array.isArray(process.segments) || !process.segments.length ||
+      (evaluated && (!hydraulicSolverLabel(process.basis) || !Array.isArray(process.segments) || !process.segments.length)) ||
+      !Array.isArray(graph.components) || graph.components.length < 3 || !Array.isArray(graph.connections) ||
       graph.scenario?.id !== process.scenario_id) refuse();
-  const components = graph.components, segments = process.segments;
+  const components = graph.components, segments = evaluated ? process.segments : [];
   if (components[0].kind !== 'mass_flow_source' || components.at(-1).kind !== 'pressure_sink' ||
       components.slice(1, -1).some(component => !['pipe', 'fixed_loss'].includes(component.kind)) ||
       new Set(components.map(component => component.id)).size !== components.length ||
@@ -28,14 +32,18 @@ export function processSchematicModel(scene) {
   }
   if (segments.some(row => !components.some(component => component.id === row.component_id) ||
       !['pressure_in_pa', 'pressure_out_pa', 'mass_flow_kg_s', 'velocity_m_s'].every(key => Number.isFinite(row[key])))) refuse();
-  const failures = (scene.search?.checks ?? []).filter(check => check.verdict === 'fail');
+  if (evaluated && process.provenance && hydraulicSolverLabel(process.provenance.solver?.toLowerCase()) !== hydraulicSolverLabel(process.basis)) refuse();
+  const checks = evaluated ? Object.hasOwn(process, 'checks') ? process.checks : scene.search?.checks ?? [] : [];
+  if (!Array.isArray(checks)) refuse();
+  const failures = checks.filter(check => check.verdict === 'fail');
   const nodes = components.map((component, index) => {
     if (typeof component.id !== 'string' || !component.id || !Array.isArray(component.element_ids)) refuse();
     const rows = segments.filter(row => row.component_id === component.id);
-    if (['pipe', 'fixed_loss'].includes(component.kind) && !rows.length) refuse();
-    if (component.kind === 'pipe' && (rows.length !== component.element_ids.length ||
+    if (evaluated && ['pipe', 'fixed_loss'].includes(component.kind) && !rows.length) refuse();
+    if (evaluated && component.kind === 'pipe' && (rows.length !== component.element_ids.length ||
         rows.some((row, rowIndex) => row.element_id !== component.element_ids[rowIndex]))) refuse();
     if (component.kind !== 'pipe' && component.element_ids.length) refuse();
+    if (!evaluated) return { ...component, label: KINDS[component.kind], values: ['Not evaluated'], failures: [] };
     const readings = rows.length ? rows : [index === 0 ? segments[0] : segments.at(-1)];
     const pressureIn = component.kind === 'pressure_sink' ? readings[0].pressure_out_pa : readings[0].pressure_in_pa;
     const pressureOut = component.kind === 'mass_flow_source' ? pressureIn : readings.at(-1).pressure_out_pa;
@@ -49,7 +57,7 @@ export function processSchematicModel(scene) {
     return { ...component, label: KINDS[component.kind], values, failures: matched,
       pressureIn, pressureOut, massFlow: readings[0].mass_flow_kg_s };
   });
-  const model = { graph, nodes, solver: hydraulicSolverLabel(process.basis), operation: process.operation, failures,
+  const model = { graph, nodes, evaluated, solver: evaluated ? hydraulicSolverLabel(process.basis) : null, operation: process.operation, failures,
     scenario: graph.scenario, requirements: graph.requirements };
   model.items = Object.hasOwn(graph, 'pid') ? pidItems(model, refuse) : nodes;
   return model;
@@ -63,6 +71,8 @@ export function processComponentDetails(model, node) {
     `${node.element_ids.length} mechanical elements`, `Bend K ${number(node.bend_loss_coefficient)}: ${node.bend_loss_source}`);
   if (node.kind === 'fixed_loss') details.push(`K ${number(node.loss_coefficient)}: ${node.loss_source}`, 'Outside the mechanical model; no 3D element.');
   if (node.kind === 'mass_flow_source') details.push(`Prescribed source temperature ${number(model.scenario.source_temperature_k)} K`);
+  if (node.kind === 'mass_flow_source' && Number.isFinite(model.scenario.mass_flow_kg_s)) details.push(`Prescribed mass flow ${number(model.scenario.mass_flow_kg_s)} kg/s`);
+  if (node.kind === 'pressure_sink' && Number.isFinite(model.scenario.sink_pressure_pa)) details.push(`Prescribed sink pressure ${number(model.scenario.sink_pressure_pa / 1000)} kPa abs`);
   if (node.kind === 'mass_flow_source' || node.kind === 'pressure_sink') details.push(node.equipment
     ? 'Equipment uses a declared hydraulic boundary approximation; outside the mechanical model.'
     : 'Mathematical boundary; no equipment or 3D element implied.');
@@ -104,12 +114,12 @@ export function processSchematicSvg(model, selectedId = null) {
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" class="process-diagram" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="Process schematic for ${xml(model.graph.network_id)}">
     <title>${xml(model.graph.network_id)} — tagged process schematic</title>
-    <desc>Serial flow connectivity, not physical scale. Fixed loss is a hydraulic restriction, not a control valve. No instruments or control signals are defined. ${xml(model.solver)} results; pressures absolute.</desc>
+    <desc>Serial flow connectivity, not physical scale. Fixed loss is a hydraulic restriction, not a control valve. No instruments or control signals are defined. ${model.evaluated ? `${xml(model.solver)} results; pressures absolute.` : 'Not evaluated; declarations only.'}</desc>
     <metadata>${xml(JSON.stringify({ schema: 'tuba.process.schematic.svg.v1', schematic: model.graph, basis: model.solver, operation: model.operation, pressure_reference: 'absolute', pressure_display_unit: 'kPa' }))}</metadata>
     <style>.process-diagram text{font:13px sans-serif;fill:#20313b}.process-diagram .tag{font-weight:700}.process-diagram .kind{font-size:12px;fill:#445864}.process-diagram .component{cursor:pointer}.process-diagram .component>rect{fill:#f5f8fa;stroke:#9aaab4}.process-diagram .symbol,.process-diagram .connection{fill:none;stroke:#355567;stroke-width:2}.process-diagram .component.failed>rect{stroke:#b3261e;stroke-width:2}.process-diagram .failure{fill:#9c211a;font-size:12px;font-weight:700}.process-diagram .component.selected>rect,.process-diagram .component:focus>rect{stroke:#00678a;stroke-width:3;fill:#e2f5fb}.process-diagram .note{font-size:12px;fill:#445864}</style>
     <rect width="100%" height="100%" fill="#fff"/>
     ${text(10, 21, 'Tagged process schematic', 'class="tag"')}
-    ${text(10, 41, `${model.solver} · ${model.scenario.id}`, 'class="kind"')}
+    ${text(10, 41, `${model.solver ?? 'Not evaluated'} · ${model.scenario.id}`, 'class="kind"')}
     ${text(10, 60, 'Serial flow ↓ · pressure absolute', 'class="note"')}
     ${body}
     ${text(10, height - 34, 'Schematic · not physical scale', 'class="note"')}
@@ -146,7 +156,7 @@ function pidItems(model, refuse) {
     const pressure = owner && (owner.inlet_port === instrument.port_id ? owner.pressureIn : owner.pressureOut);
     return { ...instrument, id: instrument.tag, instrumentKind: instrument.kind, kind: 'instrument',
       label: INSTRUMENTS[instrument.kind], element_ids: owner ? owner.element_ids : [], owner,
-      values: transmitter ? [`Port ${instrument.port_id}`, instrument.kind === 'PT' ? `Calculated p ${number(pressure / 1000)} kPa abs` : `Calculated flow ${number(owner.massFlow)} kg/s`]
+      values: transmitter ? [`Port ${instrument.port_id}`, !model.evaluated ? 'Not evaluated' : instrument.kind === 'PT' ? `Calculated p ${number(pressure / 1000)} kPa abs` : `Calculated flow ${number(owner.massFlow)} kg/s`]
         : ['Design intent only; no controller output calculated.'],
       failures: [], associatedFailures: owner ? owner.failures : [], signals: [] };
   });
@@ -238,12 +248,12 @@ function pidSvg(model, selectedId) {
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" class="process-pid" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="P and ID for ${xml(model.graph.network_id)}">
     <title>${xml(model.graph.network_id)} - P&amp;ID</title>
-    <desc>Declared equipment and instrumentation; serial process connectivity, not physical scale. Calculated hydraulic values, not sensor readings. Electrical control signals declare intent and are not simulated.</desc>
+    <desc>Declared equipment and instrumentation; serial process connectivity, not physical scale. ${model.evaluated ? 'Calculated hydraulic values, not sensor readings.' : 'Not evaluated; declarations only.'} Electrical control signals declare intent and are not simulated.</desc>
     <metadata>${xml(JSON.stringify({ schema: 'tuba.process.pid.svg.v1', schematic: model.graph, basis: model.solver, operation: model.operation, pressure_reference: 'absolute', pressure_display_unit: 'kPa', controls: 'design intent, not simulated' }))}</metadata>
     <style>.process-pid text{font:16px sans-serif;fill:#20313b}.process-pid .tag{font-weight:700}.process-pid .note{font-size:14px;fill:#445864}.process-pid .reading{font-size:14px}.process-pid .component{cursor:pointer}.process-pid .hit-box{fill:transparent;stroke:transparent}.process-pid .symbol,.process-pid .process-line,.process-pid .tap-line{fill:none;stroke:#263f4c;stroke-width:2.5}.process-pid .tap-line{stroke-width:1.5}.process-pid .tap-dot{fill:#263f4c}.process-pid .signal-line{fill:none;stroke:#566b7b;stroke-width:1.8;stroke-dasharray:7 5}.process-pid .component.failed .symbol{stroke:#b3261e;stroke-width:3}.process-pid .failure{fill:#a21c15;font-size:15px;font-weight:700}.process-pid .component.selected>.hit-box,.process-pid .component:focus>.hit-box{stroke:#00678a;stroke-width:2;fill:#e2f5fb;fill-opacity:.55}.process-pid .component:focus{outline:none}</style>
     <rect width="100%" height="100%" fill="white"/>
     ${text(30, 32, `${model.graph.network_id} - P&ID`, 'class="tag"')}
-    ${text(30, 58, `${model.solver} | ${model.scenario.id} | Calculated results; pressure absolute`, 'class="note"')}
+    ${text(30, 58, `${model.solver ?? 'Not evaluated'} | ${model.scenario.id} | ${model.evaluated ? 'Calculated results; pressure absolute' : 'Declarations only'}`, 'class="note"')}
     ${text(30, 82, 'Select an equipment, line or instrument tag to review its hydraulic basis and linked 3D route.', 'class="note"')}
     ${body}${signals}${transmittersSvg}${controllersSvg}
     <path class="process-line" d="M30 701h50"/>${text(90, 707, 'Process / pressure or flow tap', 'class="note"')}

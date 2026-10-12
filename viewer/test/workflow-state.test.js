@@ -6,6 +6,7 @@ import {
   STAGES,
   colorChannelOf,
   createWorkflowState,
+  isBuildHydraulicField,
   openingStage,
   sceneStage,
   visibilityPresetForStage,
@@ -59,6 +60,32 @@ test("Build never colours by results, even over a solved bundle", () => {
   assert.equal(colorChannelOf({ stage: "build", resultStates: [{ id: "s" }] }), "model");
   // The reader's choice survives: back in Review it colours by results again.
   assert.equal(colorChannelOf({ stage: "review", colorChannel: "results" }), "results");
+});
+
+test('Build only colors current Studio hydraulic fields, preserving the structural and gallery boundary', () => {
+  const field = { id: 'velocity', overlay_id: 'fluid' };
+  const state = { stage: 'build', studioProcessCurrent: true, colorChannel: 'results', coloring: { fieldId: field.id }, resultFields: [field],
+    process: { schema: 'tuba.process.review.v1', status: 'passed', bound_fingerprint: 'current', schematic: { bound_fingerprint: 'current' },
+      basis: 'pandapipes', provenance: { solver: 'pandapipes' }, operation: 'Hot', scenario_id: 'Water' },
+    overlays: [{ id: 'fluid', kind: 'solver_result', data: { result_type: 'fluid_velocity', basis: 'pandapipes', load_case: 'Hot', scenario_id: 'Water' } }] };
+  assert.equal(isBuildHydraulicField(state, field), true);
+  assert.equal(colorChannelOf(state), 'results');
+  for (const mutate of [
+    copy => { copy.studioProcessCurrent = false; },
+    copy => { copy.process.status = 'stale'; },
+    copy => { copy.process.schema = 'tuba.process.declaration.v1'; },
+    copy => { copy.process.schematic.bound_fingerprint = 'previous'; },
+    copy => { copy.process.provenance.solver = 'invented'; },
+    copy => { copy.overlays[0].data.result_type = 'stress'; },
+    copy => { copy.overlays[0].data.scenario_id = 'previous'; },
+    copy => { copy.overlays[0].data.load_case = 'Cold'; }
+  ]) {
+    const copy = structuredClone(state); mutate(copy);
+    assert.equal(isBuildHydraulicField(copy, field), false);
+    assert.equal(colorChannelOf(copy), 'model');
+  }
+  assert.equal(colorChannelOf({ ...state, colorChannel: 'model' }), 'model');
+  assert.equal(colorChannelOf({ ...state, process: { ...state.process, status: 'rejected' } }), 'results');
 });
 
 test("the embedded canvas is a stage of its own and outranks every other", () => {

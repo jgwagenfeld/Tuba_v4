@@ -71,6 +71,11 @@
           <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
         </div>
         </div>
+        <div class="studio-process-actions" data-studio-process-actions hidden>
+          <button type="button" data-studio-pid-open aria-haspopup="dialog" aria-controls="process-pid-dialog">P&amp;ID</button>
+          <button type="button" data-process-run>Run hydraulics</button>
+          <span data-process-status role="status" aria-live="polite"></span>
+        </div>
         <button type="button" class="solve-button" data-solve hidden>Solve</button>
         <!-- Actions only. The verdict and the runtime line moved to the status
              strip along the bottom, so the header is identity plus the three
@@ -378,7 +383,7 @@
         </div>
       </footer>
     </main>
-    <dialog class="exchange-dialog process-pid-dialog" data-process-dialog aria-labelledby="process-pid-title">
+    <dialog id="process-pid-dialog" class="exchange-dialog process-pid-dialog" data-process-dialog aria-labelledby="process-pid-title">
       <form method="dialog" class="exchange-head">
         <h2 id="process-pid-title">P&amp;ID</h2>
         <button type="submit" aria-label="Close P and ID">Close</button>

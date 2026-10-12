@@ -7,13 +7,14 @@ from tuba.visualization.builders._layers import build_result_fields
 from .network import BoundProcessNetwork, FixedLossComponent, PipeComponent
 
 
-def _schematic(bound: BoundProcessNetwork, payload: dict) -> dict:
-    if (payload.get("bound_fingerprint") != bound.fingerprint
+def _schematic(bound: BoundProcessNetwork, payload: dict | None = None) -> dict:
+    if payload is not None and (payload.get("bound_fingerprint") != bound.fingerprint
             or payload.get("geometry_fingerprint") != bound.geometry_fingerprint
             or payload.get("scenario_id") != bound.scenario.id):
         raise ValueError("Process schematic does not match its evaluated network/scenario")
     associated = [(segment.segment_id, segment.component_id, segment.element_id) for segment in bound.segments]
-    measured = [(row["segment_id"], row["component_id"], row["element_id"]) for row in payload["segments"]]
+    measured = ([(row["segment_id"], row["component_id"], row["element_id"]) for row in payload["segments"]]
+                if payload is not None else associated)
     if measured != associated:
         raise ValueError("Process schematic requires complete ordered matching result associations")
     components = []
@@ -45,6 +46,17 @@ def _schematic(bound: BoundProcessNetwork, payload: dict) -> dict:
             "connections": [connection.to_dict() for connection in bound.network.connections],
             "scenario": bound.scenario.to_dict(), "requirements": bound.requirements.to_dict(),
             **({"pid": bound.network.pid.to_dict()} if bound.network.pid is not None else {})}
+
+
+def attach_process_declaration(scene, bound: BoundProcessNetwork, *, status="not_evaluated", error=None):
+    """Expose authored topology without creating measurements or result fields."""
+    scene.extra["process"] = {
+        "schema": "tuba.process.declaration.v1", "status": status,
+        "bound_fingerprint": bound.fingerprint, "geometry_fingerprint": bound.geometry_fingerprint,
+        "scenario_id": bound.scenario.id, "operation": bound.scenario.id,
+        "schematic": _schematic(bound), **({"error": error} if error else {}),
+    }
+    scene.validate()
 
 
 def attach_process_review(scene, payload, *, bound: BoundProcessNetwork | None = None):

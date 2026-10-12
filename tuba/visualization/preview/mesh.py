@@ -291,7 +291,7 @@ class MeshJobManager:
             raise ValueError("Python or CAD source changed; run the current source before generating.")
         settings = host._study_settings() if host.study is not None else None
         volume = settings.volume_export if settings else None
-        inputs = mesh_inputs(host.model, volume)
+        inputs = mesh_inputs(host._mesh_model(), volume)
         records = [[path, value.hex() if value is not None else None] for path, value in sources]
         identity = hashlib.sha256(json.dumps([inputs, records], sort_keys=True).encode()).hexdigest()
         return identity, inputs, records
@@ -419,7 +419,7 @@ class MeshJobManager:
                 raise ValueError("Convergence artifact names must be local filenames.")
             files.extend(root / f"level-{index:02d}" / name for name in names)
         before = {str(path):digest(path) for path in files}
-        report = reopen_mesh_convergence(self.studio.model, job["directory"])
+        report = reopen_mesh_convergence(self.studio._mesh_model(), job["directory"])
         verified_files = {root / "comparison.json", root / "source_model.json"}
         for index,level in enumerate(report["levels"]):
             verified_files.update(root / f"level-{index:02d}" / name for name in
@@ -487,12 +487,16 @@ class MeshJobManager:
                     return 409, {"ok": False, "error": "Source revision changed; refresh before generating."}
                 try:
                     identity, inputs, sources = self._identity()
+                    process_model = None
+                    if host.process_info()["status"] == "passed" and not host.process_info()["error"]:
+                        process_model = host._analysis_namespace()["model"].to_dict()
                     if mode not in {"mesh", "convergence"}:
                         raise ValueError("Unsupported mesh job mode.")
                     settings = host._study_settings_or_none()
                     if mode == "convergence" and (settings is None or settings.mesh_convergence is None):
                         raise ValueError("Define MESH_CONVERGENCE and exactly one LOAD_CASES operation in study.py before running convergence.")
                     if mode == "convergence":
+                        host._analysis_namespace()  # process projects require current passing hydraulics
                         from tuba.solver.code_aster_process import convergence_capability
                         capability = convergence_capability()
                         if not capability["supported"]:
@@ -512,6 +516,8 @@ class MeshJobManager:
                 self._claim = claim
                 self._cleanup_obligation = obligation
                 request = {"identity": identity, "inputs": inputs, "source_fingerprints": sources, "mode": mode}
+                if process_model is not None:
+                    request["process_model"] = process_model
                 self._artifact = None
                 self._job = {"id": job_id, "mode": mode, "state": "running", "stage": "preparing",
                              "identity": identity, "directory": str(directory), "source_revision": host.revision,

@@ -134,6 +134,82 @@ function pidFixture() {
   return scene;
 }
 
+function declarationFixture() {
+  const scene = pidFixture(), { schematic, bound_fingerprint, scenario_id, operation } = scene.process;
+  scene.process = { schema: 'tuba.process.declaration.v1', status: 'not_evaluated', geometry_fingerprint: 'geometry',
+    schematic, bound_fingerprint, scenario_id, operation };
+  return scene;
+}
+
+test('declared P&ID keeps topology, declarations and linked routes without hydraulic readings or failures', () => {
+  const scene = declarationFixture(), before = structuredClone(scene), model = processSchematicModel(scene);
+  assert.equal(model.evaluated, false);
+  assert.equal(model.solver, null);
+  assert.deepEqual(model.failures, []);
+  assert.deepEqual(model.nodes.map(node => node.element_ids), [[], ['E1', 'E2'], [], []]);
+  for (const node of model.nodes) {
+    assert.deepEqual(node.values, ['Not evaluated']);
+    assert.equal(node.pressureIn, undefined);
+    assert.equal(node.massFlow, undefined);
+  }
+  assert.deepEqual(model.items.find(node => node.id === 'PT-101').values, ['Port line.in', 'Not evaluated']);
+  assert.deepEqual(model.items.find(node => node.id === 'FT-101').values, ['Port line.out', 'Not evaluated']);
+  assert.match(processComponentDetails(model, model.nodes[1]).join('\n'), /Length 6.2 m; bore 80 mm/);
+  const svg = processSchematicSvg(model, 'LINE-101');
+  assert.match(svg, /Not evaluated.*Declarations only/s);
+  assert.match(svg, /aria-pressed="true"/);
+  assert.doesNotMatch(svg, /Calculated (p|flow|results|hydraulic values)|Max v|Flow 0|p 0|FAIL/);
+  assert.deepEqual(scene, before);
+});
+
+test('draft and evaluated schemas refuse malformed declarations and measured-data contamination', () => {
+  for (const mutate of [
+    process => { process.status = 'passed'; },
+    process => { process.geometry_fingerprint = ''; },
+    process => { process.operation = 123; },
+    process => { process.segments = []; },
+    process => { process.basis = 'pandapipes'; },
+    process => { process.provenance = {}; },
+    process => { process.checks = []; },
+    process => { process.pressure_in_pa = 0; },
+    process => { process.schematic.bound_fingerprint = 'other'; },
+    process => { process.schematic.connections.pop(); },
+    process => { process.schematic.pid.instruments[0].port_id = 'missing'; }
+  ]) {
+    const scene = declarationFixture(); mutate(scene.process);
+    assert.throws(() => processSchematicModel(scene), /does not match/);
+  }
+  for (const schema of [null, false, 'unknown']) {
+    const scene = pidFixture(); scene.process.schema = schema;
+    assert.throws(() => processSchematicModel(scene), /does not match/);
+  }
+});
+
+test('failed source keeps a stale declaration for the previous valid model without inheriting measurements', () => {
+  const scene = declarationFixture();
+  scene.process.evaluation_status = 'stale';
+  scene.process.error = 'Previous valid model; current source failed: ValueError';
+  const model = processSchematicModel(scene);
+  assert.equal(model.evaluated, false);
+  assert.deepEqual(model.failures, []);
+  assert.equal(model.items.find(node => node.id === 'PT-101').values[1], 'Not evaluated');
+});
+
+test('current process checks own hydraulic failures and legacy scenes keep their fallback checks', () => {
+  const scene = pidFixture();
+  scene.process.schema = 'tuba.process.review.v1';
+  scene.process.checks = [];
+  assert.equal(processSchematicModel(scene).failures.length, 0);
+  scene.process.checks = [scene.search.checks[0]];
+  assert.equal(processSchematicModel(scene).nodes[1].failures.length, 1);
+  scene.process.checks = null;
+  assert.throws(() => processSchematicModel(scene), /does not match/);
+  delete scene.process.checks;
+  assert.equal(processSchematicModel(scene).failures.length, 1);
+  scene.process.provenance = { solver: 'OpenModelica' };
+  assert.throws(() => processSchematicModel(scene), /does not match/);
+});
+
 test('P&ID maps equipment and exact port readings to the real component without inventing controller results', () => {
   const model = processSchematicModel(pidFixture()), item = tag => model.items.find(node => node.id === tag);
   assert.equal(model.nodes[0].displayTag, 'TK-101');

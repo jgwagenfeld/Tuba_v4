@@ -159,6 +159,7 @@ import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.j
 import {
   colorChannelOf,
   createWorkflowState,
+  isBuildHydraulicField,
   openingStage,
   sceneStage,
   workspaceView
@@ -189,6 +190,10 @@ const dom = {
   processSchematic: document.querySelector('[data-process-schematic]'),
   processDialog: document.querySelector('[data-process-dialog]'),
   processDrawing: document.querySelector('[data-process-drawing]'),
+  processActions: document.querySelector('[data-studio-process-actions]'),
+  processOpen: document.querySelector('[data-studio-pid-open]'),
+  processRun: document.querySelector('[data-process-run]'),
+  processStatus: document.querySelector('[data-process-status]'),
   inspector: document.querySelector("[data-inspector]"),
   reviewDrawer: document.querySelector("[data-review-drawer]"),
   reviewTally: document.querySelector("[data-review-tally]"),
@@ -345,6 +350,7 @@ function dispatch(action) {
 
 let selectedObjectId = null;
 let processScene = null;
+let processDialogOpener = null;
 let selectedProcessComponent = null;
 let connectionHighlightObjectId = null;
 // The finding whose disposition the inspector is showing, set from the hotspot
@@ -402,6 +408,7 @@ const studio = {
   hasReview: false,
   reviewStale: false,
   solving: false,
+  processRunning: false,
   // When the current solve or review import began, for the elapsed clock.
   solveStartedAt: null,
   // The studio is importing attested evidence at startup: a review is on its way.
@@ -900,6 +907,7 @@ async function switchBundle(bundleId, catalog) {
 
 async function loadBundle(bundleUrl, options = {}) {
   stopBrowserPreview();
+  const previousProcess = currentState?.process;
   const nextBundle = await loadSceneBundleFromUrl(bundleUrl);
   if (options.accept && !options.accept()) return false;
   currentBundle = nextBundle;
@@ -916,12 +924,19 @@ async function loadBundle(bundleUrl, options = {}) {
     embed: startupConfig.embed
   });
   const nextState = { ...viewerState, ...workflowState };
+  nextState.studioProcessCurrent = Boolean(studio.project && bundleKey(bundleUrl) === 'build' &&
+    ['passed', 'rejected'].includes(studio.project.process?.status) &&
+    studio.project.process.bound_fingerprint === nextState.process?.bound_fingerprint);
   const loadedState = options.preserve && currentState
     ? preserveViewerStateForReload(currentState, nextState, { reviewDefaultColor: options.reviewDefaultColor })
     : nextState;
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, stage: "embed" }
     : loadedState;
+  if (currentState.studioProcessCurrent && previousProcess?.schema !== 'tuba.process.review.v1') {
+    const field = currentState.resultFields.find(item => isBuildHydraulicField(currentState, item));
+    if (field) currentState = reduceViewerState(currentState, { type: 'setColoringField', fieldId: field.id });
+  }
   measurementPoints = [];
   measuring = false;
   // Load takes the scene as the bundle declared it. Arrival used to have to
@@ -1034,12 +1049,29 @@ function renderRailChrome() {
   }
 }
 
-dom.processDialog.addEventListener('close', () => dom.processSchematic.querySelector('[data-process-open]')?.focus({ preventScroll: true }));
+function openProcessDialog(opener) {
+  processDialogOpener = opener;
+  dom.processDialog.showModal();
+  render();
+}
+
+dom.processOpen.addEventListener('click', () => openProcessDialog(dom.processOpen));
+dom.processRun.addEventListener('click', () => void runHydraulics());
+dom.processDialog.addEventListener('close', () => {
+  const opener = processDialogOpener === dom.processOpen ? dom.processOpen : dom.processSchematic.querySelector('[data-process-open]');
+  if (opener && !opener.closest('[hidden]')) opener.focus({ preventScroll: true });
+});
+dom.processDialog.addEventListener('click', event => {
+  if (event.target !== dom.processDialog) return;
+  const bounds = dom.processDialog.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dom.processDialog.close();
+});
 
 function renderProcessSchematic() {
   const scene = currentBundle?.scene;
-  if (processScene !== scene) {
-    processScene = scene;
+  const identity = scene?.process?.schematic ? `${scene.search?.candidate_id ?? ''}|${scene.process.bound_fingerprint}|${scene.process.operation}` : null;
+  if (processScene !== identity) {
+    processScene = identity;
     selectedProcessComponent = null;
     dom.processDialog.close();
   }
@@ -1057,18 +1089,24 @@ function renderProcessSchematic() {
     else if (!selectedPipe && chosen?.element_ids.length) selectedProcessComponent = null;
     const note = document.createElement('p');
     note.className = 'search-note';
-    note.textContent = `${model.graph.network_id} | ${model.solver}. ${pid
+    note.textContent = `${model.graph.network_id} | ${model.solver ?? 'Not evaluated'}. ${studio.available && dom.codeText.value !== studio.diskCode ? 'Pending edits: drawing shows the last executed model.py. ' : ''}${pid
       ? 'Open the P&ID to inspect equipment, port values and declared control signals. Selecting a pipe or its transmitter links to the 3D route.'
       : 'Select a pipe tag to highlight its route and fluid results. This schematic has no instruments or control signals.'}`;
+    if (!model.evaluated && scene.process.evaluation_status) note.textContent += ` Hydraulics: ${scene.process.evaluation_status.replaceAll('_', ' ')}.`;
+    if (scene.process.error) note.textContent += ` ${scene.process.error}`;
     dom.processSchematic.append(note);
-    if (pid) {
+    {
       const open = document.createElement('button');
       open.type = 'button'; open.textContent = 'Open P&ID'; open.dataset.processOpen = '';
       open.dataset.focusKey = 'process:open'; open.setAttribute('aria-haspopup', 'dialog');
-      open.addEventListener('click', () => { dom.processDialog.showModal(); render(); });
+      open.addEventListener('click', () => openProcessDialog(open));
       dom.processSchematic.append(open);
     }
-    for (const [host, scope] of [[dom.processSchematic, 'rail'], ...(pid && dom.processDialog.open ? [[dom.processDrawing, 'dialog']] : [])]) {
+    for (const [host, scope] of [[dom.processSchematic, 'rail'], ...(dom.processDialog.open ? [[dom.processDrawing, 'dialog']] : [])]) {
+      if (scope === 'dialog') {
+        const status = document.createElement('p'); status.className = 'search-note'; status.textContent = note.textContent;
+        host.append(status);
+      }
       const downloadButton = document.createElement('button');
       downloadButton.type = 'button'; downloadButton.textContent = 'Download SVG';
       downloadButton.dataset.processDownload = ''; downloadButton.dataset.focusKey = `process:${scope}:download`;
@@ -1085,14 +1123,21 @@ function renderProcessSchematic() {
           dispatch({ type: 'selectObjects', objectIds: node.element_ids.map(id => resolveEntityObjectId(currentState, `element:${id}`)).filter(Boolean) });
           const controller = ['PIC', 'FIC'].includes(node.instrumentKind);
           const type = controller ? null : node.kind === 'pipe' || node.instrumentKind === 'FT' ? 'fluid_velocity' : 'fluid_pressure';
-          const overlay = scene.overlays.find(item => type && item.data?.result_type === type && item.data?.basis === scene.process.basis);
-          const field = scene.result_fields.find(item => item.overlay_id === overlay?.id);
+          const overlay = (scene.overlays ?? []).find(item => type && item.data?.result_type === type && item.data?.basis === scene.process.basis);
+          const field = (scene.result_fields ?? []).find(item => overlay && item.overlay_id === overlay.id);
           if (field) {
             dispatch({ type: 'setActiveLoadCase', loadCase: model.operation });
             dispatch({ type: 'setActiveResultState', resultStateId: null });
             dispatch({ type: 'setColorChannel', colorChannel: 'results' });
             dispatch({ type: 'setColoringField', fieldId: field.id });
             dispatch({ type: 'setColoringComponent', component: 'magnitude' });
+          } else {
+            dispatch({ type: 'setColorChannel', colorChannel: 'model' });
+            dispatch({ type: 'setActiveResultState', resultStateId: null });
+            dispatch({ type: 'setActiveGeometryState', geometryStateId: null });
+            for (const layer of Object.values(currentState.layers ?? {})) if (layer.category === 'results') {
+              dispatch({ type: 'setLayerVisibility', layerId: layer.id, visible: false });
+            }
           }
           drawSearchAnnotations([]);
           render();
@@ -1396,8 +1441,7 @@ function renderColorBy() {
     label: mode.label,
     group: "Model"
   }));
-  // Build never tints by results (colorChannelOf), so it offers none to pick.
-  const fieldOptions = (isBuildMode() ? [] : getFieldOptions(currentState)).map((field) => ({
+  const fieldOptions = getFieldOptions(currentState).filter(field => !isBuildMode() || isBuildHydraulicField(currentState, field.field)).map((field) => ({
     id: field.id,
     label: field.label,
     group: "Results"
@@ -5349,6 +5393,7 @@ async function handleLivePreviewEvent(raw) {
   if (message.type === "script_error") {
     void meshClient.refresh();
     if (studio.available) {
+      await refreshStudioProject();
       dispatch({ type: "setBodyVisibility", bodyId: "analysis_mesh", visible: false });
       dispatch({ type: "setBodyVisibility", bodyId: "geometry", visible: true });
       studio.reviewStale = Boolean(message.review_stale);
@@ -5359,6 +5404,15 @@ async function handleLivePreviewEvent(raw) {
   }
   if (message.type === "mesh_status") {
     await meshClient.refresh();
+    if (studio.available) await refreshStudioProject();
+    if (currentState) renderSolveControls();
+    return;
+  }
+  if (["process_started", "process_finished", "process_failed"].includes(message.type)) {
+    studio.processRunning = message.type === 'process_started';
+    await refreshStudioProject();
+    if (message.type === 'process_failed') setErrorStatus({ message: message.error ?? studio.project?.process?.error }, 'Hydraulics did not finish.');
+    render();
     return;
   }
   if (["solve_started", "solve_failed", "solve_finished", "review_ready", "review_failed"].includes(message.type)) {
@@ -5366,6 +5420,7 @@ async function handleLivePreviewEvent(raw) {
     return;
   }
   if (message.type === "scene_reloaded") {
+    if (studio.available) await refreshStudioProject();
     if (studio.available) void meshClient.refresh();
     if (message.bundle) {
       // A project studio rebuilt one of its two bundles; the one not on screen
@@ -5656,6 +5711,17 @@ async function loadStudioProject(catalog) {
   return true;
 }
 
+async function refreshStudioProject() {
+  const info = await fetchStudioJson('/api/project');
+  if (!info?.ok) return;
+  studio.project = info;
+  studio.hasReview = Boolean(info.has_review);
+  studio.reviewStale = Boolean(info.review_stale);
+  studio.processRunning = info.process?.status === 'running';
+  if (currentState) currentState.studioProcessCurrent = Boolean(bundleKey(currentBundleUrl) === 'build' &&
+    ['passed', 'rejected'].includes(info.process?.status) && info.process.bound_fingerprint === currentState.process?.bound_fingerprint);
+}
+
 async function initStudio(catalog) {
   if (!mayBeStudio(catalog)) return;
   const result = await fetchStudioJson("/api/script");
@@ -5920,10 +5986,27 @@ async function loadComm() {
 function renderSolveControls() {
   const project = studio.project;
   const canSolve = Boolean(project?.can_solve) && !currentState.embed;
+  const process = project?.process;
+  const pendingEdits = studio.available && dom.codeText.value !== studio.diskCode;
+  const busy = studio.running || studio.solving || studio.preparing || studio.processRunning || Boolean(meshClient.snapshot().job?.busy);
+  const reason = pendingEdits ? 'Run model.py to apply edits' : process?.available && !project?.can_solve
+    ? process.error || 'Run hydraulics and pass its checks before Code_Aster Solve' : '';
+  dom.processActions.hidden = !(studio.available && process?.available) || currentState.embed;
+  dom.processOpen.disabled = !currentBundle?.scene?.process?.schematic;
+  dom.processOpen.title = pendingEdits ? 'Pending edits: P&ID shows the last executed model.py' : 'Open the process drawing for this model';
+  dom.processRun.disabled = !process?.can_run || busy || pendingEdits;
+  dom.processRun.textContent = studio.processRunning ? 'Running hydraulics…' : 'Run hydraulics';
+  dom.processRun.title = pendingEdits ? reason : process?.error || (busy ? 'Another model job is running' : 'Evaluate the current process network with pandapipes');
+  const status = pendingEdits ? 'Pending edits · Run model.py to apply edits' : ({
+    not_evaluated: 'Not evaluated', running: 'Running', passed: 'Passed', rejected: 'Rejected', failed: 'Failed', stale: 'Stale'
+  })[process?.status] ?? 'Not evaluated';
+  dom.processStatus.textContent = `Hydraulics: ${status}${process?.error && !pendingEdits ? ` · ${process.error}` : ''}`;
+  dom.processStatus.dataset.status = process?.status ?? 'not_evaluated';
   const label = studio.solving ? "Solving…" : project?.solves ? (codePaneCases().length > 1 ? "Solve all" : "Solve") : "Build review";
   for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
-    button.hidden = !canSolve;
-    button.disabled = studio.solving || studio.preparing || Boolean(meshClient.snapshot().job?.busy);
+    button.hidden = !(canSolve || (process?.available && project?.solves && !currentState.embed));
+    button.disabled = !canSolve || busy || pendingEdits;
+    button.title = reason || (busy ? 'A model job is running' : 'Run Code_Aster on the current model');
     button.textContent = label;
   }
   dom.reviewEmpty.hidden = !(project && currentStage() === "review" && !studio.hasReview);
@@ -5932,7 +6015,7 @@ function renderSolveControls() {
     : studio.solving
       ? "Solving model.py. The review opens here when Code_Aster finishes."
       : project?.solves
-        ? "Not solved yet. Solve runs Code_Aster on model.py."
+        ? reason || "Not solved yet. Solve runs Code_Aster on model.py."
         : "No review yet.";
 }
 
@@ -5965,7 +6048,7 @@ function trackSolveClock(busy) {
 }
 
 async function solveProject() {
-  if (studio.solving || !studio.project?.can_solve) return;
+  if (dom.solveButton.disabled || studio.solving || !studio.project?.can_solve) return;
   studio.solving = true;
   render();
   const response = await fetch("/api/solve", {
@@ -5994,6 +6077,7 @@ async function solveProject() {
 async function handleSolveEvent(message) {
   studio.solving = message.type === "solve_started";
   studio.preparing = false;
+  await refreshStudioProject();
   if (message.type === "solve_failed" || message.type === "review_failed") {
     // This is the single most consequential error in the product: it is the one
     // place where a number the reviewer was about to trust failed to be
@@ -6022,6 +6106,21 @@ async function handleSolveEvent(message) {
       }
     }
   }
+  render();
+}
+
+async function runHydraulics() {
+  if (dom.processRun.disabled || !studio.project?.process?.can_run) return;
+  studio.processRunning = true;
+  render();
+  const response = await fetch('/api/process/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+  }).catch(error => ({ ok: false, status: 0, json: async () => ({ error: error.message }) }));
+  if (response.ok) return;
+  const result = await response.json().catch(() => ({}));
+  studio.processRunning = false;
+  await refreshStudioProject();
+  setErrorStatus({ message: result.error ?? `The studio refused to start hydraulics (HTTP ${response.status}).` });
   render();
 }
 
@@ -6148,6 +6247,7 @@ async function runScript() {
     studio.error = null;
     studio.reviewStale = Boolean(result.review_stale);
     dom.codeProblem.hidden = true;
+    await refreshStudioProject();
     await loadBundle(currentBundleUrl, { preserve: true });
     showIdentity(dom.buildIdentity, "Source", await sourceIdentity(studio.ranCode));
     await refreshExchange?.();
@@ -6161,6 +6261,7 @@ async function runScript() {
     studio.running = false;
     dom.codeRun.disabled = false;
     renderCodeFoot();
+    renderSolveControls();
   }
 }
 
@@ -6558,6 +6659,7 @@ dom.codeText.addEventListener("input", () => {
   }
   renderGutter();
   renderCodeFoot();
+  renderSolveControls();
   // Redraw the inspector when its script links stop (or start again) matching the lines.
   if (scriptLinesMoved() !== studio.linesMoved) render();
   renderScriptSelection();

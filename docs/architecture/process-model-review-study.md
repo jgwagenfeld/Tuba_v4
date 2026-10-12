@@ -52,11 +52,23 @@ retains its measured fluid results and explicitly unevaluated structural checks.
 | `tuba/process/structural.py` | Explicit pressure-reference conversion, filled-bore contents density and caller-declared wall-temperature approximation. |
 | Coupled evaluator and existing search archive | Bounded proposals, hydraulic gating, real Code_Aster execution and retained rejected attempts. |
 | Existing review scene and viewer | Hydraulic fields with actual solver provenance; stress, displacement and reaction fields backed by completed Code_Aster artifacts. |
+| Normal Studio Build / Solve / Review | Optional authored `process: BoundProcessNetwork`, an unsolved P&ID, an explicit hydraulic run and current-evidence gating before mapped Code_Aster Solve. |
 
 The [process guide](../content/process-networks.md) describes the qualified
 serial-water subset and the optional `process` Python dependency. Users need no
 OpenModelica installation for that workflow. Broader pandapipes capabilities
 are not automatically qualified Tuba capabilities.
+
+The [authored Studio project](../../examples/process_network/model.py) uses
+the same graph and procedural route as the retained-candidate campaign. Studio
+shows its P&ID in Build before evaluation, runs pandapipes through **Run
+hydraulics**, and passes a mapped copy into the existing Code_Aster study and
+Review. Source edits require rebinding and fresh hydraulic evidence; the cold
+authored model stays separate from mapped operating loads. The
+[Studio integration plan](studio-process-integration.md) defines the source,
+job, freshness and acceptance boundaries. Fresh browser and numerical
+qualification of this Studio lifecycle is tracked separately from the earlier
+campaign and drawing qualifications.
 
 The DEXPI XML 2.0.1 importer supplies one selected pipe connection and its source
 IDs. Its operating conditions, physical route and hydraulic assumptions remain
@@ -149,9 +161,10 @@ structural evidence must stay unavailable when selecting or comparing diagrams.
 | --- | --- | --- |
 | 1: Implemented | Tagged SVG schematic and linked selection in the existing review | Fresh hydraulic rejection and accepted Code_Aster layout verified in the browser: nine pipe elements select together; boundary/loss selection clears them; failure labels, keyboard selection, scene-change reset and actual SVG download pass. |
 | 2: Implemented | Explicit instruments and control connections | Fresh hydraulic rejection and accepted Code_Aster case, strict declarations, exact-port values, linked selection, full-size/SVG output and legacy fallback passed [qualification](process-network-coupling-results.md#instrumented-pid-review). |
-| 3 | Richer assumption and candidate comparison | Offset/bore edits show changed hydraulic geometry, losses and mapped mechanical loads while preserving earlier candidates and their measured failures. |
-| 4 | Qualified equipment and broader circuits | Sourced valve/pump data and each new topology have boundary-condition, conservation and independent reference checks before expanding the supported scope. |
-| 5 | P&ID exchange and agent iteration | A declared DEXPI export profile preserves supported identities; pinned-provider LLM trials compare permitted edits using the same solver checks, retained history and costs. |
+| 3: Implemented; core qualified; final lifecycle pending | Shared P&ID and hydraulics in normal Build / Solve / Review | Fresh Studio pandapipes rejection/pass and real Code_Aster artifact verification passed; the authored model retains no fluid operation. Final visible stale/P&ID, restart and error workflow receipts remain pending. See the [durable qualification record](studio-process-integration.md#qualification-record). |
+| 4 | Richer assumption and candidate comparison | Offset/bore edits show changed hydraulic geometry, losses and mapped mechanical loads while preserving earlier candidates and their measured failures. |
+| 5 | Qualified equipment and broader circuits | Sourced valve/pump data and each new topology have boundary-condition, conservation and independent reference checks before expanding the supported scope. |
+| 6 | P&ID exchange and agent iteration | A declared DEXPI export profile preserves supported identities; pinned-provider LLM trials compare permitted edits using the same solver checks, retained history and costs. |
 
 The completed drawing walkthrough uses a fresh smaller-bore hydraulic rejection
 and a larger-bore accepted layout evaluated by pandapipes and Code_Aster. The

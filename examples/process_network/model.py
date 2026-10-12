@@ -7,15 +7,13 @@ structural study. Loss coefficients and support limits are demo assumptions.
 import math
 
 from tuba import Model
-from tuba.process import EquipmentDefinition, Instrument, PidDefinition, SignalConnection
+from tuba.process import (
+    BoundProcessNetwork, EquipmentDefinition, Instrument, PidDefinition, SignalConnection,
+)
 from tuba.process.network import (
     Connection, FixedLossComponent, HydraulicRequirements, MassFlowSource,
     OperatingScenario, PipeComponent, PressureSink, ProcessNetwork,
 )
-
-SIZES = {"small": (0.0603, 0.00391), "larger": (0.0889, 0.00549)}
-BEND_RADIUS_M = 0.3
-STRAIGHT_LEG_M = 2.0
 
 
 def build_model(parameters):
@@ -79,3 +77,17 @@ def process_inputs(model, *, network=None):
         min_delivered_mass_flow_kg_s=10.0, max_source_pressure_pa=600_000.0,
         min_sink_pressure_pa=300_000.0)
     return network.bind(model, scenario, requirements)
+
+
+# Editable Studio design: "small" is 60.3 mm OD / 3.91 mm wall;
+# "larger" is 88.9 mm OD / 5.49 mm wall. The bore comes from the section.
+SIZES = {"small": (0.0603, 0.00391), "larger": (0.0889, 0.00549)}
+BEND_RADIUS_M = 0.3
+STRAIGHT_LEG_M = 2.0
+PIPE_SIZE = "larger"
+OFFSET_M = 1.0
+
+# The cold model has no operating fluid loads. Studio maps verified passing
+# hydraulic evidence onto a copy before running the Code_Aster study.
+model = build_model({"size": PIPE_SIZE, "offset_m": OFFSET_M})
+process: BoundProcessNetwork = process_inputs(model)

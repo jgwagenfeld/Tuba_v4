@@ -185,6 +185,7 @@ export function createViewerState(bundle) {
 
   const state = {
     sceneId: scene.scene_id,
+    process: scene.process ?? null,
     // The study says what its review is for; the viewer no longer infers it.
     reviewFocus: scene.review_focus ?? null,
     // What the contact run did, derived in Python. Null for a scene with no

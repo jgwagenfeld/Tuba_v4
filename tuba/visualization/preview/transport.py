@@ -112,6 +112,7 @@ class PreviewServer:
             script_get_handler=getattr(self, "get_python_script", None),
             script_post_handler=getattr(self, "execute_python_code", None),
             solve_handler=getattr(self, "start_solve", None),
+            process_handler=getattr(self, "start_process", None),
             mesh_handler=getattr(self, "mesh_jobs", None),
             project_handler=getattr(self, "project_info", None),
             profiles_handler=getattr(self, "profile_library", None),
@@ -238,6 +239,7 @@ def _handler_factory(
     package_preview_handler: Any = None,
     package_export_handler: Any = None,
     access: LocalAccess | None = None,
+    process_handler: Any = None,
 ):
     # Host names a request may address; the Host check stops DNS rebinding.
     local_hosts = {"127.0.0.1", "localhost", "::1", bound_host.lower()}
@@ -408,6 +410,15 @@ def _handler_factory(
                 self.wfile.write(json.dumps({"ok": False, "error": "invalid Content-Length"}).encode("utf-8"))
                 return
             parsed = urlparse(self.path)
+            if parsed.path == "/api/process/run" and process_handler is not None:
+                try:
+                    if json.loads(self.rfile.read(length) if length else b"{}") != {}:
+                        raise ValueError("A hydraulic run takes an empty JSON object.")
+                    status, result = process_handler()
+                except (ValueError, TypeError) as exc:
+                    status, result = 400, {"ok": False, "error": str(exc)}
+                self._json_response(status, result)
+                return
             if parsed.path == "/api/solve" and solve_handler is not None:
                 body = self.rfile.read(length) if length > 0 else b"{}"
                 try:
