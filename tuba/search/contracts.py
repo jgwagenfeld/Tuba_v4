@@ -144,7 +144,7 @@ class CheckResult(Record):
         if self.comparator not in {None, "max", "min"}:
             raise ValueError("Unsupported comparator")
         if self.comparator:
-            if self.unit not in {"N", "N m", "m", "1"} or self.limit is None:
+            if self.unit not in {"N", "N m", "m", "1", "Pa", "m/s", "kg/s"} or self.limit is None:
                 raise ValueError("Numeric checks require a limit and supported canonical unit")
             if self.verdict in {"pass", "fail"}:
                 if self.measured_value is None:

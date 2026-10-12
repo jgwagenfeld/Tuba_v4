@@ -107,3 +107,9 @@ export function latestViewRequest() {
   let generation = 0;
   return { next() { const id = ++generation; return { current: () => generation === id }; } };
 }
+
+// Hydraulic checks use their sealed attempt even without a structural operation.
+export function reviewForCheck(candidate, evaluation, check) {
+  return check ? (check.operation || check.basis === 'openmodelica' ? evaluation?.review : candidate?.preview)
+    : evaluation?.review ?? candidate?.preview;
+}

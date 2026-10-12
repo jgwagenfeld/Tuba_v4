@@ -1,4 +1,4 @@
-import { replayAt } from './searchReplay.js';
+import { replayAt, reviewForCheck } from './searchReplay.js';
 import { iterationFrames } from './searchIterations.js';
 
 const milestones = new Set(['candidate.built', 'evaluation.completed', 'evaluation.failed',
@@ -34,22 +34,27 @@ export function planSearchFilm(manifest, options = {}) {
       if (Object.keys(event.payload.details ?? {}).length) lines.push(`Decision details: ${JSON.stringify(event.payload.details)}`);
     }
     const add = (check = null, checkIndex = null, resultView = null, operation = null, component = null) => {
-      const view = check ? (check.operation ? evaluation?.review : candidate?.preview) : evaluation?.review ?? candidate?.preview;
+      const hydraulic = check?.basis === 'openmodelica' ? check : evaluation?.checks?.find(c => c.basis === 'openmodelica' && ['pass', 'fail'].includes(c.verdict));
+      const fluid_results = check ? check.basis === 'openmodelica' : !evaluation?.completed_operations?.length && Boolean(hydraulic);
+      if (fluid_results) operation ??= hydraulic?.operation ?? evaluation?.operations?.[0] ?? hydraulic?.details?.scenario_id ?? null;
+      const view = reviewForCheck(candidate, evaluation, check);
       const caption = [...lines];
       if (check) {
         caption.push(`${check.verdict} · ${check.constraint_id} · ${check.basis}`,
-          `${check.operation ?? 'cold reference'} · Solver state: ${check.result_state_id ?? 'none'}`,
+          fluid_results ? `OpenModelica · ${operation ?? 'scenario unavailable'} · steady hydraulics`
+            : `${check.operation ?? 'cold reference'} · Solver state: ${check.result_state_id ?? 'none'}`,
           check.message ?? check.reason_text ?? check.reason_code ?? 'No checker message recorded');
         if (check.measured_value != null || check.limit != null) caption.push(`${literal(check.measured_value)} ${check.comparator ?? 'against'} ${literal(check.limit)} ${check.unit ?? ''}`.trim());
         if (check.entity_refs?.length) caption.push(`Targets: ${check.entity_refs.join(', ')}`);
         for (const clash of (check.details?.clashes ?? []).slice(0, 3)) caption.push(`Collision at ${literal(clash.location)} m; distance ${literal(clash.distance_m)} m; penetration ${literal(clash.penetration_m)} m`);
       }
-      const native = check ? check.operation && evaluation?.completed_operations?.includes(check.operation) : evaluation?.completed_operations?.length;
-      caption.push(view?.availability === 'available' ? (native ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results') : `View unavailable: ${view?.message ?? 'No recorded scene at this event'}`);
+      const native = !fluid_results && (check ? check.operation && evaluation?.completed_operations?.includes(check.operation) : evaluation?.completed_operations?.length);
+      caption.push(view?.availability === 'available' ? (fluid_results ? 'Recorded OpenModelica hydraulic evidence' : native ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results') : `View unavailable: ${view?.message ?? 'No recorded scene at this event'}`);
+      if (fluid_results && !evaluation?.completed_operations?.length) caption.push('Code_Aster structural results were not evaluated.');
       keyframes.push({ frame_id: `F${String(keyframes.length + 1).padStart(5, '0')}`, event_sequence: event.sequence,
         event_kind: event.kind, search_timestamp: event.timestamp ?? event.at_utc ?? null,
         candidate_id: candidate?.id ?? null, evaluation_id: evaluation?.id ?? null, attempt_id: evaluation?.attempt_id ?? null,
-        event_message: event.payload?.message ?? null, reason_codes: event.payload?.reason_codes ?? [], check_index: checkIndex, check, result_view: resultView, component, operation, view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
+        event_message: event.payload?.message ?? null, reason_codes: event.payload?.reason_codes ?? [], check_index: checkIndex, check, result_view: resultView, component, operation, fluid_results, native_results: Boolean(native), view: view ?? { availability: 'unavailable' }, caption: caption.join('\n'),
         start_frame: keyframes.length * hold, end_frame: (keyframes.length + 1) * hold });
     };
     add();

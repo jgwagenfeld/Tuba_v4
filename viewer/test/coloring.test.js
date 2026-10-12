@@ -20,6 +20,15 @@ import {
 } from "../src/coloring.js";
 import { getAveragingBasis } from "../src/trustFacts.js";
 import { createViewerState } from "../src/sceneLoader.js";
+
+test("hydraulic fields describe OpenModelica without implying structural acceptance", () => {
+  const state = {resultFields: [{id: "fluid", overlay_id: "o", label: "OpenModelica: fluid velocity",
+    load_case: "WaterOperating", result_state_id: "", components: ["magnitude"], unit: "m/s",
+    compliance_role: "hydraulic_result_not_structural_acceptance"}],
+    overlays: [{id: "o", data: {basis: "openmodelica", result_type: "fluid_velocity"}}],
+    coloring: {fieldId: "fluid", loadCase: "WaterOperating"}};
+  assert.equal(getComplianceNotice(state), "OpenModelica steady fluid result; structural acceptance is evaluated separately");
+});
 import { preserveViewerStateForReload } from "../src/viewerState.js";
 
 test("readable field names preserve the sampling distinction and unknown quantities", () => {

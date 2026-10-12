@@ -29,14 +29,19 @@ export function iterationFrames(manifest, start, end, hold) {
     const failures = allChecks.map((check, index) => ({ check, index })).filter(c => c.check.verdict === 'fail');
     const scopes = new Map();
     if (!selection) for (const entry of failures) {
-      const { operation = null, result_state_id = null } = entry.check;
-      const key = JSON.stringify([operation, result_state_id]);
-      if (!scopes.has(key)) scopes.set(key, { operation, result_state_id, check: entry.check, check_index: entry.index });
+      const fluid_results = entry.check.basis === 'openmodelica';
+      const operation = entry.check.operation ?? (fluid_results ? evaluation?.operations?.[0] ?? entry.check.details?.scenario_id ?? null : null);
+      const result_state_id = entry.check.result_state_id ?? null;
+      const key = JSON.stringify([fluid_results, operation, result_state_id]);
+      if (!scopes.has(key)) scopes.set(key, { operation, result_state_id, fluid_results, check: entry.check, check_index: entry.index });
     }
     if (!scopes.size) {
-      const operation = completed.includes('Hot') ? 'Hot' : completed.at(-1) ?? null;
-      const result_state_id = allChecks.find(c => c.operation === operation && c.result_state_id)?.result_state_id ?? null;
-      scopes.set('overview', { operation, result_state_id, check: null, check_index: null });
+      const hydraulic = allChecks.find(c => c.basis === 'openmodelica' && ['pass', 'fail'].includes(c.verdict));
+      const fluid_results = !completed.length && Boolean(hydraulic);
+      const operation = fluid_results ? hydraulic.operation ?? evaluation?.operations?.[0] ?? hydraulic.details?.scenario_id ?? null
+        : completed.includes('Hot') ? 'Hot' : completed.at(-1) ?? null;
+      const result_state_id = fluid_results ? null : allChecks.find(c => c.operation === operation && c.result_state_id)?.result_state_id ?? null;
+      scopes.set('overview', { operation, result_state_id, fluid_results, check: null, check_index: null });
     }
     const outcome = selection ? candidate.outcome : event.kind === 'evaluation.interrupted' ? 'interrupted'
       : event.kind === 'evaluation.failed' ? 'evaluation_failed' : evaluation?.outcome ?? candidate.outcome;
@@ -46,17 +51,18 @@ export function iterationFrames(manifest, start, end, hold) {
         details: decision.details, objectives: decision.details?.objectives ?? c.build?.objectives ?? {} };
     }) : [];
     for (const scope of scopes.values()) {
-      const native = Boolean(scope.operation && completed.includes(scope.operation));
+      const native = Boolean(!scope.fluid_results && scope.operation && completed.includes(scope.operation));
       // Unsolved/recovered attempts use their own reference layout. No review
       // from a later successful attempt can be substituted here.
-      const view = native ? evaluation?.review : candidate.preview;
-      const checks = allChecks.filter(c => (c.operation ?? null) === scope.operation &&
-        (c.result_state_id ?? null) === scope.result_state_id);
+      const view = native || scope.fluid_results ? evaluation?.review : candidate.preview;
+      const checks = allChecks.filter(c => scope.fluid_results ? c.basis === 'openmodelica'
+        : c.basis !== 'openmodelica' && (c.operation ?? null) === scope.operation &&
+          (c.result_state_id ?? null) === scope.result_state_id);
       const caption = [`${candidate.id} · ${selection ? 'Final selection' : 'Piping iteration'}`,
         `Recorded outcome: ${outcome}`, `Proposal intent: ${candidate.intent ?? 'not recorded'}`,
         `Parameters: ${JSON.stringify(candidate.parameters ?? {})}`,
         `Search time (UTC): ${event.timestamp ?? event.at_utc ?? 'not recorded'}`,
-        native ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results'];
+        scope.fluid_results ? 'Recorded OpenModelica hydraulic evidence' : native ? 'Recorded Code_Aster evidence' : 'Reference geometry — no solver results'];
       frames.push({ frame_id: `F${String(frames.length + 1).padStart(5, '0')}`, event_sequence: event.sequence,
         event_kind: event.kind, search_timestamp: event.timestamp ?? event.at_utc ?? null,
         candidate_id: candidate.id, evaluation_id: evaluation?.id ?? null, attempt_id: evaluation?.attempt_id ?? null,

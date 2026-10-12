@@ -608,15 +608,17 @@ function initSearchFilm(replay, baseUrl) {
       const frame = plan?.keyframes.find(f => f.frame_id === requested.frame_id);
       if (!frame) throw new Error('Unknown planned film frame');
       const iteration = frame.result_view === 'iteration';
-      scale.textContent = iteration
+      scale.textContent = frame.fluid_results
+        ? 'Pipe: OpenModelica fluid result · Red rings: failed check locations · Structural results not evaluated'
+        : iteration
         ? 'Pipe: reference layout + FE stress · Blue: support force (N) · Orange: support moment (N m) · Red rings: failed check locations · Arrow display scales differ'
         : 'Blue arrows: support force (N) · Orange curved arrows: support moment (N m) · Separate display scales · Physical deformation ×1';
-      const view = await replay.seek(frame.event_sequence, frame.candidate_id, frame.evaluation_id, frame.check_index, iteration && !frame.native_results);
+      const view = await replay.seek(frame.event_sequence, frame.candidate_id, frame.evaluation_id, frame.check_index, iteration && !frame.native_results && !frame.fluid_results);
       currentState = { ...currentState, searchIterationPresentation: iteration };
       dispatch({ type: 'setUnitSystem', unitSystem: 'si' });
       dispatch({ type: 'setVisualDeformationScale', scale: 1 });
       if (iteration) {
-        dispatch({ type: 'setActiveLoadCase', loadCase: frame.native_results ? frame.operation : null });
+        dispatch({ type: 'setActiveLoadCase', loadCase: frame.native_results || frame.fluid_results ? frame.operation : null });
         if (frame.result_state_id || !frame.native_results) dispatch({ type: 'setActiveResultState', resultStateId: frame.native_results ? frame.result_state_id : null });
         dispatch({ type: 'selectObjects', objectIds: [] });
       } else if (!frame.check) {
@@ -690,7 +692,11 @@ async function showSearchView(bundleUrl, request) {
   }
   dom.canvas.dataset.searchCandidate = currentBundle.scene.search?.candidate_id ?? "";
   dom.canvas.dataset.searchAttempt = currentBundle.scene.search?.attempt_id ?? "";
-  setStatus(currentBundle.scene.search?.result_status === "unsolved_preview" ? "Reference geometry · no solver results" : "Recorded native Code_Aster review");
+  setStatus(currentBundle.scene.process
+    ? currentBundle.scene.search?.solved_operations?.length
+      ? "Recorded OpenModelica and Code_Aster review"
+      : "Recorded OpenModelica fluid results · structure not evaluated"
+    : currentBundle.scene.search?.result_status === "unsolved_preview" ? "Reference geometry · no solver results" : "Recorded native Code_Aster review");
   render();
   if (!searchHasView && currentState.objects.length) { viewportRenderer?.resetView(); searchHasView = true; }
 }
@@ -727,14 +733,21 @@ function drawSearchAnnotations(annotations) {
 }
 
 function highlightSearchCheck(check) {
-  dispatch({ type: "setActiveLoadCase", loadCase: check.operation ?? null });
+  const fluid = check.basis === 'openmodelica';
+  dispatch({ type: "setActiveLoadCase", loadCase: check.operation ?? (fluid ? currentBundle?.scene?.process?.operation : null) ?? null });
   dispatch({ type: "setActiveResultState", resultStateId: check.result_state_id ?? null });
   const ids = (check.entity_refs ?? []).map(ref => resolveEntityObjectId(currentState, ref)).filter(Boolean);
   dispatch({ type: "selectObjects", objectIds: ids });
   dom.canvas.dataset.searchOperation = currentState.activeLoadCase ?? "cold";
   dom.canvas.dataset.searchResultState = currentState.activeResultStateId ?? "";
+  const presentation = filmPresentation({ check, fluid_results: fluid }, currentBundle?.scene, currentState.activeLoadCase, currentState.activeResultStateId);
+  if (fluid && presentation.fieldId) {
+    dispatch({ type: 'setColorChannel', colorChannel: 'results' });
+    dispatch({ type: 'setColoringField', fieldId: presentation.fieldId });
+    dispatch({ type: 'setColoringComponent', component: presentation.component });
+  }
   render();
-  drawSearchAnnotations(filmPresentation({ check }, currentBundle?.scene, currentState.activeLoadCase, currentState.activeResultStateId).annotations);
+  drawSearchAnnotations(presentation.annotations);
 }
 
 async function sourceIdentity(source) {
@@ -1117,8 +1130,9 @@ function renderApplicabilityFact() {
   if (!notice) return;
   dom.applicabilityFact.textContent = notice;
   dom.applicabilityFact.title =
-    "The field colouring this scene is finite-element output, not a code stress. "
-    + "It is for reviewing load paths and relative magnitudes, not for code compliance.";
+    notice.startsWith("OpenModelica")
+      ? "Pressure and velocity come from the retained steady fluid evaluation. Structural fields come from Code_Aster."
+      : "The selected result has the applicability stated here; a displayed field alone does not establish code compliance.";
   dom.applicabilityFact.setAttribute("role", "note");
 }
 

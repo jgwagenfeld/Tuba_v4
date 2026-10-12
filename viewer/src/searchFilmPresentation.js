@@ -6,13 +6,14 @@ const number = value => finite(value) ? value.toLocaleString('en-US', { maximumF
 export const SECTION_COMPONENTS = ['N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'];
 
 export function scopedOverlay(scene, type, operation, state) {
-  if (!operation || !state) return null;
-  return scene?.overlays?.find(o => o.data?.result_type === type &&
-    o.data.load_case === operation && o.data.result_state_id === state) ?? null;
+  const fluid = type.startsWith('fluid_');
+  if (!operation || (!fluid && !state)) return null;
+  return scene?.overlays?.find(o => o.data?.result_type === type && o.data.load_case === operation &&
+    (fluid ? o.data.basis === 'openmodelica' && !o.data.result_state_id : o.data.result_state_id === state)) ?? null;
 }
 
 function objectPoint(scene, id, end = null) {
-  const object = scene?.objects?.find(o => o.id === id || o.entity_ref === id);
+  const object = scene?.objects?.find(o => o.id === id || o.id === `object:${id}` || o.entity_ref === id);
   const asset = scene?.geometry_assets?.find(a => a.id === object?.geometry_asset_id);
   const config = asset?.generation_config;
   if (point(config?.point)) return config.point;
@@ -25,9 +26,41 @@ function objectPoint(scene, id, end = null) {
   return Array.isArray(b) && b.length === 6 && b.every(finite) ? [0, 1, 2].map(i => (b[i] + b[i + 3]) / 2) : null;
 }
 
+function hydraulicPresentation(frame, scene, operation) {
+  const check = frame.check;
+  const pressure = check?.unit === 'Pa';
+  const fieldType = pressure ? 'fluid_pressure' : 'fluid_velocity';
+  const overlay = scopedOverlay(scene, fieldType, operation, null);
+  const field = scene?.result_fields?.find(f => f.overlay_id === overlay?.id);
+  const unit = pressure ? 'Pa' : 'm/s';
+  const quantity = pressure ? 'mean absolute fluid pressure' : 'fluid velocity';
+  const rows = [], annotations = [];
+  const peak = Object.entries(overlay?.data.values ?? {}).filter(([, value]) => finite(value))
+    .sort((a, b) => b[1] - a[1])[0];
+  rows.push(peak ? `Largest recorded ${quantity}: ${number(peak[1])} ${unit} - ${peak[0].replace('object:element:', '')}`
+    : `OpenModelica ${quantity} unavailable for this recorded scenario.`);
+  if (check) {
+    if (finite(check.measured_value) || finite(check.limit)) rows.push(`${check.constraint_id}: ${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`);
+    if (check.message) rows.push(check.message);
+    if (overlay) for (const ref of check.entity_refs ?? []) {
+      const p = objectPoint(scene, ref);
+      if (p) annotations.push({ point: p, label: `${ref.replace(/^(object:)?element:/, '')}: ${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`, severity: check.verdict });
+    }
+  } else if (peak) {
+    const p = objectPoint(scene, peak[0]);
+    if (p) annotations.push({ point: p, label: `${peak[0].replace('object:element:', '')}: ${number(peak[1])} ${unit}`, severity: 'result' });
+  }
+  rows.push('OpenModelica steady hydraulics; fluid pressures are absolute.');
+  rows.push(frame.completed_operations?.length || scene?.search?.solved_operations?.length
+    ? 'Code_Aster structural results are retained separately.' : 'Code_Aster structural results were not evaluated.');
+  return { title: `OpenModelica: ${quantity} (${unit})`, rows, annotations,
+    fieldId: field?.id ?? null, fieldType, component: 'magnitude', unitSystem: 'si', mode: 'hydraulics' };
+}
+
 export function filmPresentation(frame, scene, operation, state) {
   const mode = frame.result_view ?? 'finding';
   if (mode === 'iteration') return iterationPresentation(frame, scene, operation, state);
+  if (frame.fluid_results || frame.check?.basis === 'openmodelica') return hydraulicPresentation(frame, scene, operation);
   const annotations = [], rows = [];
   let title = frame.check ? `${frame.check.verdict.toUpperCase()}: ${frame.check.constraint_id}` : 'Recorded candidate';
   // Reactions are a nodal quantity. Colour the pipe by its own measured stress
@@ -131,6 +164,37 @@ function parameter(value, key) {
   return `${label}: ${String(value).replaceAll('_', ' ')}${key.endsWith('_m') ? ' m' : ''}`;
 }
 
+
+function findingRows(checks, fluid) {
+  const groups = new Map();
+  for (const check of checks) {
+    const kind = check.constraint_id.replace(/\.\d+$/, '');
+    // Combine identical recorded quantities only; rounding is for display.
+    const key = fluid && kind !== check.constraint_id && finite(check.measured_value) && finite(check.limit)
+      ? JSON.stringify([kind, check.measured_value, check.limit, check.unit, check.comparator, check.reason_code])
+      : check;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(check);
+  }
+  return [...groups.values()].map(group => {
+    const check = group[0];
+    const measured = `${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`;
+    if (group.length === 1) return `${check.constraint_id}: ${measured}`;
+    const kind = check.constraint_id.replace(/\.\d+$/, '');
+    let coverage = `${group.length} findings`;
+    if (kind === 'flow.velocity') {
+      const refs = group.flatMap(c => c.entity_refs ?? []);
+      const pipes = new Set(refs.filter(ref => /^(object:)?element:/.test(ref))).size;
+      const external = group.filter(c => !(c.entity_refs ?? []).length).length;
+      if (refs.every(ref => /^(object:)?element:/.test(ref))) {
+        coverage = [pipes && `${pipes} pipe element${pipes === 1 ? '' : 's'}`,
+          external && `${external} external loss${external === 1 ? '' : 'es'}`].filter(Boolean).join(' + ');
+      }
+    }
+    return `${kind}: ${measured} across ${coverage}.`;
+  });
+}
+
 function iterationPresentation(frame, scene, operation, state) {
   const title = frame.phase === 'selection' ? 'Final choice after testing all layouts'
     : `Piping iteration ${frame.iteration_index} / ${frame.candidate_count}`;
@@ -143,23 +207,26 @@ function iterationPresentation(frame, scene, operation, state) {
   }
   const sameState = !frame.native_results || (operation === frame.operation && (!frame.result_state_id || state === frame.result_state_id));
   const native = frame.native_results && sameState;
+  const fluid = frame.fluid_results && operation === frame.operation;
   const base = native ? filmPresentation({ result_view: 'stress' }, scene, operation, state)
+    : fluid ? hydraulicPresentation(frame, scene, operation)
     : { annotations: [], fieldId: null, fieldType: 'stress', component: 'magnitude', unitSystem: 'si' };
   const annotations = [];
   const clashes = new Map();
-  const failures = (frame.checks ?? []).filter(c => c.verdict === 'fail' &&
-    (c.operation ?? null) === (native ? operation : null) && (c.result_state_id ?? null) === (native ? state : null));
+  const failures = (frame.checks ?? []).filter(c => c.verdict === 'fail' && (fluid ? c.basis === 'openmodelica'
+    : c.basis !== 'openmodelica' && (c.operation ?? null) === (native ? operation : null) &&
+      (c.result_state_id ?? null) === (native ? state : null)));
   for (const check of failures) {
     for (const clash of check.details?.clashes ?? []) {
       const key = JSON.stringify([clash.left?.id, clash.right?.id, clash.location, clash.penetration_m]);
       if (!clashes.has(key)) clashes.set(key, clash);
     }
     if (!(check.details?.clashes ?? []).length) {
-      rows.push(`${check.constraint_id}: ${number(check.measured_value)} / limit ${number(check.limit)} ${check.unit ?? ''}`);
       const finding = filmPresentation({ check }, scene, operation, state);
       annotations.push(...finding.annotations.filter(a => a.severity !== 'result'));
     }
   }
+  rows.push(...findingRows(failures.filter(check => !(check.details?.clashes ?? []).length), fluid));
   for (const [index, clash] of [...clashes.values()].entries()) {
     if (!point(clash.location)) continue;
     const clearance = String(clash.severity).includes('clearance');
@@ -177,6 +244,11 @@ function iterationPresentation(frame, scene, operation, state) {
     if (!counts.fail && !counts.unknown && frame.phase !== 'selection') rows.push('All declared checks satisfied; retained for comparison.');
     rows.push(base.rows[0]);
     if (frame.phase !== 'selection') rows.push('Pipe colours: element maximum FE stress (MPa). Support labels: F (N), M (N m).');
+  } else if (fluid) {
+    const counts = frame.check_counts;
+    if (counts) rows.push(`${counts.pass} checks passed; ${counts.fail} failed; ${counts.unknown} unknown.`);
+    rows.push(base.rows[0], ...base.rows.slice(-2));
+    if (!failures.length) annotations.push(...base.annotations);
   } else {
     rows.push(frame.outcome === 'interrupted' ? 'Attempt interrupted. No completed Code_Aster results; loads and stress unavailable.'
       : frame.check_counts?.fail && !frame.completed_operations?.length ? 'Rejected before solving. Support loads and stress were not evaluated.'
@@ -184,6 +256,7 @@ function iterationPresentation(frame, scene, operation, state) {
     if (frame.check_counts?.unknown) rows.push(`${frame.check_counts.unknown} required checks remain unknown.`);
   }
   if (frame.native_results && !sameState) rows.push('Requested solver state unavailable; no substitute results displayed.');
+  if (frame.fluid_results && !fluid) rows.push('Requested hydraulic scenario unavailable; no substitute results displayed.');
   if (frame.phase === 'selection') {
     const order = frame.finalists.find(c => c.candidate_id === frame.candidate_id)?.details?.objective_fields ?? [];
     rows.push(`Chosen ${frame.candidate_id}: ${number(frame.objectives.pipe_length_m)} m · ${number(frame.objectives.bend_count)} bends · ${number(frame.objectives.support_count)} supports.\nRank order: ${order.map(k => k.replaceAll('_', ' ')).join(', ')}, then proposal order.`);
@@ -203,11 +276,14 @@ export function conciseFilmCaption(frame, presentation, operation, state, error)
     const labels = { rejected_constraint: 'REJECTED — declared constraint', feasible_retained: 'FEASIBLE — kept for comparison',
       interrupted: 'INTERRUPTED — no completed result', evaluation_failed: 'EVALUATION FAILED', selected: 'SELECTED' };
     return [`${frame.candidate_id} · ${presentation.title}`, labels[frame.outcome] ?? outcome.replaceAll('_', ' '),
-      `${operation ?? 'Cold layout'} · ${state ?? 'no solver state'}`,
+      frame.fluid_results ? `OpenModelica - ${operation ?? 'scenario unavailable'} - steady hydraulics`
+        : `${operation ?? 'Cold layout'} · ${state ?? 'no solver state'}`,
       ...(error ? [`View unavailable: ${error}`] : presentation.rows), `Recorded event ${frame.event_sequence}`].join('\n\n');
   }
   return [`${frame.candidate_id ?? 'Run'} · ${outcome.replaceAll('_', ' ')}`,
-    presentation.title, `${operation ?? 'Cold reference'} · ${state ?? 'no solver state'}`,
+    presentation.title, frame.fluid_results || frame.check?.basis === 'openmodelica'
+      ? `OpenModelica - ${operation ?? 'scenario unavailable'} - steady hydraulics`
+      : `${operation ?? 'Cold reference'} · ${state ?? 'no solver state'}`,
     ...(error ? [`View unavailable: ${error}`] : presentation.rows),
     `Recorded event ${frame.event_sequence} · ${frame.search_timestamp ?? 'time not recorded'}`].join('\n\n');
 }

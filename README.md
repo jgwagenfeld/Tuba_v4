@@ -78,6 +78,11 @@ run.results.plot_deformed_stress(model=model)
 
 For browser display, see the [web-scene workflow](docs/content/workflow.md#reviewable-web-scene) and an [example result view](docs/content/assets/figures/code_aster_review.png). Scene bundles include geometry, analysis meshes, results and run metadata. The [modeling guide](docs/content/modeling.md) covers beam, `TUYAU` pipe-wall and 3D solid idealisations, supports and fluid contents by operation.
 
+The [process-network example](docs/content/process-networks.md) connects a typed
+water-circuit graph and authored route to OpenModelica, then transfers verified
+pressure, temperature and contents loads into Code_Aster. Its retained candidate
+review includes hydraulic failures and structural results for solved layouts.
+
 ## Getting started
 
 Install [Miniforge](https://github.com/conda-forge/miniforge) in Linux x86_64 (Ubuntu WSL2 on Windows), then create the shared Tuba and Code_Aster environment:

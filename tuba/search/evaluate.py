@@ -26,18 +26,35 @@ def unknown_checks(specs, checks, reason):
 
 
 def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch | EvaluationContext, *, archive, history,
-                       solver=None, pre_checks=()) -> Evaluation:
+                       solver=None, pre_checks=(), prepare_attempt=None) -> Evaluation:
+    """Evaluate one candidate; optional preparation owns files inside this attempt.
+
+    ``prepare_attempt(attempt_id)`` may evaluate upstream physics, apply verified
+    operating loads and return CheckResults. Its files are sealed together with
+    Code_Aster evidence. Failure or a required unknown/fail prevents the solve.
+    """
     attempt_id = archive.begin_attempt(candidate.id)
     evaluation_id = "E" + uuid.uuid4().hex
     operations = loaded.settings.operations
     runs, checks = {}, list(pre_checks)
-    checks.extend(unknown_checks(tuple(s for s in loaded.check_specs if s.kind == 'design_requirement'),
-                                 checks, 'design_requirement_unchecked'))
     history.append("evaluation.started", {"evaluation_id": evaluation_id, "attempt_id": attempt_id,
                                          "operations": operations}, candidate.id)
     status, error_kind, diagnostic = "complete", None, None
     cancelled = False
     try:
+        if prepare_attempt is not None:
+            try:
+                prepared = tuple(prepare_attempt(attempt_id))
+                if any(not isinstance(check, CheckResult) for check in prepared):
+                    raise TypeError("Attempt preparation must return CheckResult records")
+                checks.extend(prepared)
+            except (OSError, sqlite3.Error, KeyboardInterrupt):
+                raise
+            except Exception as exc:
+                status, error_kind = "failed", f"preparation:{type(exc).__name__}"
+                diagnostic = {"exception_class": type(exc).__name__, "message": str(exc)[:4000]}
+        checks.extend(unknown_checks(tuple(s for s in loaded.check_specs if s.kind == 'design_requirement'),
+                                     checks, 'design_requirement_unchecked'))
         clearance = max((float(s.options.get("clearance_m", 0.0)) for s in loaded.check_specs
                          if s.kind == "cold_clearance"), default=0.0)
         report = None
@@ -51,7 +68,9 @@ def evaluate_candidate(candidate: Candidate, model, loaded: LoadedSearch | Evalu
         if report is not None:
             checks.extend(verification_checks(report, loaded.check_specs, model=model))
             history.append("candidate.verified", {"attempt_id": attempt_id, "report": report.to_dict()}, candidate.id)
-        cold_failed = report is None or not report.passed or any(c.required and c.verdict in {"fail", "unknown"} for c in checks)
+        required_ids = {spec.id for spec in loaded.check_specs if spec.required}
+        cold_failed = bool(error_kind) or report is None or not report.passed or any(
+            (c.required or c.constraint_id in required_ids) and c.verdict in {"fail", "unknown"} for c in checks)
         if cold_failed:
             status = "failed" if error_kind else "not_started"
         else:

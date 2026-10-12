@@ -274,6 +274,9 @@ export function getComplianceNotice(state) {
   const role = field?.compliance_role ?? (field?.label?.toLowerCase() === "fe vmis (not code stress)"
     ? "visualization_only_not_asme_code_stress" : null);
   if (!role) return null;
+  if (role === "hydraulic_result_not_structural_acceptance") {
+    return "OpenModelica steady fluid result; structural acceptance is evaluated separately";
+  }
   if (role === "visualization_only_not_asme_code_stress") {
     return "FE stress - not ASME code stress";
   }

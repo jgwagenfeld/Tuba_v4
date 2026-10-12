@@ -5,8 +5,11 @@ the small working starter was added against `f3a4e4f`.
 This extends the [LLM design roadmap](llm-piping-design-roadmap.md) and
 [reasoning/guidance research](llm-piping-reasoning-and-guidance-research-2026-10-12.md).
 It defines the production architecture and implementation sequence. The bounded
-water-line starter below has been run with real OpenModelica. A general process
-adapter, DEXPI import, FMU, and fluid-to-Code_Aster evaluation remain future work.
+serial-water implementation now runs real OpenModelica, maps verified operating
+loads into Code_Aster, and retains combined candidate reviews. See the
+[implementation guide](../content/process-networks.md) and
+[qualification results](process-network-coupling-results.md). DEXPI import,
+branched circuits, equipment libraries and FMUs remain future work.
 
 ## Start with one authored circuit
 
@@ -23,25 +26,23 @@ flowchart LR
     V --> T["SNK-101: outlet pressure"]
 ```
 
-The working [starter example](../../examples/process_network_starter.py) authors
-a Tuba offset route, measures its bore and actual centerline length including
-arcs, and generates a small Modelica model using Standard Library components.
-Python runs the installed OpenModelica compiler and reads its CSV outputs.
-No new Python dependency is required for this first bridge.
+The [coupled example](../../examples/process_network/model.py) authors a Tuba
+offset route, measures its bore and actual centerline length including arcs,
+and evaluates Standard Library fluid components with the installed OpenModelica
+compiler. It prescribes 10 kg/s of water and 3 bar absolute at the outlet, then
+solves for required inlet pressure. The 3 m/s maximum and 6 bar absolute
+source-pressure ceiling are example requirements. Constant fluid properties,
+four illustrative bend loss coefficients of 0.2, and a fixed loss coefficient
+of 5 are declared assumptions. That restriction sits outside the mechanical
+outlet anchor; its equipment loads are outside the structural study.
 
-The current example is a **hydraulic development experiment, incomplete for
-engineering evaluation**. It prescribes 10 kg/s of water and 3 bar absolute at
-the outlet, then solves for required inlet pressure. The 3 m/s maximum and
-6 bar absolute source-pressure ceiling are example requirements. Constant fluid
-properties, four illustrative bend loss coefficients of 0.2, and a fixed valve
-loss coefficient of 5 are declared assumptions. The valve does not yet have a
-mechanical model. No Code_Aster stress, reaction, displacement, or compliance
-result is produced.
-
-The first production milestone is the same circuit with validated fluid-load
-mapping, a real Code_Aster solve, and processed results in the existing review
-scene. A longer offset must refresh hydraulic loss, and a larger bore must
-refresh both hydraulic area and the structural section.
+The bounded first milestone is implemented: verified pressure, temperature and
+contents density feed a real Code_Aster solve, with processed results in the
+existing review scene. A longer offset refreshes hydraulic loss, and a larger
+bore refreshes both hydraulic area and the structural section. Three retained
+layouts demonstrate a hydraulic rejection, a passing layout and a structural
+rejection. The older [fluid-only starter](../../examples/process_network_starter.py)
+remains a diagnostic experiment, incomplete for engineering evaluation.
 
 ## Recommended direction
 
@@ -92,7 +93,8 @@ tools generate the pipe route.
 
 ## What exists in Tuba, and what is missing
 
-These are source-inspection findings, not newly qualified runtime capabilities.
+The existing structural/search seams are reused by the bounded implementation.
+Its runtime qualification is recorded separately in the linked results document.
 
 | Existing seam | Reuse for this direction |
 | --- | --- |
@@ -101,20 +103,20 @@ These are source-inspection findings, not newly qualified runtime capabilities.
 | [Route plans](../../tuba/routing/plan.py) and [physical quantities](../../tuba/physical.py) | Derive actual straight and bend-arc lengths, bore, and physical contents mass. Add fitting identities, roughness, and hydraulic association records. |
 | [Structural load compilation](../../tuba/solver/aster_loads.py) | Pressure/temperature fields already have selectors; node temperatures have an interpolation path. Audit the supported mapping and discretization instead of inventing a second load writer. |
 | [Fluid-contents example](../../examples/fluid_contents.py) | Density already contributes filled-bore weight independently of pressure. This is not a flow calculation. |
-| [Search checks/history](../../tuba/search/contracts.py) and [candidate evaluation](../../tuba/search/evaluate.py) | Extend the evidence/check contract to fluid outcomes. Preserve current failure and unknown semantics. Explicit flow check kinds and an evaluation stage are still required. |
-| [Review scenes](../../tuba/visualization/scene.py) and `viewer/` | Extend this existing review surface with fluid fields and combined findings, keeping structural values backed by matching Code_Aster evidence. |
-| [Water-line starter](../../examples/process_network_starter.py) | A fixed process graph, procedural offset route, real OpenModelica execution, and bounded hydraulic checks. This is an example prototype rather than a general process-network API. |
+| [Search checks/history](../../tuba/search/contracts.py) and [candidate evaluation](../../tuba/search/evaluate.py) | The preparation stage now retains fluid evidence/checks and gates Code_Aster while preserving failure and unknown semantics. |
+| [Review scenes](../../tuba/visualization/scene.py) and `viewer/` | The same review surface now carries fluid fields and combined findings, keeping structural values backed by matching Code_Aster evidence. |
+| [Process package](../../tuba/process/) and [coupled example](../../examples/process_network/run.py) | Strict serial graph, measured route associations, real OpenModelica execution, verified operating-load mapping, bounded proposals and combined reviews. |
 
-The original source inspection found no Modelica/DEXPI bridge. The added starter
-now demonstrates a fixed circuit compiled to Modelica; it does not provide
-general P&ID import, a qualified hydraulic backend, or fluid-to-structure mapping.
+General P&ID import, branches, equipment models and transient coupling remain
+outside this implementation.
 
 ## Shared network and association contract
 
 Use a small typed process graph as the shared engineering contract. The P&ID,
 hydraulic model, and mechanical model are different views with explicit
 associations; they should not independently invent names, connectivity, or
-operating assumptions. Proposed records, not existing APIs:
+operating assumptions. The following describes the broader target; the current
+API implements its serial-water subset:
 
 | Record | Required meaning |
 | --- | --- |
@@ -169,7 +171,8 @@ For each candidate/scenario:
 
 1. Validate required data and supported components; generate the Modelica
    network plus an explicit component-to-process-ID output map.
-2. Through OMPython, load/check/build and execute the real OpenModelica model.
+2. Through the Python-managed `omc` subprocess, load/check/build and execute the
+   real OpenModelica model.
    Preserve translation/simulation errors and failed initialization. Compiling
    a model is not a completed simulation.
 3. Extract signed mass flow, pressures and thermodynamic states at defined
@@ -247,12 +250,16 @@ project/code assessment explicit and tied to its inputs and evidence.
 | P4: P&ID exchange and broader circuits | One explicitly supported DEXPI adapter, branches, equipment libraries and operation modes | Confirm import coverage and source-ID preservation; verify actual component correlations and boundary specifications. Image extraction remains provisional until checked. |
 | P5: Dynamics and portable subsystems | FMU interface, startup/control scenarios, wall thermal dynamics; selected transient/coupling models | Verify events, discretization and time convergence. Introduce synchronized coupling only when the physical problem requires it and qualify the particular model. |
 
-**Next production task: P0, the network/route association contract.** Generalize
-the starter only far enough to support a
-source boundary, a pipe line with one editable offset, a catalogue valve, and a
-sink boundary. Specify the medium, roughness/loss data, operating conditions,
-required delivery, and velocity/pressure limits. Give each component/port a
-stable ID and map the pipe line to authored Tuba units and station spans.
+**Implementation status:** P0 and the bounded steady-liquid portions of P1/P2
+are implemented in `tuba/process/`. P3 now has a bounded proposal input and
+combined retained evaluation/review; repeated pinned-provider comparisons remain
+open. The example's external fixed loss uses a declared demonstration
+coefficient, so qualified catalogue equipment is still an outstanding task.
+
+**Next:** use a real P&ID interchange fixture for one declared DEXPI version and
+qualify the corresponding equipment data. Preserve stable process/port IDs and
+the existing association and solver contracts. Add branches only with hydraulic
+reference cases and boundary-condition checks.
 
 The decisive contract check is an edit: lengthen the offset and prove that the
 derived hydraulic length/fitting inputs change while the P&ID connectivity
@@ -265,7 +272,7 @@ structural engineering evidence requires P2's real Code_Aster solve.
 Keep the production implementation small: a dedicated `tuba/process/` boundary for network
 and association/results records, an optional Modelica adapter, and narrow
 extensions to the existing candidate evaluator and scene contract. These are
-proposed locations, not installed functionality. Reuse existing load writers,
+implemented boundaries for the serial-water subset. Reuse existing load writers,
 model authoring, evidence, and visualization instead of adding parallel systems.
 
 ### Concrete next work packages

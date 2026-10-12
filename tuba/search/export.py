@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.analysis.staged_run import stage_runs
@@ -210,18 +211,53 @@ def write_candidate_review(run_dir: Path, candidate_id: str, output_dir: Path, *
                 runs[operation] = run
     output = _new_output(output_dir)
     staged = stage_runs(runs, output)
+    process_payload = None
+    if evaluation:
+        process_ref = f"attempts/{evaluation.attempt_id}/process_review.json"
+        inventory = archive.read_inventory(evaluation.evidence_manifest_ref)
+        if any(entry["path"] == process_ref for entry in inventory["files"]):
+            process_payload = json.loads(archive.path(process_ref).read_text(encoding="utf-8"))
+            from tuba.process.network import BoundProcessNetwork
+            network_ref = f"attempts/{evaluation.attempt_id}/hydraulics/network.json"
+            if not any(entry["path"] == network_ref for entry in inventory["files"]):
+                raise ValueError("Process review has no sealed route association")
+            bound = BoundProcessNetwork.from_dict(json.loads(archive.path(network_ref).read_text(encoding="utf-8")))
+            bound.verify_for(model)
+            if (process_payload.get("bound_fingerprint") != bound.fingerprint
+                    or process_payload.get("geometry_fingerprint") != bound.geometry_fingerprint):
+                raise ValueError("Process review does not match its evaluated network")
+            fluid_prefix = f"attempts/{evaluation.attempt_id}/hydraulics/"
+            fluid_output = output / "artifacts" / "hydraulics"
+            fluid_output.mkdir(parents=True)
+            for entry in inventory["files"]:
+                if entry["path"].startswith(fluid_prefix):
+                    relative = Path(entry["path"].removeprefix(fluid_prefix))
+                    target = fluid_output / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(archive.path(entry["path"]), target)
+            mapping_ref = f"attempts/{evaluation.attempt_id}/fluid_load_mapping.json"
+            if any(entry["path"] == mapping_ref for entry in inventory["files"]):
+                shutil.copyfile(archive.path(mapping_ref), fluid_output / "fluid_load_mapping.json")
     local_checks = tuple(replace(check, evidence_refs=tuple(f"artifacts/{check.operation}/{Path(ref).name}"
-                         for ref in check.evidence_refs)) if check.operation in staged else check for check in checks)
+                         for ref in check.evidence_refs)) if check.operation in staged else
+                         replace(check, evidence_refs=tuple(f"artifacts/hydraulics/{Path(ref).name}"
+                         for ref in check.evidence_refs)) if process_payload and check.basis == "openmodelica" else check
+                         for check in checks)
     scene = build_visualization_scene(SceneRequest(model, options=SceneBuildOptions(include_physical_envelopes=True),
                    analysis_runs=tuple(staged.values()), clash_results=_clashes(checks, operating=False),
                    operating_clash_results=_clashes(checks, operating=True),
                    volume_export=snapshot["run"]["settings"]["volume_export"], scene_id=f"scene:search:{candidate_id}"))
+    if process_payload is not None:
+        # Only an entry in the already verified sealed inventory may add fluid
+        # fields. An untracked JSON file beside an old attempt is not evidence.
+        from tuba.process.review import attach_process_review
+        attach_process_review(scene, process_payload)
     metadata = {"run_id": snapshot["run"]["run_id"], "candidate_id": candidate_id,
                 "evaluation_id": evaluation.id if evaluation else None,
                 "attempt_id": evaluation.attempt_id if evaluation else None, "outcome": outcome,
                 "current_candidate_outcome": row["outcome"], "attempt_decisions": attempt_decisions,
                 "evaluation_status": evaluation.status if evaluation else "not_started", "solved_operations": list(staged),
-                "result_status": "code_aster_results" if staged else "unsolved_preview", "scope": snapshot["run"]["scope"],
+                "result_status": "code_aster_results" if staged else "openmodelica_results" if scene.extra.get("process") else "unsolved_preview", "scope": snapshot["run"]["scope"],
                 "checks": [check.to_dict() for check in local_checks], "decisions": row["decisions"]}
     if not include_decisions:
         for key in ("outcome", "current_candidate_outcome", "attempt_decisions", "decisions"):
