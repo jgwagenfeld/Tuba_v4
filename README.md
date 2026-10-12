@@ -85,6 +85,10 @@ review includes hydraulic failures and structural results for solved layouts.
 It also imports a selected pipe connection from the official DEXPI 2.0.1
 reference P&ID, with source IDs and declared operating/layout assumptions retained.
 
+**Vision and roadmap:** review process assumptions, physical routing and solver evidence together.
+Start with source inspection and reproducible OMEdit downloads, then add linked revision review.
+See the [Modelica review study](docs/architecture/modelica-model-review-study.md) for the proposed sequence.
+
 ## Getting started
 
 Install [Miniforge](https://github.com/conda-forge/miniforge) in Linux x86_64 (Ubuntu WSL2 on Windows), then create the shared Tuba and Code_Aster environment:
