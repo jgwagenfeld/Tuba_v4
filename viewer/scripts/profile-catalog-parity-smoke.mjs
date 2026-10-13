@@ -21,6 +21,8 @@ async function newPage(url) {
 }
 
 async function openProfiles(page) {
+  const tools = page.locator("[data-header-tools]");
+  if (await tools.isVisible() && await tools.getAttribute("open") === null) await tools.locator("summary").first().click();
   await page.locator("[data-profiles-open]:visible").click();
   const drawer = page.locator("[data-profile-library]");
   await expect(drawer).toBeVisible();

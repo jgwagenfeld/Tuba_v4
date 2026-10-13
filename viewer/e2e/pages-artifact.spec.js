@@ -56,7 +56,7 @@ test("gallery Build edits stay drafts and invalidate the published review", asyn
   await page.getByRole("button", { name: "Build", exact: true }).click();
   const editor = page.locator("[data-code-text]");
   await expect(editor).toBeEditable();
-  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
+  await expect(page.locator("[data-code-run-label]")).toHaveText("Update geometry");
   const original = await editor.inputValue();
   const draft = original.replace("builder.run(3.0)", "builder.run(4.0)");
   expect(draft).not.toBe(original);
@@ -95,7 +95,8 @@ test("gallery Build edits stay drafts and invalidate the published review", asyn
   await page.getByRole("button", { name: "Build", exact: true }).click();
   await expect(editor).toHaveValue(draft);
   const downloaded = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  if (await page.locator("[data-header-tools]").getAttribute("open") === null) await page.locator("[data-header-tools] > summary").click();
+  await page.getByRole("button", { name: "Files & export", exact: true }).click();
   await page.getByRole("button", { name: "Download model.py", exact: true }).click();
   await page.getByRole("button", { name: "Close exchange", exact: true }).click();
   const file = await downloaded;
@@ -118,7 +119,8 @@ test("gallery Build edits stay drafts and invalidate the published review", asyn
   await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });
   await expect(badge).toHaveAttribute("data-status", "not_solved");
   expect(await wouldLoseDraft()).toBe(true);
-  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  if (await page.locator("[data-header-tools]").getAttribute("open") === null) await page.locator("[data-header-tools] > summary").click();
+  await page.getByRole("button", { name: "Files & export", exact: true }).click();
   await page.getByText("Reset example", { exact: true }).click();
   await page.getByRole("button", { name: "Discard edits", exact: true }).click();
   expect(errors).toEqual([]);

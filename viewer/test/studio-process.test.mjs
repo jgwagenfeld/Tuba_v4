@@ -2,20 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
+import { studioSolveGuidance } from '../src/solveGuidance.js';
 
 const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
 const controlSource = app.slice(app.indexOf('function renderSolveControls()'), app.indexOf('// A Code_Aster solve runs'));
 const runSource = app.slice(app.indexOf('async function runHydraulics()'), app.indexOf('// One stage transition'));
-const button = () => ({ hidden: true, disabled: false, dataset: {} });
+const button = () => ({ hidden: true, disabled: false, dataset: {}, textContent: '',
+  setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; } });
 
 function setup(process = { available: true, status: 'not_evaluated', can_run: true }) {
   const context = {
     studio: { available: true, project: { solves: true, can_solve: !process, process }, diskCode: 'model', hasReview: false },
     currentState: { embed: false }, currentBundle: { scene: { process: { schematic: {} } } },
     dom: { processActions: button(), processOpen: button(), processRun: button(), processStatus: button(), solveButton: button(),
-      reviewEmptySolve: button(), reviewEmpty: button(), reviewEmptyText: button(), codeText: { value: 'model' } },
+      solveGuidance: button(), reviewEmptySolve: button(), reviewEmpty: button(), reviewEmptyText: button(), codeText: { value: 'model' } },
     meshClient: { snapshot: () => ({ job: { busy: false } }) },
-    codePaneCases: () => ['Hot'], currentStage: () => 'build'
+    codePaneCases: () => ['Hot'], currentStage: () => 'build', studioSolveGuidance
   };
   runInNewContext(controlSource, context);
   return context;
@@ -28,10 +30,15 @@ test('hydraulic gating keeps Solve visible, names its reason, and preserves proj
   assert.equal(context.dom.solveButton.hidden, false);
   assert.equal(context.dom.solveButton.disabled, true);
   assert.match(context.dom.solveButton.title, /pass its checks/);
+  assert.equal(context.dom.solveGuidance.hidden, false);
+  assert.match(context.dom.solveGuidance.textContent, /Run hydraulics.*Code_Aster/);
+  assert.equal(context.dom.solveButton['aria-describedby'], 'solve-guidance');
   assert.equal(context.dom.processStatus.textContent, 'Hydraulics: Not evaluated');
   context.studio.project.can_solve = true;
   context.studio.project.process.status = 'passed'; context.renderSolveControls();
   assert.equal(context.dom.solveButton.disabled, false);
+  assert.equal(context.dom.solveGuidance.hidden, true);
+  assert.equal(context.dom.solveButton['aria-describedby'], undefined);
   const structural = setup(null); structural.renderSolveControls();
   assert.equal(structural.dom.processActions.hidden, true);
   assert.equal(structural.dom.solveButton.hidden, false);
@@ -43,7 +50,8 @@ test('pending editor text and model jobs disable hydraulics and Solve without ev
   context.dom.codeText.value = 'edited'; context.renderSolveControls();
   assert.equal(context.dom.processRun.disabled, true);
   assert.equal(context.dom.solveButton.disabled, true);
-  assert.match(context.dom.processRun.title, /Run model.py to apply edits/);
+  assert.match(context.dom.processRun.title, /Update geometry to apply model\.py edits/);
+  assert.match(context.dom.solveGuidance.textContent, /Update geometry.*Ctrl\+Enter/);
   assert.match(context.dom.processOpen.title, /last executed model.py/);
   context.dom.codeText.value = 'model';
   for (const key of ['running', 'solving', 'preparing', 'processRunning']) {

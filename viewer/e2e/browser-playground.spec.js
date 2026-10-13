@@ -88,7 +88,8 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   await page.getByRole("button", { name: "Build", exact: true }).click();
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(previewObjects);
   const downloading = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  if (await page.locator("[data-header-tools]").getAttribute("open") === null) await page.locator("[data-header-tools] > summary").click();
+  await page.getByRole("button", { name: "Files & export", exact: true }).click();
   await page.getByRole("button", { name: "Download model.py", exact: true }).click();
   await page.getByRole("button", { name: "Close exchange", exact: true }).click();
   expect(await readFile(await (await downloading).path(), "utf8")).toBe(edited);
@@ -107,9 +108,10 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   await run.click();
   await expect(page.locator("[data-code-state]")).toHaveText("Building geometry…", { timeout: 90_000 });
   await run.click();
-  await expect(run).toHaveText("Update geometry");
+  await expect(run.locator("[data-code-run-label]")).toHaveText("Update geometry");
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(previewObjects);
-  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  if (await page.locator("[data-header-tools]").getAttribute("open") === null) await page.locator("[data-header-tools] > summary").click();
+  await page.getByRole("button", { name: "Files & export", exact: true }).click();
   await page.getByText("Reset example", { exact: true }).click();
   await page.getByRole("button", { name: "Discard edits", exact: true }).click();
   await expect(editor).toHaveValue(original);
@@ -129,12 +131,12 @@ test("switching examples cancels a running browser script and failed runtime loa
   });
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-problem]")).toContainText("Worker blocked by browser policy");
-  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
+  await expect(page.locator("[data-code-run-label]")).toHaveText("Update geometry");
   await page.evaluate(() => { window.Worker = window.originalWorker; delete window.originalWorker; });
   await page.route("**/pyodide.mjs", route => route.abort());
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-problem]")).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
+  await expect(page.locator("[data-code-run-label]")).toHaveText("Update geometry");
   await page.unroute("**/pyodide.mjs");
   await page.locator("[data-code-text]").fill("while True:\n    pass\n");
   await page.locator("[data-code-run]").click();
@@ -144,7 +146,7 @@ test("switching examples cancels a running browser script and failed runtime loa
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
   await page.getByRole("button", { name: "Build", exact: true }).click();
   await expect(page.locator("[data-code-text]")).not.toHaveValue("while True:\n    pass\n");
-  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
+  await expect(page.locator("[data-code-run-label]")).toHaveText("Update geometry");
   await expect(page.locator("[data-code-problem]")).toBeHidden();
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });

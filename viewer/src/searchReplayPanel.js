@@ -23,11 +23,17 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
   const requests = latestViewRequest();
   let snapshot, selected, evaluation;
   let shownView = null;
+  let viewStatus = "";
+
+  function setViewStatus(message) {
+    viewStatus = message;
+    const node = container.querySelector("[data-search-view-status]");
+    if (node) node.textContent = message;
+  }
 
   async function display(view, check = null) {
     const request = requests.next();
-    const message = container.querySelector("[data-search-view-status]");
-    if (message) message.textContent = view?.availability === "available" ? "Loading recorded view…" : view?.message ?? "No view recorded at this event";
+    setViewStatus(view?.availability === "available" ? "Loading recorded view…" : view?.message ?? "No view recorded at this event");
     try {
       const url = view?.availability === "available" ? safeReplayUrl(baseUrl, view.bundle) : null;
       if (url !== shownView || !url) {
@@ -37,15 +43,16 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       if (!request.current()) return;
       shownView = url;
       if (check) highlight(check);
-      if (message?.isConnected) message.textContent = view?.availability === "available"
-        ? (check ? "Showing the recorded finding" : evaluation ? "Showing this sealed attempt" : "Reference geometry — no solver result")
-        : view?.message ?? "No geometry or verified results available";
+      setViewStatus(view?.availability === "available"
+        ? (check ? "Showing the recorded finding" : view === selected?.preview ? "Reference geometry — no solver result" : "Showing this sealed attempt")
+        : view?.message ?? "No geometry or verified results available");
       return { availability: view?.availability ?? 'unavailable', url, check };
     } catch (error) {
       if (!request.current()) return;
       shownView = null;
       await showView(null, request);
-      if (message?.isConnected) message.textContent = `View unavailable: ${error.message}`;
+      if (!request.current()) return;
+      setViewStatus(`View unavailable: ${error.message}`);
       return { availability: 'unavailable', url: null, error: error.message, check };
     }
   }
@@ -119,7 +126,7 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
         }
         attempts.addEventListener("change", () => { evaluationId = attempts.value; render(); }); panel.append(attempts);
       }
-      const stateMessage = element("p", "", "search-note"); stateMessage.dataset.searchViewStatus = ""; stateMessage.setAttribute("role", "status");
+      const stateMessage = element("p", viewStatus, "search-note"); stateMessage.dataset.searchViewStatus = ""; stateMessage.setAttribute("role", "status");
       panel.append(stateMessage);
       if (evaluation?.source_event_kind === "attempt.recovered") {
         panel.append(element("p", `Crash-recovered attempt ${evaluation.attempt_id}: sealed execution without a published evaluation. No checks or candidate decision inferred.`, "search-note"));
@@ -135,7 +142,7 @@ export function initSearchReplay(container, { manifest, baseUrl, showView, highl
       for (const row of snapshot.candidates.filter(c => c.id !== candidateId)) {
         const option = element("option", row.id); option.value = row.id; option.selected = row.id === referenceId; compare.append(option);
       }
-      compare.addEventListener("change", () => { referenceId = compare.value || null; render(); }); params.append(compare);
+      compare.addEventListener("change", () => { referenceId = compare.value || null; render({ displayView: false }); }); params.append(compare);
       const reference = snapshot.candidates.find(c => c.id === referenceId);
       const table = element("table"); table.dataset.searchParameters = "";
       const header = element("tr"); for (const title of ["Parameter", reference ? reference.id : "Value", ...(reference ? [candidateId] : [])]) header.append(element("th", title));

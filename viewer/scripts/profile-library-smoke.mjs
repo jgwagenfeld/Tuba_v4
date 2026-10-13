@@ -19,6 +19,7 @@ try {
   const editor = page.locator("[data-code-text]");
   const open = page.locator("[data-profiles-open]");
   const drawer = page.locator("[data-profile-library]");
+  await page.locator("[data-header-tools] > summary").click();
   await expect(open).toBeVisible();
   await expect(editor).toHaveValue(/with model\.pipe/);
   const original = await editor.inputValue();

@@ -11,7 +11,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
-  await page.getByRole("button", { name: "Exchange" }).click();
+  if (await page.locator("[data-header-tools]").getAttribute("open") === null) await page.locator("[data-header-tools] > summary").click();
+  await page.getByRole("button", { name: "Files & export" }).click();
   const dialog = page.getByRole("dialog", { name: "Share & exchange" });
   await dialog.waitFor();
   await dialog.locator("[data-ifc-file]").setInputFiles(fixture);

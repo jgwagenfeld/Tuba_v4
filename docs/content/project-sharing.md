@@ -9,7 +9,7 @@ CLI and MCP agents then use that same folder.
 
 ## Export a project
 
-In local Studio, open **Exchange → Export project**, choose **ZIP (.tubaproject)**
+In local Studio, open **Tools & files → Files & export → Export project**, choose **ZIP (.tubaproject)**
 or **Tar + gzip (.tgz)**, then download.
 Save editor changes with **Update geometry** first. Source-only is the default;
 the dialog shows the file count and size before compression. Select

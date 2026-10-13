@@ -61,7 +61,7 @@ that working project; copying historical build output is unnecessary.
 Edit `PIPE_SIZE = "larger"` or `OFFSET_M = 1.0` near the end of `model.py`.
 The size chooses explicit outside diameter and wall thickness; the hydraulic
 bore is measured from that section. `"small"` is the smaller-bore trial used to
-exercise hydraulic rejection. After an editor change, choose **Run model.py**
+exercise hydraulic rejection. After an editor change, choose **Update geometry**
 to apply it, then **Run hydraulics** and **Solve** again. Pending editor text
 does not change the last executed P&ID. Geometry, graph, scenario, requirements
 or study edits invalidate dependent evidence; stale results cannot enable

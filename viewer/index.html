@@ -49,12 +49,6 @@
           <!-- Switching review is one control, not a round trip through the
                gallery. The gallery explains the set; this moves within it. -->
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
-          <details class="meta">
-            <summary>Technical details</summary>
-            <div data-scene-meta></div>
-            <div data-build-identity></div>
-            <div data-viewer-identity></div>
-          </details>
         </div>
         <!-- Build edits Python and previews geometry; Review reads the solver
              evidence. The same stages serve browser drafts and local projects.
@@ -67,8 +61,8 @@
              controls is invisible from Build, so the collision hid a whole
              stage rather than merely confusing a label. -->
         <div class="mode-switch" role="group" aria-label="Stage" data-mode-switch hidden>
-          <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
-          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
+          <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script" title="Edit model.py and update geometry (B)">Build</button>
+          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls" title="Inspect solved results, tables and issues (R)">Review</button>
         </div>
         </div>
         <div class="studio-process-actions" data-studio-process-actions hidden>
@@ -81,13 +75,30 @@
              strip along the bottom, so the header is identity plus the three
              things you can do from it. -->
         <div class="header-actions">
-          <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Profiles</button>
-          <button type="button" data-geometry-open aria-haspopup="dialog" aria-controls="geometry-import" hidden>Import geometry</button>
-          <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
           <a data-projects-link target="_blank" rel="noopener" hidden>Projects</a>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
+          <details class="header-tools" data-header-tools>
+            <summary>Tools &amp; files</summary>
+            <div class="header-tools-content">
+              <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Section profiles</button>
+              <button type="button" data-geometry-open aria-haspopup="dialog" aria-controls="geometry-import" hidden>Import geometry</button>
+              <button type="button" data-exchange-open aria-haspopup="dialog" aria-controls="exchange-dialog" title="Download project files or exchange IFC geometry">Files &amp; export</button>
+              <details class="meta">
+                <summary>Technical details</summary>
+                <div data-scene-meta></div>
+                <div data-build-identity></div>
+                <div data-viewer-identity></div>
+                <details data-error-detail hidden>
+                  <summary>Last error output</summary>
+                  <pre class="status-detail" data-error-output></pre>
+                </details>
+              </details>
+            </div>
+          </details>
+          <button type="button" data-shortcuts-open aria-haspopup="dialog" title="Workflow and keyboard shortcuts (?)">Help</button>
         </div>
+        <p id="solve-guidance" class="solve-guidance" data-solve-guidance role="status" aria-live="polite" aria-atomic="true" hidden></p>
       </header>
       <section class="viewer-workspace" data-viewer-workspace>
           <button
@@ -117,9 +128,9 @@
               <span data-code-mesh-label>Mesh</span>
             </button>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
-            <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
+            <button type="button" class="code-run" data-code-run title="Save model.py and update geometry (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
-              Run
+              <span data-code-run-label>Update geometry</span>
               <kbd>Ctrl+Enter</kbd>
             </button>
           </div>
@@ -390,7 +401,7 @@
       </form>
       <div data-process-drawing></div>
     </dialog>
-    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
+    <dialog id="exchange-dialog" class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
       <form method="dialog" class="exchange-head">
         <h2 id="exchange-title">Share &amp; exchange</h2>
         <button type="submit" aria-label="Close exchange">Close</button>

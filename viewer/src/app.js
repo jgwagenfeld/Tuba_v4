@@ -164,6 +164,7 @@ import {
   sceneStage,
   workspaceView
 } from "./workflowState.js";
+import { studioSolveGuidance } from "./solveGuidance.js";
 
 const dom = {
   appShell: document.querySelector("[data-embed]"),
@@ -189,6 +190,8 @@ const dom = {
   processSection: document.querySelector('[data-process-section]'),
   processSchematic: document.querySelector('[data-process-schematic]'),
   processDialog: document.querySelector('[data-process-dialog]'),
+  processTitle: document.querySelector('#process-pid-title'),
+  processClose: document.querySelector('[data-process-dialog] button[type="submit"]'),
   processDrawing: document.querySelector('[data-process-drawing]'),
   processActions: document.querySelector('[data-studio-process-actions]'),
   processOpen: document.querySelector('[data-studio-pid-open]'),
@@ -290,6 +293,9 @@ const dom = {
   codeCallMark: document.querySelector('[data-code-mark="call"]'),
   codeRevealMark: document.querySelector('[data-code-mark="reveal"]'),
   solveButton: document.querySelector("[data-solve]"),
+  solveGuidance: document.querySelector("[data-solve-guidance]"),
+  errorDetail: document.querySelector("[data-error-detail]"),
+  errorOutput: document.querySelector("[data-error-output]"),
   reviewEmpty: document.querySelector("[data-review-empty]"),
   reviewEmptyText: document.querySelector("[data-review-empty-text]"),
   reviewEmptySolve: document.querySelector("[data-review-empty-solve]")
@@ -1082,6 +1088,8 @@ function renderProcessSchematic() {
   if (dom.processSection.hidden) return;
   try {
     const model = processSchematicModel(scene), pid = Boolean(model.graph.pid);
+    if (dom.processTitle) dom.processTitle.textContent = pid ? 'P&ID' : 'Process schematic';
+    if (dom.processClose) dom.processClose.setAttribute('aria-label', pid ? 'Close P and ID' : 'Close process schematic');
     const selectedIds = new Set(currentState.selectedObjectIds);
     const linked = node => node.element_ids.some(id => selectedIds.has(resolveEntityObjectId(currentState, `element:${id}`)));
     const selectedPipe = model.nodes.find(linked), chosen = model.items.find(node => node.id === selectedProcessComponent);
@@ -1097,7 +1105,7 @@ function renderProcessSchematic() {
     dom.processSchematic.append(note);
     {
       const open = document.createElement('button');
-      open.type = 'button'; open.textContent = 'Open P&ID'; open.dataset.processOpen = '';
+      open.type = 'button'; open.textContent = pid ? 'Open P&ID' : 'Open schematic'; open.dataset.processOpen = '';
       open.dataset.focusKey = 'process:open'; open.setAttribute('aria-haspopup', 'dialog');
       open.addEventListener('click', () => openProcessDialog(open));
       dom.processSchematic.append(open);
@@ -1746,7 +1754,7 @@ function renderResultControls() {
       button.setAttribute("aria-current", "true");
     }
     button.dataset.hotspotIndex = String(position);
-    button.dataset.focusKey = `hotspot:${hotspot.elementId ?? ""}:${hotspot.rowIndex ?? ""}:${hotspot.subpointIndex ?? ""}`;
+    button.dataset.focusKey = `hotspot:${hotspot.objectId ?? ""}:${hotspot.elementId ?? ""}:${hotspot.rowIndex ?? ""}:${hotspot.subpointIndex ?? ""}`;
     const identity = hotspot.elementId
       ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
       : "";
@@ -2328,6 +2336,7 @@ function selectedRunDiagramRun() {
 
 function openRunDiagram() {
   if (!dom.runDiagram || dom.runDiagram.hidden) return;
+  dom.reviewDrawer.open = true;
   dom.runDiagram.open = true;
   dom.runDiagram.scrollIntoView({ block: "nearest" });
 }
@@ -4242,14 +4251,21 @@ function renderReviewRecordExport() {
   const summary = document.createElement("p");
   summary.className = "review-record-summary";
   if (tally.touched === 0) {
-    summary.textContent = "No dispositions recorded. Open an issue to record a decision.";
+    summary.textContent = "No dispositions recorded. Select an issue or result finding to record a decision.";
     wrapper.append(summary);
     return wrapper;
   }
   const parts = REVIEW_STATUSES
     .filter((status) => tally[status.id] > 0)
     .map((status) => `${tally[status.id]} ${status.label.toLowerCase()}`);
-  summary.textContent = `${parts.join(" · ")} of ${(currentState.issues ?? []).length} issues.`;
+  const findings = Object.entries(currentState.reviewDispositions ?? {}).filter(([id, record]) =>
+    id.startsWith("finding:") && REVIEW_STATUSES.some((status) => status.id === record?.status)).length;
+  const issues = tally.touched - findings;
+  const subjects = [
+    issues > 0 ? `${issues} issue${issues === 1 ? "" : "s"}` : null,
+    findings > 0 ? `${findings} result finding${findings === 1 ? "" : "s"}` : null
+  ].filter(Boolean);
+  summary.textContent = `${parts.join(" · ")} across ${subjects.join(" and ")}.`;
   wrapper.append(summary);
 
   if (!currentState.reviewerName) {
@@ -5350,7 +5366,10 @@ function setStatus(message, severity = false) {
 // reviewer needs read at them.
 function setErrorStatus(error, context = "") {
   const { message, detail } = humanizeError(error, context);
-  if (detail) {
+  if (dom.errorOutput) {
+    dom.errorOutput.textContent = detail || message;
+    dom.errorDetail.hidden = false;
+  } else if (detail) {
     const meta = dom.sceneMeta ?? dom.appShell.querySelector("[data-scene-meta]");
     if (meta) {
       const block = document.createElement("pre");
@@ -5368,10 +5387,10 @@ function connectLivePreview(wsUrl) {
   socket.addEventListener("message", (event) => {
     void handleLivePreviewEvent(event.data);
   });
-  socket.addEventListener("error", () => setStatus("Live preview connection failed", true));
+  socket.addEventListener("error", () => setStatus("Live preview connection failed · reload to reconnect", true));
   socket.addEventListener("close", () => {
     if (currentState) {
-      setStatus("Live preview disconnected", true);
+      setStatus("Live preview disconnected · reload to reconnect", true);
     }
   });
 }
@@ -5859,9 +5878,12 @@ function codePaneCases() {
 
 function renderCodeTabs() {
   const cases = codePaneCases();
-  if (!cases.includes(studio.codeTab)) studio.codeTab = null;
-  const { codeTab } = studio;
   const selected = currentState.activeLoadCase ?? cases[0] ?? null;
+  const previousTab = studio.codeTab;
+  // The generated file belongs to the selected case; model.py stays open when
+  // it was selected. loadComm's request counter rejects late case responses.
+  if (studio.codeTab !== null) studio.codeTab = cases.includes(selected) ? selected : null;
+  const { codeTab } = studio;
   const names = [...new Set([...getLoadCaseOptions(currentState).map((entry) => entry.id), ...cases])];
   const key = JSON.stringify([studio.available, names, selected]);
   if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
@@ -5883,10 +5905,11 @@ function renderCodeTabs() {
   dom.codeText.parentElement.hidden = codeTab !== null;
   dom.commText.hidden = codeTab === null;
   dom.codeRun.hidden = !(studio.available || sourceView.available) || codeTab !== null;
-  if (!studio.available) {
-    dom.codeRun.textContent = browserJob ? "Stop" : "Update geometry";
-    dom.codeRun.title = browserJob ? "Stop the browser preview" : "Run Python in your browser (Ctrl+Enter)";
-  }
+  const runLabel = dom.codeRun.querySelector?.("[data-code-run-label]") ?? dom.codeRun;
+  runLabel.textContent = studio.available ? (studio.running ? "Updating geometry…" : "Update geometry")
+    : browserJob ? "Stop" : "Update geometry";
+  dom.codeRun.title = studio.available ? "Save model.py and update geometry (Ctrl+Enter)"
+    : browserJob ? "Stop the browser preview" : "Run Python in your browser (Ctrl+Enter)";
   dom.codeReset.hidden = studio.available || !sourceView.available;
   dom.codeDownload.hidden = studio.available || !sourceView.available;
   if (codeTab !== null) dom.codeState.textContent = "Read-only";
@@ -5894,6 +5917,10 @@ function renderCodeTabs() {
     : sourceView.preview ? (dom.codeText.value === sourceView.preview.code ? "Geometry preview" : "Edited · run to update")
     : bundleSourceEdited() ? "Edited draft" : "";
   else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "";
+  if (codeTab !== null && codeTab !== previousTab) {
+    dom.commText.textContent = studio.available ? "Generating…" : "Loading…";
+    void loadComm();
+  }
 }
 
 function renderCaseInputs() {
@@ -5989,15 +6016,25 @@ function renderSolveControls() {
   const process = project?.process;
   const pendingEdits = studio.available && dom.codeText.value !== studio.diskCode;
   const busy = studio.running || studio.solving || studio.preparing || studio.processRunning || Boolean(meshClient.snapshot().job?.busy);
-  const reason = pendingEdits ? 'Run model.py to apply edits' : process?.available && !project?.can_solve
+  const reason = pendingEdits ? 'Update geometry to apply model.py edits' : process?.available && !project?.can_solve
     ? process.error || 'Run hydraulics and pass its checks before Code_Aster Solve' : '';
+  const guidance = studioSolveGuidance({ project, embed: currentState.embed, pendingEdits,
+    running: studio.running, solving: studio.solving, preparing: studio.preparing,
+    processRunning: studio.processRunning, meshBusy: Boolean(meshClient.snapshot().job?.busy),
+    sourceError: Boolean(studio.error) });
+  if (dom.solveGuidance) {
+    const message = guidance?.message ?? '';
+    if (dom.solveGuidance.textContent !== message) dom.solveGuidance.textContent = message;
+    dom.solveGuidance.hidden = !message;
+    dom.solveGuidance.dataset.state = guidance?.state ?? 'ready';
+  }
   dom.processActions.hidden = !(studio.available && process?.available) || currentState.embed;
   dom.processOpen.disabled = !currentBundle?.scene?.process?.schematic;
   dom.processOpen.title = pendingEdits ? 'Pending edits: P&ID shows the last executed model.py' : 'Open the process drawing for this model';
   dom.processRun.disabled = !process?.can_run || busy || pendingEdits;
   dom.processRun.textContent = studio.processRunning ? 'Running hydraulics…' : 'Run hydraulics';
   dom.processRun.title = pendingEdits ? reason : process?.error || (busy ? 'Another model job is running' : 'Evaluate the current process network with pandapipes');
-  const status = pendingEdits ? 'Pending edits · Run model.py to apply edits' : ({
+  const status = pendingEdits ? 'Pending edits · Update geometry to apply edits' : ({
     not_evaluated: 'Not evaluated', running: 'Running', passed: 'Passed', rejected: 'Rejected', failed: 'Failed', stale: 'Stale'
   })[process?.status] ?? 'Not evaluated';
   dom.processStatus.textContent = `Hydraulics: ${status}${process?.error && !pendingEdits ? ` · ${process.error}` : ''}`;
@@ -6008,6 +6045,8 @@ function renderSolveControls() {
     button.disabled = !canSolve || busy || pendingEdits;
     button.title = reason || (busy ? 'A model job is running' : 'Run Code_Aster on the current model');
     button.textContent = label;
+    if (dom.solveGuidance && guidance) button.setAttribute('aria-describedby', 'solve-guidance');
+    else button.removeAttribute('aria-describedby');
   }
   dom.reviewEmpty.hidden = !(project && currentStage() === "review" && !studio.hasReview);
   dom.reviewEmptyText.textContent = studio.preparing
@@ -6131,38 +6170,52 @@ async function runHydraulics() {
 // same move took two actions and only one was tested.
 async function setMode(stage) {
   if (!studio.available && !sourceView.available) return;
-  if (currentStage() === stage) return;
-  // Build can use a fresh geometry preview. Review always uses its solved bundle.
-  if (studio.available) {
-    await showStudioBundle(stage);
-  } else {
-    if (stage === "build") studio.codeTab = null;
-    if (sourceView.preview) showBrowserBundle(stage);
+  if (currentStage() === stage || dom.modeSwitch.getAttribute("aria-busy") === "true") return;
+  const buttons = [...dom.modeSwitch.querySelectorAll("button[data-mode]")];
+  const disabled = buttons.map(button => button.disabled);
+  dom.modeSwitch.setAttribute("aria-busy", "true");
+  for (const button of buttons) button.disabled = true;
+  try {
+    setStatus(stage === "build" ? "Opening Build…" : "Opening Review…");
+    // Build can use a fresh geometry preview. Review always uses its solved bundle.
+    if (studio.available) {
+      if (!(await showStudioBundle(stage))) return;
+    } else {
+      if (stage === "build") studio.codeTab = null;
+      if (sourceView.preview) showBrowserBundle(stage);
+    }
+    dispatch({ type: "setStage", stage });
+    if (stage !== "build" && !studio.available) {
+      // The review opens on what the bundle declared; leaving Build restores it
+      // so the authored solid and its mesh are not both drawing at once.
+      dispatch({ type: "resetLayerVisibility" });
+    }
+    render();
+  } catch (error) {
+    setErrorStatus(error, `${stage === "build" ? "Build" : "Review"} could not be opened. Try again.`);
+  } finally {
+    dom.modeSwitch.setAttribute("aria-busy", "false");
+    buttons.forEach((button, index) => { button.disabled = disabled[index]; });
   }
-  dispatch({ type: "setStage", stage });
-  if (stage !== "build" && !studio.available) {
-    // The review opens on what the bundle declared; leaving Build restores it
-    // so the authored solid and its mesh are not both drawing at once.
-    dispatch({ type: "resetLayerVisibility" });
-  }
-  render();
 }
 
 // Build shows the live model; Review shows the review bundle once there is one.
 // Object ids match between the two, so the selection and camera carry over.
 async function showStudioBundle(mode) {
-  if (!studio.project) return;
+  if (!studio.project) return true;
   const bundle = mode === "review" && studio.hasReview ? "review" : "build";
-  if (bundleKey(currentBundleUrl) === bundle) return;
-  currentBundleUrl = bundle;
-  const url = new URL(window.location.href);
-  url.searchParams.set("bundle", bundle);
-  window.history.replaceState({}, "", url);
+  if (bundleKey(currentBundleUrl) === bundle) return true;
   try {
     await loadBundle(bundle, { preserve: true, reviewDefaultColor: bundle === "review" && !reviewOpened && !userChoseColor });
+    currentBundleUrl = bundle;
+    const url = new URL(window.location.href);
+    url.searchParams.set("bundle", bundle);
+    window.history.replaceState({}, "", url);
     if (bundle === "review") reviewOpened = true;
+    return true;
   } catch (error) {
     setErrorStatus(error, `The ${bundle === "review" ? "review" : "model"} could not be loaded.`);
+    return false;
   }
 }
 
@@ -6176,10 +6229,10 @@ function setScriptText(code) {
 }
 
 function scriptLinesMoved() {
-  // ponytail: a changed line count is the "did my line numbers move" test; an
-  // edit that swaps two lines keeps the count and fools it until the next run.
+  // Links and inspector edits belong to the exact source that built the scene.
+  // Even a same-length edit or reorder can change which statement owns a part.
   const linkedCode = !studio.available && isBuildMode() && sourceView.preview ? sourceView.preview.code : studio.ranCode;
-  return lineCount(dom.codeText.value) !== lineCount(linkedCode);
+  return editorSource(dom.codeText.value) !== editorSource(linkedCode);
 }
 
 function stopBrowserPreview() {
@@ -6232,6 +6285,8 @@ async function runScript() {
   if (studio.running || !studio.available) return;
   studio.running = true;
   dom.codeRun.disabled = true;
+  renderCodeTabs();
+  renderSolveControls();
   dom.codeState.textContent = "Running…";
   const code = dom.codeText.value;
   try {
@@ -6260,6 +6315,7 @@ async function runScript() {
   } finally {
     studio.running = false;
     dom.codeRun.disabled = false;
+    renderCodeTabs();
     renderCodeFoot();
     renderSolveControls();
   }
@@ -6358,7 +6414,7 @@ function renderCodeFoot() {
       ? "Browser preview · edits require a new Code_Aster solve"
       : "Published input · draft edits are excluded";
     note.title = studio.codeTab === null
-      ? "Update geometry runs Python in your browser. Review uses published Code_Aster results. Save edits with Exchange → Download model.py."
+      ? "Update geometry runs Python in your browser. Review uses published Code_Aster results. Save edits with Tools & files → Files & export → Download model.py."
       : "This published .comm is not regenerated from your draft model.py.";
     dom.codeFoot.replaceChildren(note);
     return;
@@ -6371,7 +6427,13 @@ function renderCodeFoot() {
   }
   const text = dom.codeText;
   const saved = document.createElement("span");
-  saved.textContent = text.value === studio.ranCode ? "Saved to model.py" : "Edited · Ctrl+Enter runs and saves";
+  const savedOnDisk = editorSource(text.value) === editorSource(studio.diskCode);
+  saved.textContent = savedOnDisk
+    ? scriptLinesMoved() ? "Saved · 3D shows the last good run" : "Saved to model.py"
+    : "Unsaved · Ctrl+Enter saves and updates";
+  saved.title = savedOnDisk
+    ? "The editor text is saved to model.py. Geometry updates after Python executes successfully."
+    : "Update geometry saves model.py and executes your Python script.";
   const position = document.createElement("span");
   position.textContent = `Ln ${lineAtOffset(text.value, text.selectionStart ?? 0)}`;
   const foot = [saved, position];
@@ -6445,12 +6507,12 @@ function renderScriptLink(object) {
   const line = Number(object.metadata?.source_line);
   if (!Number.isInteger(line) || line < 1) {
     section.append(metaLine(studio.available
-      ? "Run model.py to link this to the line that builds it."
+      ? "Update geometry to link this to the line that builds it."
       : "This review records no source line for the selection."));
     return section;
   }
   if (scriptLinesMoved()) {
-    section.append(metaLine(`model.py:${line} when last run. Lines have moved since; run again to relink.`));
+    section.append(metaLine(`model.py:${line} when last run. Source changed since; update geometry to relink.`));
     return section;
   }
   const source = scriptLine(dom.codeText.value, line);
@@ -6731,7 +6793,7 @@ function isTypingTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (dom.profileLibrary.open || dom.processDialog.open) return;
+  if (document.querySelector("dialog[open]")) return;
   if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
     event.preventDefault();
     dom.codeMeshToggle?.click();
@@ -6784,42 +6846,77 @@ function stepFindingBy(direction) {
 
 let shortcutOverlay = null;
 
+document.querySelector("[data-shortcuts-open]").addEventListener("click", () => toggleShortcutOverlay(true));
+
+const headerTools = document.querySelector("[data-header-tools]");
+headerTools.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !headerTools.open) return;
+  event.preventDefault();
+  event.stopPropagation();
+  headerTools.open = false;
+  headerTools.querySelector("summary").focus();
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!headerTools.open || headerTools.contains(event.target) || document.querySelector("dialog[open]")) return;
+  headerTools.open = false;
+});
+
 function toggleShortcutOverlay(show) {
   if (!show && !shortcutOverlay) return;
   if (show) {
-    if (!shortcutOverlay) shortcutOverlay = buildShortcutOverlay();
-    document.body.append(shortcutOverlay);
-    shortcutOverlay.querySelector("button")?.focus();
+    if (!shortcutOverlay) {
+      shortcutOverlay = buildShortcutOverlay();
+      document.body.append(shortcutOverlay);
+    }
+    if (!shortcutOverlay.open) shortcutOverlay.showModal();
     return;
   }
-  shortcutOverlay?.remove();
+  shortcutOverlay.close();
 }
 
 function buildShortcutOverlay() {
-  const overlay = document.createElement("div");
+  const overlay = document.createElement("dialog");
+  overlay.id = "workspace-help";
   overlay.className = "shortcut-overlay";
-  overlay.setAttribute("role", "dialog");
-  overlay.setAttribute("aria-modal", "true");
-  overlay.setAttribute("aria-label", "Keyboard shortcuts");
+  overlay.setAttribute("aria-labelledby", "workspace-help-title");
   overlay.dataset.shortcutOverlay = "";
 
   const panel = document.createElement("div");
   panel.className = "shortcut-panel";
   const heading = document.createElement("h2");
-  heading.textContent = "Keyboard";
+  heading.id = "workspace-help-title";
+  heading.textContent = "Using Tuba";
   const close = document.createElement("button");
   close.type = "button";
   close.className = "shortcut-close";
-  close.setAttribute("aria-label", "Close shortcuts");
+  close.setAttribute("aria-label", "Close help");
   close.textContent = "Close";
   close.addEventListener("click", () => toggleShortcutOverlay(false));
   const head = document.createElement("div");
   head.className = "shortcut-head";
   head.append(heading, close);
 
+  const workflow = document.createElement("ol");
+  workflow.className = "help-workflow";
+  for (const [stage, description] of [
+    ["Build", "Edit model.py, then Update geometry. In local Studio this saves the file; in the browser it creates a geometry preview."],
+    ["Solve", "Run hydraulics first when the project requires it, then Solve with Code_Aster. Geometry previews and exported inputs are not solved results."],
+    ["Review", "Inspect result fields, open Tables & issues, and select a component for its details. Report opens the result tables."]
+  ]) {
+    const item = document.createElement("li");
+    const label = document.createElement("strong");
+    label.textContent = stage;
+    item.append(label, ` — ${description}`);
+    workflow.append(item);
+  }
+  const study = document.createElement("p");
+  study.className = "help-note";
+  study.textContent = "Model-only project? Add LOAD_CASES in study.py beside model.py to set up analysis. Code_Aster is required for structural results.";
+  const keyboardHeading = document.createElement("h3");
+  keyboardHeading.textContent = "Keyboard shortcuts";
   const list = document.createElement("dl");
   list.className = "shortcut-list";
-  for (const [key, label] of [...SHORTCUTS, ["Ctrl+Enter", "Run model.py (Build)"], ["Ctrl+S", "Download model.py"], ["Alt+M", "Toggle the FE mesh (Build)"]]) {
+  for (const [key, label] of [...SHORTCUTS, ["Ctrl+Enter", "Update geometry (Build)"], ["Ctrl+S", studio.available ? "Save and update geometry (Build)" : "Download model.py (Build)"], ["Alt+M", "Toggle the FE mesh (Build)"]]) {
     const term = document.createElement("dt");
     const kbd = document.createElement("kbd");
     kbd.textContent = key;
@@ -6829,7 +6926,7 @@ function buildShortcutOverlay() {
     list.append(term, description);
   }
 
-  panel.append(head, list);
+  panel.append(head, workflow, study, keyboardHeading, list);
   overlay.append(panel);
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) toggleShortcutOverlay(false);

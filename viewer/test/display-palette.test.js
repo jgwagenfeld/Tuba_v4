@@ -238,6 +238,8 @@ test("V toggles Show values through its checkbox, but not while typing or with C
   ].join("\n");
   withDocument((document) => {
     const window = new FakeElement("window", document);
+    let dialogOpen = false;
+    document.querySelector = (selector) => selector === "dialog[open]" && dialogOpen ? {} : null;
     const toggle = new FakeElement("input", document);
     toggle.checked = true;
     // As in a browser: a click flips the box and fires change.
@@ -257,5 +259,8 @@ test("V toggles Show values through its checkbox, but not while typing or with C
     press(canvas, { ctrlKey: true });
     assert.equal(actions.length, 2, "a v typed into a field, or a paste, is not a toggle");
     assert.equal(toggle.checked, true);
+    dialogOpen = true;
+    press(canvas);
+    assert.equal(actions.length, 2, "a modal dialog keeps viewport shortcuts inactive");
   });
 });

@@ -141,6 +141,9 @@ textarea,
 
 .app-header {
   display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
   align-items: center;
   gap: 1rem;
   min-height: 3rem;
@@ -205,9 +208,7 @@ textarea,
 }
 
 .app-header .meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .header-actions {
@@ -215,6 +216,157 @@ textarea,
   align-items: center;
   gap: 0.35rem;
   flex: 0 0 auto;
+}
+
+.header-tools {
+  position: relative;
+}
+
+.header-tools > summary {
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-tools > summary:hover {
+  border-color: var(--focus-on-dark);
+}
+
+.header-tools-content {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(30rem, 75vh);
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.3rem;
+  background: var(--graphite-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.header-tools-content > button {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+}
+
+.header-tools-content > [hidden] {
+  display: none;
+}
+
+.app-header .header-tools .meta {
+  display: block;
+  margin: 0;
+  padding: 0.5rem 0.25rem 0;
+}
+
+.header-tools .meta > div {
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+.shortcut-overlay {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 1.25rem;
+  overflow: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.3rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 32%);
+}
+
+.shortcut-overlay:not([open]) {
+  display: none;
+}
+
+.shortcut-overlay::backdrop {
+  background: rgb(8 14 18 / 65%);
+}
+
+.shortcut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.shortcut-head h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.shortcut-close {
+  width: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.help-workflow {
+  padding-left: 1.25rem;
+  line-height: 1.5;
+}
+
+.help-workflow li + li {
+  margin-top: 0.65rem;
+}
+
+.help-note {
+  margin-block: 1rem 1.5rem;
+  color: var(--chrome-text-1);
+  line-height: 1.5;
+}
+
+.shortcut-panel h3 {
+  margin-block: 1.5rem 0.75rem;
+  font-size: 1.05rem;
+}
+
+.shortcut-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 0;
+  align-items: baseline;
+}
+
+.shortcut-list dd {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.shortcut-list kbd {
+  color: var(--accent);
+  font: 0.85rem var(--font-mono);
+}
+
+.solve-guidance {
+  flex: 1 0 100%;
+  grid-column: 1 / -1;
+  order: 6;
+  margin: 0;
+  padding-block: 0.15rem 0.35rem;
+  color: var(--chrome-text-1);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.solve-guidance[hidden] {
+  display: none;
+}
+
+.solve-guidance[data-state="blocked"] {
+  color: var(--warning-on-dark);
 }
 
 /* Neutral by default. Every control in this bar used to be cyan, which made
@@ -2897,10 +3049,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 }
 
 @media (max-width: 900px) {
-  .app-header .meta {
-    display: none;
-  }
-
   /* Selection is recoverable from the inspector; analysis details stay accessible. */
   .status-strip .strip-selection {
     display: none;
@@ -3854,13 +4002,13 @@ body[data-view="gallery"] {
    centres on the free space: pinned to the middle of the header, a long status
    message slid underneath it. */
 body[data-studio="true"] .app-identity {
-  flex-grow: 0;
+  flex-grow: 1;
 }
 
 .mode-switch {
   display: flex;
   flex: 0 0 auto;
-  margin-inline: auto;
+  margin-inline: 0;
   border: 1px solid var(--graphite-line);
   border-radius: 0.15rem;
 }
@@ -4660,7 +4808,7 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   border-radius: 0.3rem;
   background: var(--accent);
   color: #082d33;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 24%), 0 0 14px rgb(94 216 229 / 14%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 700;
@@ -4676,7 +4824,7 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   border-color: #84e8f3;
   background: #84e8f3;
   color: #082d33;
-  box-shadow: 0 3px 10px rgb(0 0 0 / 28%), 0 0 18px rgb(94 216 229 / 24%);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 28%);
 }
 
 .app-header > .solve-button:active:not(:disabled),
@@ -4695,12 +4843,6 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   .app-header > .solve-button,
   .review-empty .solve-button {
     transition: none;
-  }
-}
-
-@media (max-width: 1200px) {
-  .app-header:has(> .solve-button:not([hidden])) .meta {
-    display: none;
   }
 }
 
