@@ -2,6 +2,7 @@
 <html lang="en">
     <head>
     <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- The viewer head named the product nowhere but <title>: no description,
          no theme colour, no share card. The gallery is the URL people send, and
@@ -32,8 +33,8 @@
         "url": "https://jgwagenfeld.github.io/Tuba_v4/"
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-LHj4_tm0.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CP3MDUNy.css">
+    <script type="module" crossorigin src="./assets/index-B3SyYUr5.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DscdYT9t.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -50,12 +51,6 @@
           <!-- Switching review is one control, not a round trip through the
                gallery. The gallery explains the set; this moves within it. -->
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
-          <details class="meta">
-            <summary>Technical details</summary>
-            <div data-scene-meta></div>
-            <div data-build-identity></div>
-            <div data-viewer-identity></div>
-          </details>
         </div>
         <!-- Build edits Python and previews geometry; Review reads the solver
              evidence. The same stages serve browser drafts and local projects.
@@ -68,22 +63,44 @@
              controls is invisible from Build, so the collision hid a whole
              stage rather than merely confusing a label. -->
         <div class="mode-switch" role="group" aria-label="Stage" data-mode-switch hidden>
-          <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
-          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
+          <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script" title="Edit model.py and update geometry (B)">Build</button>
+          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls" title="Inspect solved results, tables and issues (R)">Review</button>
         </div>
+        </div>
+        <div class="studio-process-actions" data-studio-process-actions hidden>
+          <button type="button" data-studio-pid-open aria-haspopup="dialog" aria-controls="process-pid-dialog">P&amp;ID</button>
+          <button type="button" data-process-run>Run hydraulics</button>
+          <span data-process-status role="status" aria-live="polite"></span>
         </div>
         <button type="button" class="solve-button" data-solve hidden>Solve</button>
         <!-- Actions only. The verdict and the runtime line moved to the status
              strip along the bottom, so the header is identity plus the three
              things you can do from it. -->
         <div class="header-actions">
-          <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Profiles</button>
-          <button type="button" data-geometry-open aria-haspopup="dialog" aria-controls="geometry-import" hidden>Import geometry</button>
-          <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
           <a data-projects-link target="_blank" rel="noopener" hidden>Projects</a>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
+          <details class="header-tools" data-header-tools>
+            <summary>Tools &amp; files</summary>
+            <div class="header-tools-content">
+              <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Section profiles</button>
+              <button type="button" data-geometry-open aria-haspopup="dialog" aria-controls="geometry-import" hidden>Import geometry</button>
+              <button type="button" data-exchange-open aria-haspopup="dialog" aria-controls="exchange-dialog" title="Download project files or exchange IFC geometry">Files &amp; export</button>
+              <details class="meta">
+                <summary>Technical details</summary>
+                <div data-scene-meta></div>
+                <div data-build-identity></div>
+                <div data-viewer-identity></div>
+                <details data-error-detail hidden>
+                  <summary>Last error output</summary>
+                  <pre class="status-detail" data-error-output></pre>
+                </details>
+              </details>
+            </div>
+          </details>
+          <button type="button" data-shortcuts-open aria-haspopup="dialog" title="Workflow and keyboard shortcuts (?)">Help</button>
         </div>
+        <p id="solve-guidance" class="solve-guidance" data-solve-guidance role="status" aria-live="polite" aria-atomic="true" hidden></p>
       </header>
       <section class="viewer-workspace" data-viewer-workspace>
           <button
@@ -113,9 +130,9 @@
               <span data-code-mesh-label>Mesh</span>
             </button>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
-            <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
+            <button type="button" class="code-run" data-code-run title="Save model.py and update geometry (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
-              Run
+              <span data-code-run-label>Update geometry</span>
               <kbd>Ctrl+Enter</kbd>
             </button>
           </div>
@@ -160,6 +177,14 @@
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="display-strip" data-display-strip>
             <div class="rail-pane" data-bodies-pane>
+              <details class="review-section search-replay-section" data-search-section open hidden>
+                <summary>Search history</summary>
+                <div data-search-replay></div>
+              </details>
+              <details class="review-section" data-process-section open hidden>
+                <summary>Process schematic</summary>
+                <div data-process-schematic></div>
+              </details>
               <details class="review-section" open>
                 <summary>Results</summary>
                 <div class="result-controls" data-result-controls></div>
@@ -371,7 +396,14 @@
         </div>
       </footer>
     </main>
-    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
+    <dialog id="process-pid-dialog" class="exchange-dialog process-pid-dialog" data-process-dialog aria-labelledby="process-pid-title">
+      <form method="dialog" class="exchange-head">
+        <h2 id="process-pid-title">P&amp;ID</h2>
+        <button type="submit" aria-label="Close P and ID">Close</button>
+      </form>
+      <div data-process-drawing></div>
+    </dialog>
+    <dialog id="exchange-dialog" class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
       <form method="dialog" class="exchange-head">
         <h2 id="exchange-title">Share &amp; exchange</h2>
         <button type="submit" aria-label="Close exchange">Close</button>
@@ -488,16 +520,20 @@
         <section class="profile-library-preview" data-profiles-preview aria-label="Selected profile" tabindex="0" hidden>
           <h3 data-profiles-name></h3>
           <figure class="profile-figure" data-profiles-figure></figure>
-          <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
-          <p class="exchange-note" data-profiles-source></p>
-          <p class="exchange-note">Derived section properties; torsion estimates are labeled.</p>
-          <form data-profiles-insert-form>
-            <label>Section name <input data-profiles-section-name required></label>
-            <pre class="profile-library-code" data-profiles-code></pre>
-            <button type="submit">Insert into model.py</button>
-          </form>
-          <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
-          <p data-profiles-definition-note class="exchange-note"></p>
+          <div class="profile-library-properties">
+            <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
+            <p class="exchange-note" data-profiles-source></p>
+            <p class="exchange-note">Derived section properties; torsion estimates are labeled.</p>
+          </div>
+          <div class="profile-library-actions">
+            <form data-profiles-insert-form>
+              <label>Section name <input data-profiles-section-name required></label>
+              <pre class="profile-library-code" data-profiles-code></pre>
+              <button type="submit">Insert into model.py</button>
+            </form>
+            <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
+            <p data-profiles-definition-note class="exchange-note"></p>
+          </div>
         </section>
       </div>
     </dialog>

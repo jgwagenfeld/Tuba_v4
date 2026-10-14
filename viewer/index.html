@@ -518,16 +518,20 @@
         <section class="profile-library-preview" data-profiles-preview aria-label="Selected profile" tabindex="0" hidden>
           <h3 data-profiles-name></h3>
           <figure class="profile-figure" data-profiles-figure></figure>
-          <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
-          <p class="exchange-note" data-profiles-source></p>
-          <p class="exchange-note">Derived section properties; torsion estimates are labeled.</p>
-          <form data-profiles-insert-form>
-            <label>Section name <input data-profiles-section-name required></label>
-            <pre class="profile-library-code" data-profiles-code></pre>
-            <button type="submit">Insert into model.py</button>
-          </form>
-          <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
-          <p data-profiles-definition-note class="exchange-note"></p>
+          <div class="profile-library-properties">
+            <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
+            <p class="exchange-note" data-profiles-source></p>
+            <p class="exchange-note">Derived section properties; torsion estimates are labeled.</p>
+          </div>
+          <div class="profile-library-actions">
+            <form data-profiles-insert-form>
+              <label>Section name <input data-profiles-section-name required></label>
+              <pre class="profile-library-code" data-profiles-code></pre>
+              <button type="submit">Insert into model.py</button>
+            </form>
+            <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
+            <p data-profiles-definition-note class="exchange-note"></p>
+          </div>
         </section>
       </div>
     </dialog>

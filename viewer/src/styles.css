@@ -5417,39 +5417,74 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 .select-other button:disabled { opacity: 0.4; }
 [data-pick-open]::after { content: "\203a"; margin-left: auto; }
 
-/* Shared profile drawer: native dialog owns focus, Escape and the backdrop. */
+/* Profile browsing uses the viewport; only the catalog needs routine scrolling.
+   Native dialog keeps focus, Escape and the backdrop consistent in every host. */
 .profile-library {
-  width: min(40rem, calc(100vw - 2rem));
-  height: min(32rem, calc(100dvh - 2rem));
-  max-height: calc(100dvh - 2rem);
+  width: calc(100vw - 3rem);
+  height: calc(100dvh - 3rem);
+  max-width: none;
+  max-height: none;
+  overflow: hidden;
   margin: auto;
-  padding: 1rem;
-  font-size: .875rem;
+  padding: 1.5rem;
+  font-size: 1rem;
+  color-scheme: dark;
 }
-.profile-library[open] { display: flex; flex-direction: column; gap: .5rem; }
-.profile-library .exchange-head h2 { font-size: 1.25rem; }
-.profile-library button { padding: .35rem .55rem; }
+.profile-library[open] { display: flex; flex-direction: column; gap: .75rem; }
+.profile-library > :not(.profile-library-content) { flex-shrink: 0; }
+.profile-library .exchange-head h2 { font-size: 1.5rem; }
+.profile-library button { padding: .5rem .75rem; }
 .profile-library p { margin: 0; }
-.profile-library .exchange-note { font-size: .8rem; }
+.profile-library .exchange-note { font-size: .875rem; }
 .profile-library-tabs { display: flex; gap: .4rem; flex-wrap: wrap; }
 .profile-library-tabs button[aria-pressed="true"], .profile-library-list button[aria-pressed="true"] { border-color: var(--accent); background: var(--graphite-highlight); }
-.profile-library-filters { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) repeat(2, minmax(0, .9fr)); gap: .5rem; }
-.profile-library-filters label { min-width: 0; margin: 0; font-size: .8rem; }
+.profile-library-filters { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.profile-library-filters label { min-width: 0; margin: 0; font-size: .875rem; }
 .profile-library-filters input, .profile-library-filters select { display: block; width: 100%; }
-.profile-library-content { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(11rem, 1fr) minmax(0, 1.5fr); gap: .75rem; }
-.profile-library-list { overflow: auto; display: flex; flex-direction: column; gap: .25rem; }
+.profile-library-content { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr); gap: 1.5rem; }
+.profile-library-list { min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: .25rem; }
 .profile-library-list button { text-align: left; flex-shrink: 0; }
 .profile-library-list small { display: block; color: var(--chrome-text-1); }
-.profile-library-preview { min-width: 0; overflow: auto; }
-.profile-library-preview h3 { margin: 0 0 .25rem; font-size: 1rem; }
-.profile-library-preview .profile-diagram { width: 10rem; }
-.profile-library-preview .property-table { width: 100%; }
+.profile-library-preview {
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas: "name name" "figure properties" "actions properties";
+  align-content: start;
+  align-items: start;
+  gap: 1rem 1.5rem;
+}
+.profile-library-preview h3 { grid-area: name; margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.profile-library-preview .profile-figure { grid-area: figure; margin: 0; }
+.profile-library-preview .profile-diagram { width: min(100%, clamp(12rem, calc(100dvh - 33rem), 20rem)); }
+.profile-library-properties { grid-area: properties; min-width: 0; }
+.profile-library-actions { grid-area: actions; min-width: 0; }
+.profile-library-actions form > label { margin-top: 0; }
+.profile-library-actions input { display: block; width: 100%; }
+.profile-library-preview .property-table { width: 100%; font-size: .875rem; }
+.profile-library-preview .property-table th { width: 46%; }
+.profile-library-preview .property-table td { font-variant-numeric: tabular-nums; }
 .profile-library-preview .exchange-note { margin: .4rem 0; }
-.profile-library-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
-@media (max-width: 600px) {
-  .profile-library { height: min(36rem, calc(100dvh - 2rem)); }
+.profile-library-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; }
+@media (max-height: 850px) {
+  .profile-library { width: calc(100vw - 2rem); height: calc(100dvh - 2rem); padding: 1rem; }
+  .profile-library[open] { gap: .5rem; }
+}
+@media (max-width: 1100px) {
+  .profile-library-content { grid-template-columns: minmax(13rem, .7fr) minmax(0, 1.3fr); }
+  .profile-library-preview { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "name" "figure" "properties" "actions"; }
+  .profile-library-preview .profile-diagram { width: min(100%, 16rem); }
+}
+@media (max-width: 700px) {
+  .profile-library { width: 100vw; height: 100dvh; margin: 0; padding: 1rem; border: 0; }
   .profile-library-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profile-library-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(5rem, .4fr) minmax(0, 1fr); }
+  /* One content scroll on phones, with a bounded catalog above the full detail. */
+  .profile-library-content { display: block; overflow: auto; overscroll-behavior: contain; }
+  .profile-library-list { max-height: 12rem; margin-bottom: 1rem; }
+  .profile-library-preview { overflow: visible; }
 }
 
 .exchange-dialog input:not([type="file"]):not([type="checkbox"]),
