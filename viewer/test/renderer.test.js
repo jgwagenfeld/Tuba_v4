@@ -1091,6 +1091,38 @@ test("live camera fitting performs the initial whole-scene fit only once", () =>
   assert.deepEqual(controls.target.toArray(), [6, 5, 4]);
 });
 
+test("a bounded scene graph cache reuses Build and Review and disposes evicted graphs", () => {
+  const disposed = [];
+  let builds = 0;
+  const cache = rendererModule.createSceneGraphCache(() => ({ id: ++builds }), graph => disposed.push(graph), 2);
+  const build = { geometryAssets: [], objects: [], overlays: [{ id: "case", data: {} }],
+    coloring: { fieldId: null }, bounds: [0, 0, 0, 1, 1, 1] };
+  const review = { ...build, geometryAssets: [], objects: [] };
+  const buildGraph = cache.get(build);
+  const reviewGraph = cache.get(review);
+  const revisit = { ...build, overlays: build.overlays.map(overlay => ({ ...overlay })),
+    coloring: { ...build.coloring }, bounds: [...build.bounds] };
+  assert.equal(cache.get(revisit), buildGraph, "unchanged normalized inputs survive a stage round trip");
+  assert.equal(builds, 2);
+  assert.deepEqual(disposed, []);
+  cache.get({ ...review, geometryAssets: [] });
+  assert.deepEqual(disposed, [reviewGraph], "the least recently used graph releases its GPU resources");
+  cache.clear();
+  assert.equal(disposed.length, 3);
+});
+
+test("retained graphs still rebuild for changed fields, overlay data and missing visible assets", () => {
+  let builds = 0;
+  const cache = rendererModule.createSceneGraphCache(() => ({ id: ++builds }), () => {}, 2);
+  const state = { geometryAssets: [], overlays: [{ id: "case", data: {} }], coloring: { fieldId: "stress" } };
+  const original = cache.get(state);
+  assert.notEqual(cache.get({ ...state, coloring: { fieldId: "displacement" } }), original);
+  assert.notEqual(cache.get({ ...state, overlays: [{ ...state.overlays[0], data: {} }] }), original);
+  const current = cache.get(state);
+  assert.notEqual(cache.get(state, () => false), current, "newly visible, unbuilt assets require a new graph");
+  cache.clear();
+});
+
 test("scene graph cache reuses geometry for selection-only state changes", () => {
   const state = fixtureState();
   const selected = { ...state, selectedObjectIds: ["object:pipe"] };

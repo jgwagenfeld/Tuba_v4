@@ -19,6 +19,7 @@ import {
 import { relatedSelectionIds, selectionRepresentative, resolveEntityObjectId } from "./reviewSelection.js";
 import { meshToggleViewModel, renderMeshReview } from "./meshReview.js";
 import { createStudioMeshClient } from "./studioMesh.js";
+import { createStudioBundleCache } from "./studioBundleCache.js";
 import { deriveBundleSource } from "./bundleSource.js";
 import { elementInputSection, loadCaseDefinitions, renderLoadCaseInputs } from "./loadCaseInputs.js";
 import { contactObjectId, contactStageNav, renderContactReview } from "./contactReview.js";
@@ -393,6 +394,7 @@ globalThis.__tubaViewerBootId = bootId;
 // Studio executes model.py natively; published bundles can preview it in a worker.
 const studio = {
   available: false,
+  connected: false,
   // The script as last run. Line numbers in scene metadata refer to this text.
   ranCode: "",
   diskCode: "",
@@ -423,6 +425,7 @@ const studio = {
   codeTab: null,
   commRequest: 0
 };
+const studioBundles = createStudioBundleCache();
 
 // Set when the Mesh button starts a job: the mesh it asked for is shown as
 // soon as the rebuilt Build scene carries it.
@@ -914,9 +917,19 @@ async function switchBundle(bundleId, catalog) {
 async function loadBundle(bundleUrl, options = {}) {
   stopBrowserPreview();
   const previousProcess = currentState?.process;
-  const nextBundle = await loadSceneBundleFromUrl(bundleUrl);
+  studioBundles.remember(bundleKey(currentBundleUrl), currentBundle, currentState);
+  const load = async () => {
+    const bundle = await loadSceneBundleFromUrl(bundleUrl);
+    const viewerState = withDefaultBodyOpacity(createViewerState(bundle));
+    return { bundle, state: { ...viewerState, ...createWorkflowState({
+      review: viewerState.review, embed: startupConfig.embed
+    }) } };
+  };
+  const next = studio.project
+    ? await studioBundles.load(bundleKey(bundleUrl), load, { reuse: options.reuse && studio.connected })
+    : await load();
   if (options.accept && !options.accept()) return false;
-  currentBundle = nextBundle;
+  currentBundle = next.bundle;
   // A static bundle can show its origin script; a studio owns the live one, so
   // it must not be overwritten by whatever the bundle happens to carry.
   if (studio.project || options.skipSource) {
@@ -924,12 +937,7 @@ async function loadBundle(bundleUrl, options = {}) {
   } else {
     await loadBundleSource(bundleUrl);
   }
-  const viewerState = withDefaultBodyOpacity(createViewerState(currentBundle));
-  const workflowState = createWorkflowState({
-    review: viewerState.review,
-    embed: startupConfig.embed
-  });
-  const nextState = { ...viewerState, ...workflowState };
+  const nextState = { ...next.state };
   nextState.studioProcessCurrent = Boolean(studio.project && bundleKey(bundleUrl) === 'build' &&
     ['passed', 'rejected'].includes(studio.project.process?.status) &&
     studio.project.process.bound_fingerprint === nextState.process?.bound_fingerprint);
@@ -5383,12 +5391,24 @@ function setErrorStatus(error, context = "") {
 
 function connectLivePreview(wsUrl) {
   const socket = new WebSocket(wsUrl, previewProtocols(wsUrl));
-  socket.addEventListener("open", () => setStatus("Live preview connected"));
+  socket.addEventListener("open", () => {
+    // Startup loads precede this subscription; changes in that interval had no
+    // listener and must not turn those snapshots into reusable stages.
+    studioBundles.clear();
+    studio.connected = true;
+    setStatus("Live preview connected");
+  });
   socket.addEventListener("message", (event) => {
     void handleLivePreviewEvent(event.data);
   });
-  socket.addEventListener("error", () => setStatus("Live preview connection failed · reload to reconnect", true));
+  socket.addEventListener("error", () => {
+    studio.connected = false;
+    studioBundles.clear();
+    setStatus("Live preview connection failed · reload to reconnect", true);
+  });
   socket.addEventListener("close", () => {
+    studio.connected = false;
+    studioBundles.clear();
     if (currentState) {
       setStatus("Live preview disconnected · reload to reconnect", true);
     }
@@ -5403,6 +5423,8 @@ async function handleLivePreviewEvent(raw) {
     setStatus("Live preview sent invalid JSON", true);
     return;
   }
+  if (["script_error", "scene_reloaded", "process_finished", "process_failed",
+    "solve_finished", "review_ready", "review_failed"].includes(message.type)) studioBundles.clear();
   // model.py was saved from another editor and failed to run.
   if (message.type === "script_error" || message.type === "scene_reloaded") {
     profileSourceGeneration++;
@@ -6206,7 +6228,8 @@ async function showStudioBundle(mode) {
   const bundle = mode === "review" && studio.hasReview ? "review" : "build";
   if (bundleKey(currentBundleUrl) === bundle) return true;
   try {
-    await loadBundle(bundle, { preserve: true, reviewDefaultColor: bundle === "review" && !reviewOpened && !userChoseColor });
+    await loadBundle(bundle, { preserve: true, reuse: true,
+      reviewDefaultColor: bundle === "review" && !reviewOpened && !userChoseColor });
     currentBundleUrl = bundle;
     const url = new URL(window.location.href);
     url.searchParams.set("bundle", bundle);

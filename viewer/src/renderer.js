@@ -273,36 +273,51 @@ function hasPrescribedBadges(state) {
     (asset.generation_config.imposed_displacement ?? []).some((value) => Number(value) !== 0 && Number.isFinite(Number(value))));
 }
 
-export function createSceneGraphCache(buildGraph, disposeGraph = () => {}) {
-  let currentState = null;
-  let currentGraph = null;
+// Reload preservation recreates small display settings and overlay wrappers.
+// Compare those by value, while large geometry and result data retain their
+// identity: a new solver payload must always build a new graph.
+function sameGraphRecord(a, b, depth = 0) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) &&
+    (a[key] === b[key] || depth > 0 && sameGraphRecord(a[key], b[key], depth - 1)));
+}
+
+const GRAPH_DISPLAY_RECORDS = new Set([
+  "coloring", "legendRanges", "resultVectorScales", "bodyOpacity", "bounds", "sourceMeshObjectIds"
+]);
+
+function sameGraphInput(key, a, b) {
+  if (a === b) return true;
+  if (GRAPH_DISPLAY_RECORDS.has(key)) return sameGraphRecord(a, b, 1);
+  return key === "overlays" && Array.isArray(a) && Array.isArray(b) && a.length === b.length &&
+    a.every((overlay, index) => sameGraphRecord(overlay, b[index]));
+}
+
+export function createSceneGraphCache(buildGraph, disposeGraph = () => {}, capacity = 1) {
+  const entries = [];
   return {
-    get(state) {
-      const visibilityChanged = currentState?.visibleObjectIds !== state?.visibleObjectIds;
-      const deformedReferenceModeChanged =
-        visibilityChanged &&
-        deformedReferenceSignature(currentState) !== deformedReferenceSignature(state);
-      const rebuild =
-        !currentGraph ||
-        deformedReferenceModeChanged ||
-        SCENE_GRAPH_STATE_KEYS.some((key) => currentState?.[key] !== state?.[key]) ||
-        (currentState?.unitSystem !== state?.unitSystem && hasPrescribedBadges(state));
-      if (rebuild) {
-        const previousGraph = currentGraph;
-        currentGraph = buildGraph(state);
-        if (previousGraph) {
-          disposeGraph(previousGraph);
-        }
+    get(state, canReuse = () => true) {
+      const index = entries.findIndex(({ state: previous, graph }) =>
+        SCENE_GRAPH_STATE_KEYS.every(key => sameGraphInput(key, previous?.[key], state?.[key])) &&
+        (previous?.unitSystem === state?.unitSystem || !hasPrescribedBadges(state)) &&
+        (previous?.visibleObjectIds === state?.visibleObjectIds ||
+          deformedReferenceSignature(previous) === deformedReferenceSignature(state)) && canReuse(graph));
+      if (index >= 0) {
+        const [entry] = entries.splice(index, 1);
+        entry.state = state;
+        entries.push(entry);
+        return entry.graph;
       }
-      currentState = state;
-      return currentGraph;
+      const graph = buildGraph(state);
+      entries.push({ state, graph });
+      while (entries.length > Math.max(1, capacity)) disposeGraph(entries.shift().graph);
+      return graph;
     },
     clear() {
-      if (currentGraph) {
-        disposeGraph(currentGraph);
-      }
-      currentState = null;
-      currentGraph = null;
+      for (const { graph } of entries) disposeGraph(graph);
+      entries.length = 0;
     }
   };
 }
@@ -502,7 +517,8 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   for (const target of options.resizeTargets ?? []) resizeObserver?.observe(target);
   const graphCache = createSceneGraphCache(
     (state) => createThreeSceneGraph(state, options),
-    disposeThreeSceneGraph
+    disposeThreeSceneGraph,
+    2
   );
   const cameraFitController = createCameraFitController(camera, controls);
 
@@ -510,11 +526,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     render(state) {
       syncCanvasSize();
 
-      if (currentGraph && !hasAllVisibleAssets(currentGraph, state)) {
-        graphCache.clear();
-        currentGraph = null;
-      }
-      const graph = graphCache.get(state);
+      const graph = graphCache.get(state, candidate => hasAllVisibleAssets(candidate, state));
       applySupportStage(graph, sceneStage(state));
       applyVisualDeformationScale(graph.root, state, { previewOnly: deformationInteractionActive });
       updateSceneGraphVisibility(graph, state);
