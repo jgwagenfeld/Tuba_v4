@@ -4,6 +4,7 @@ import { createColoringState, getActiveField } from "./coloring.js";
 import { contactColoringActive } from "./resultReview.js";
 import { selectedInterfaceMappingIds } from "./interfaceMappings.js";
 import { SCENE_LIMITS, SceneBudgetError, readBoundedJson, validateJsonBudget, validateSceneBudget } from "./sceneBudget.js";
+import { unpackGeometryArrays } from "./geometryTransfer.js";
 
 let parser;
 let nextId = 0;
@@ -20,7 +21,10 @@ function parseJson(bytes, remaining) {
     if (!entry) return;
     pending.delete(data.id);
     if (data.error) entry.reject(new SceneBudgetError(data.error));
-    else entry.resolve({ value: data.value, values: data.values });
+    else {
+      try { entry.resolve({ value: unpackGeometryArrays(data), values: data.values }); }
+      catch (error) { entry.reject(error); }
+    }
   };
   parser.onerror = () => {
     for (const entry of pending.values()) entry.reject(new SceneBudgetError("JSON worker failed."));

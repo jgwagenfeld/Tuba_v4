@@ -89,3 +89,61 @@ was performed. Diagnostic recipes, sizes, browser samples, test logs and hashes
 are retained under `.tmp/frontend-performance-20261014/payload-study/`; full scene
 variants stayed in memory. The previously retained 1,376,987-byte build-check
 directory was deleted after user approval and file-by-file hash verification.
+
+## Follow-up: share arrays across the worker boundary
+
+The parser worker now interns equal numeric geometry arrays and transfers their
+unique numbers in one Float64 buffer. The UI restores ordinary arrays and shares
+equal source arrays. Published JSON, geometry hashes and renderer inputs retain
+their existing format, so this also benefits existing bundles. It does not yet
+reduce the 14.88 MB compact scene's network bytes; a public reference encoding
+would require coordinating the older consumers of that scene contract.
+
+The retained review's 3,595 eligible array occurrences become 1,229 unique arrays
+in a 2,194,200-byte transferable buffer. Array dimensions, Float64 precision and
+signed zeros survive the worker boundary. Irregular or nonnumeric arrays retain
+the existing structured-clone path. The worker validates the original expanded
+document and reports its original value count before sharing anything; compact
+storage does not reduce receiving quotas or per-asset rendering costs.
+
+The final paired browser comparison used the same compact scene bytes for both
+variants. A read-only proxy substituted the pre-change worker for the baseline;
+the new loader accepts that original reply too. Six trials used the order
+`baseline, new, new, baseline, baseline, new`, fresh browser contexts, the same
+1440 by 900 viewport, and the same running backend. Each trial also exercised
+both stage caches, then measured the main JavaScript heap after garbage
+collection. The diagnostic browser and temporary proxy were closed afterward.
+
+| Median, three trials per variant | Previous worker | Shared arrays |
+| --- | ---: | ---: |
+| Scene worker reply, before UI array restoration | 711 ms | 597 ms |
+| Page ready through the next painted frame | 8,089 ms | 7,029 ms |
+| Main JavaScript heap after loading both cached stages | 87.50 MB | 75.52 MB |
+| Warm Build switch | 416 ms | 416 ms |
+| Warm Review switch | 567 ms | 583 ms |
+
+This is a local development-server sample, not a general latency guarantee.
+Startup fell about 13% and retained JavaScript heap fell about 12 MB. Warm tab
+switching remains around 0.4/0.6 seconds, with no demonstrated improvement from
+this change. Scene/result summaries matched across all trials; there were no
+browser/worker errors or API writes, and the authored source and retained scene
+file remained unchanged. Existing Code_Aster artifacts were reused.
+
+The regression runs the production worker across an actual structured-clone and
+transfer boundary. Other checks cover precision, signed zeros, skipped arrays,
+expanded quotas, geometry costs and deformation isolation: changing one graph
+leaves shared source values and another graph unchanged. Review caught a
+quadratic signed-zero fingerprint collision; sign positions now distinguish
+those keys, with a deterministic comparison-count regression. Per-row iterator
+allocation and oversized small arrays were also ruled out during measurement.
+
+Final checks and file hashes are retained in
+`.tmp/frontend-performance-20261014/worker-sharing/`. The source preview uses
+the updated worker. All 863 viewer tests passed, as did frontend-only production
+compilation and a browser smoke check of that compiled viewer, including stage
+switches and the transferred buffer. A final real-scene worker check compared
+every restored value and geometry budget total with the original input.
+The packaged viewer and browser Python runtime were not
+rebuilt; frontend-only production compilation checks the new worker bundle
+without regenerating those unrelated payloads. No solver execution or remote
+push was performed in this follow-up.
