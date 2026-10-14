@@ -91,9 +91,11 @@ def write_scene_bundle(
     _write_json(metadata_dir / "overlays.json", scene_payload["overlays"])
     _write_json(metadata_dir / "issues.json", scene_payload["issues"])
     _write_json(metadata_dir / "route_reviews.json", scene_payload["route_reviews"])
-    _write_json(geometry_dir / "geometry_assets.json", scene_payload["geometry_assets"])
+    # These manifests carry dense numerical arrays. Whitespace changes neither
+    # their parsed values nor the canonical per-asset content hashes.
+    _write_json(geometry_dir / "geometry_assets.json", scene_payload["geometry_assets"], compact=True)
     # Publish scene.json last so live viewers do not reload a half-written bundle.
-    _write_json(root / "scene.json", scene_payload)
+    _write_json(root / "scene.json", scene_payload, compact=True)
     # Remove only files declared by the previous export, after publishing the
     # replacement. Never glob-delete geometry supplied by another producer.
     retained = {asset["uri"] for asset in scene_payload["geometry_assets"]}

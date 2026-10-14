@@ -6,7 +6,6 @@ import shutil
 from contextlib import contextmanager
 import hashlib
 import json
-import os
 import re
 import tempfile
 import threading
@@ -947,9 +946,9 @@ class ProjectStudioServer(PreviewServer):
                 asset["generation_config"] = _manifest_generation_config(asset)
                 asset["hash"] = "sha256:" + "0" * 64
             size = 0
-            for chunk in json.JSONEncoder(indent=2, sort_keys=True, allow_nan=False).iterencode(payload):
-                # write_scene_bundle writes text; Windows expands LF to CRLF.
-                size += len(chunk.encode("utf-8")) + (chunk.count("\n") if os.name == "nt" else 0)
+            for chunk in json.JSONEncoder(separators=(",", ":"), sort_keys=True, allow_nan=False).iterencode(payload):
+                # Match the compact manifest emitted by write_scene_bundle.
+                size += len(chunk.encode("utf-8"))
                 if size > MAX_REFERENCE_SCENE_BYTES:
                     raise ValueError("IFC merged scene JSON exceeds the 64 MiB receiving limit before publication.")
 

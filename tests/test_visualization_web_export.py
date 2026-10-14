@@ -66,6 +66,20 @@ class TestVisualizationWebExport(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "hash does not match"):
                 _validate_geometry(bundle.root, scene_payload)
 
+    def test_large_manifests_are_compact_with_unchanged_geometry_and_hashes(self):
+        scene = self._scene()
+        with TemporaryDirectory() as tmpdir:
+            bundle = write_scene_bundle(scene, tmpdir)
+            for path in [bundle.scene_path, bundle.geometry_dir / "geometry_assets.json"]:
+                raw = path.read_bytes()
+                payload = json.loads(raw)
+                expected = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                self.assertEqual(raw, expected, "machine-consumed manifests should not transfer indentation")
+            payload = json.loads(bundle.scene_path.read_bytes())
+            self.assertEqual(payload["geometry_assets"][0]["generation_config"], scene.geometry_assets[0].generation_config)
+            from scripts.build_pages import _validate_geometry
+            _validate_geometry(bundle.root, payload)
+
     def test_reexport_removes_only_previous_exported_geometry_files(self):
         scene = self._scene()
         with TemporaryDirectory() as tmpdir:

@@ -1,4 +1,5 @@
 """Custom review builders must pass the same current-study evidence gate."""
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -35,3 +36,23 @@ def test_retained_ifc_scene_serialized_quota_blocks_publication(tmp_path, monkey
     monkeypatch.setattr("tuba.visualization.preview.server.MAX_REFERENCE_SCENE_BYTES", 32)
     with pytest.raises(ValueError, match="before publication"):
         server._merge_ifc_references(VisualizationScene(scene_id="scene", model_id="model"))
+
+
+def test_ifc_scene_quota_counts_the_compact_published_bytes(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "model.py").write_text("from tuba import Model\nmodel=Model('Quota')\n")
+    server = ProjectStudioServer(project, tmp_path / "out", port=0)
+    monkeypatch.setattr(server, "_ifc_manifests", lambda: [
+        ("reference", {"preview": {"name": "Reference", "products": []}, "meshes": {}})
+    ])
+    def scene():
+        return VisualizationScene(scene_id="scene with spaces, \u00b5 and\na newline", model_id="model")
+    observed = scene()
+    server._merge_ifc_references(observed)
+    size = len(json.dumps(observed.to_dict(), sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8"))
+    monkeypatch.setattr("tuba.visualization.preview.server.MAX_REFERENCE_SCENE_BYTES", size)
+    server._merge_ifc_references(scene())
+    monkeypatch.setattr("tuba.visualization.preview.server.MAX_REFERENCE_SCENE_BYTES", size - 1)
+    with pytest.raises(ValueError, match="before publication"):
+        server._merge_ifc_references(scene())
