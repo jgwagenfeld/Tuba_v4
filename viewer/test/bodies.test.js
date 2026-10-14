@@ -936,6 +936,21 @@ test("the body row says which section the panel is showing", () => {
   );
 });
 
+test("the unpinned body row does not build node sections just to name the run-wide view", () => {
+  const state = nodeFieldState({ subpointMode: "measured" });
+  let nodeReads = 0;
+  const config = state.geometryPayloads[0].generation_config;
+  config.node_ids = new Proxy(config.node_ids, {
+    get(target, key, receiver) {
+      if (/^\d+$/.test(String(key))) nodeReads++;
+      return Reflect.get(target, key, receiver);
+    }
+  });
+  const metrics = getBodies(state).find(body => body.id === "subpoints").metrics;
+  assert.ok(metrics.includes("wall panel: worst station across the run"));
+  assert.equal(nodeReads, 0, "the run-wide label does not need a section index");
+});
+
 // The chips used to read "Peak" / "Measured" and "top 80%" - the last one
 // inverted, since the cut keeps values at or above 80% of the range top.
 test("sub-point chips say what they draw", () => {

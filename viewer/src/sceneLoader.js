@@ -277,28 +277,36 @@ export function applyResultFieldPreset(state) {
     }
   }
   for (const layerId of INTERFACE_MARKER_LAYERS) others.add(layerId);
-  let next = state;
+  const visibility = Object.create(null);
   for (const layerId of new Set([...own, ...others])) {
     const layer = state.layers?.[layerId];
     if (!layer) continue;
     const supportReaction = state.supportReactionPresentation &&
       ['result:reaction_force', 'result:reaction_moment'].includes(layerId);
     const visible = supportReaction || (layer.defaultVisible !== false && (!results || own.has(layerId)));
-    if (layer.visible !== visible) next = setLayerVisibility(next, layerId, visible);
+    if (layer.visible !== visible) visibility[layerId] = visible;
   }
-  return next;
+  return Object.keys(visibility).length ? setLayerVisibilities(state, visibility) : state;
 }
 
 export function setLayerVisibility(state, layerId, visible) {
-  const layers = {
-    ...state.layers,
-    [layerId]: { ...state.layers[layerId], visible }
-  };
+  return setLayerVisibilities(state, { [layerId]: visible });
+}
+
+// Stage presets and resets change many layers together. Resolve overlay ownership
+// and object visibility only after the final layer flags have been applied.
+export function setLayerVisibilities(state, visibility) {
+  const layers = { ...state.layers, ...Object.fromEntries(Object.entries(visibility).map(([layerId, visible]) =>
+    [layerId, { ...state.layers[layerId], visible }])) };
+  const overlayVisibility = new Map();
+  for (const [layerId, visible] of Object.entries(visibility)) {
+    const layer = state.layers[layerId];
+    if (layer?.source === "overlay") overlayVisibility.set(layer.overlayKind, visible);
+  }
   let overlays = state.overlays;
-  const layer = layers[layerId];
-  if (layer?.source === "overlay") {
+  if (overlayVisibility.size) {
     overlays = state.overlays.map((overlay) =>
-      overlay.kind === layer.overlayKind ? { ...overlay, visible } : overlay
+      overlayVisibility.has(overlay.kind) ? { ...overlay, visible: overlayVisibility.get(overlay.kind) } : overlay
     );
   }
   const next = {
@@ -351,6 +359,10 @@ export function mergeBounds(boundsList) {
 
 function overlayHiddenObjectIds(state) {
   const ids = new Set();
+  const objectsById = new Map();
+  for (const object of state.objects) {
+    if (!objectsById.has(object.id)) objectsById.set(object.id, object);
+  }
   const overlayOwnedKinds = new Set([
     "physical_envelope",
     "clash_marker",
@@ -364,7 +376,7 @@ function overlayHiddenObjectIds(state) {
       continue;
     }
     for (const objectId of overlay.object_ids ?? []) {
-      const obj = state.objects.find((candidate) => candidate.id === objectId);
+      const obj = objectsById.get(objectId);
       if (obj && overlayOwnedKinds.has(obj.kind)) {
         ids.add(objectId);
       }
@@ -589,15 +601,15 @@ function isMetadataLayer(layer) {
 export function applyStageVisibilityPreset(state, stageId) {
   const preset = visibilityPresetForStage(stageId);
   if (!preset) return state;
-  let next = state;
+  const visibility = Object.create(null);
   for (const category of categorizeLayers(state.layers)) {
     if (!(category.id in preset)) continue;
     const visible = preset[category.id];
     for (const layerId of category.layerIds) {
-      next = setLayerVisibility(next, layerId, visible && state.layers[layerId]?.defaultVisible !== false);
+      visibility[layerId] = visible && state.layers[layerId]?.defaultVisible !== false;
     }
   }
-  return next;
+  return setLayerVisibilities(state, visibility);
 }
 
 // Code_Aster names its mesh groups by kind: SEC_ a section, MAT_ a material,

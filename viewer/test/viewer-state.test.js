@@ -104,6 +104,20 @@ test("layer toggles hide objects without mutating source scene objects", () => {
   assert.equal(state.objects[1].layer_ids[0], "deformed:visual_centerline");
 });
 
+test("resetting many layers resolves final visibility in one scene scan", () => {
+  const state = createViewerState(bundle());
+  let scans = 0;
+  state.objects = new Proxy(state.objects, {
+    get(target, key, receiver) {
+      if (key === "filter") scans++;
+      return Reflect.get(target, key, receiver);
+    }
+  });
+  const next = reduceViewerState(state, { type: "resetLayerVisibility" });
+  assert.deepEqual(next.visibleObjectIds, ["object:cold", "object:deformed", "object:clash"]);
+  assert.equal(scans, 1);
+});
+
 test("overlay kind layers hide overlay-owned marker objects independently", () => {
   const state = createViewerState(bundle());
   const next = setLayerVisibility(state, "overlay:clash", false);

@@ -1,4 +1,4 @@
-import { applyResultFieldPreset, applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+import { applyResultFieldPreset, applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility, setLayerVisibilities } from "./sceneLoader.js";
 import {
   cycleBodyOpacity,
   cycleSubpointMode,
@@ -141,16 +141,15 @@ export function reduceViewerState(state, action) {
       //
       // Only Build has a preset; entering Review applies none, so the review is
       // drawn as the bundle declared it.
-      return withVisibility(applyStageVisibilityPreset({ ...state, stage: action.stage }, action.stage));
+      const next = applyStageVisibilityPreset({ ...state, stage: action.stage }, action.stage);
+      return action.stage === "build" ? next : withVisibility(next);
     }
     case "resetLayerVisibility": {
       // Back from Build: every layer returns to what the bundle declared, so the
       // review the reader opened is the review they come back to.
-      let declared = state;
-      for (const layer of Object.values(state.layers ?? {})) {
-        declared = setLayerVisibility(declared, layer.id, layer.defaultVisible !== false);
-      }
-      return withVisibility(applyResultFieldPreset(declared));
+      const visibility = Object.fromEntries(Object.values(state.layers ?? {}).map(layer =>
+        [layer.id, layer.defaultVisible !== false]));
+      return applyResultFieldPreset(setLayerVisibilities(state, visibility));
     }
     case "setContactNeutral":
       return withVisibility({ ...state, contactNeutral: action.neutral });

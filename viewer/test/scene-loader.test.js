@@ -15,6 +15,64 @@ import {
   applyStageVisibilityPreset
 } from "../src/sceneLoader.js";
 
+test("stage presets compute visibility once after all layer changes", () => {
+  let scans = 0;
+  const objects = new Proxy([{ id: "pipe", kind: "pipe", layer_ids: ["design"] }], {
+    get(target, key, receiver) {
+      if (key === "filter") scans++;
+      return Reflect.get(target, key, receiver);
+    }
+  });
+  const state = { objects, overlays: [], geometryAssets: [], layers: {
+    design: { id: "design", category: "design", defaultVisible: true, visible: false },
+    mesh: { id: "mesh", category: "analysis_mesh", defaultVisible: false, visible: false },
+    results: { id: "results", category: "results", defaultVisible: true, visible: true },
+    labels: { id: "labels", category: "annotations", defaultVisible: true, visible: true }
+  }, stage: "build" };
+  const next = applyStageVisibilityPreset(state, "build");
+  assert.deepEqual(next.visibleObjectIds, ["pipe"]);
+  assert.equal(next.layers.mesh.visible, false);
+  assert.equal(next.layers.results.visible, false);
+  assert.equal(next.layers.labels.visible, false);
+  assert.equal(scans, 1, "scan the scene once rather than once for every layer");
+  assert.equal(state.layers.design.visible, false, "leave the source state untouched");
+});
+
+test("hidden overlays use one object index rather than searching for every owned id", () => {
+  let searches = 0;
+  const objects = new Proxy([{ id: "reaction", kind: "reaction_vector", layer_ids: [] }], {
+    get(target, key, receiver) {
+      if (key === "find") searches++;
+      return Reflect.get(target, key, receiver);
+    }
+  });
+  const state = { objects, overlays: [{ id: "reaction", visible: false, object_ids: ["reaction", "missing"] }],
+    layers: {}, geometryAssets: [] };
+  assert.deepEqual(sceneLoaderModule.getVisibleObjectIds(state), []);
+  assert.equal(searches, 0, "hidden overlay ownership does not perform a scene search per id");
+});
+
+test("batched layer changes keep overlay-kind ordering, owned markers and literal layer ids", () => {
+  const state = {
+    objects: [{ id: "pipe", kind: "pipe", layer_ids: [] },
+      { id: "reaction", kind: "reaction_vector", layer_ids: [] }],
+    geometryAssets: [], layers: {
+      first: { id: "first", source: "overlay", overlayKind: "solver_result", visible: true },
+      last: { id: "last", source: "overlay", overlayKind: "solver_result", visible: true },
+      ["__proto__"]: { id: "__proto__", visible: true }
+    }, overlays: [{ id: "result", kind: "solver_result", visible: true, object_ids: ["pipe", "reaction"] }]
+  };
+  const visibility = { first: true, last: false, ["__proto__"]: false };
+  const next = sceneLoaderModule.setLayerVisibilities(state, visibility);
+  assert.equal(next.overlays[0].visible, false, "last toggle for a shared overlay kind wins");
+  assert.deepEqual(next.visibleObjectIds, ["pipe"], "an overlay hides its result marks, not the authored pipe");
+  assert.equal(Object.hasOwn(next.layers, "__proto__"), true);
+  assert.equal(next.layers["__proto__"].visible, false);
+  assert.equal(Object.getPrototypeOf(next.layers), Object.prototype);
+  assert.equal(state.overlays[0].visible, true);
+  assert.deepEqual(sceneLoaderModule.setLayerVisibilities(next, { last: true }).visibleObjectIds, ["pipe", "reaction"]);
+});
+
 test("startup falls back to the first available bundle when the preferred review is absent", () => {
   assert.equal(typeof sceneLoaderModule.resolveBundleId, "function");
   assert.equal(

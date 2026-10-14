@@ -937,12 +937,14 @@ function subpointMetrics(state) {
   // node's grid, and a reader who has pinned it to a node needs to be able to
   // tell from the body row which they are looking at.
   const selected = subpointNodeId(state);
+  if (selected === SUBPOINT_NODE_ANY) {
+    metrics.push("wall panel: worst station across the run");
+    return metrics;
+  }
   const stations = getSubpointStationsForSelection(state);
   const bases = subpointNodeBase(state);
   const label = subpointNodeLabel(selected, { bases, ambiguous: ambiguousSubpointNodeKeys(state) });
-  if (selected === SUBPOINT_NODE_ANY) {
-    metrics.push("wall panel: worst station across the run");
-  } else if (stations.length === 0) {
+  if (stations.length === 0) {
     // Pinned to a section the field says nothing about. Falling through to the
     // envelope line here would have the panel claiming to be the run-wide worst
     // while the selector above it says otherwise.
