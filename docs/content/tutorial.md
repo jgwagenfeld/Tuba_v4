@@ -3,7 +3,7 @@
 This tutorial builds a pipe model, runs Code_Aster, and displays the imported results:
 
 ```text
-model -> validate -> export -> Code_Aster solve -> import -> processed result review
+model -> verify -> export -> Code_Aster solve -> import -> processed result review
 ```
 
 The exported study files are a handoff. A `.comm`, `.mail`, or `.export` file does not prove that Code_Aster ran or that any stress, displacement, reaction, or compliance result exists.
@@ -68,14 +68,16 @@ with model.pipe(section="DN100", material="Steel") as pipe:
     pipe.run(3.0)
     pipe.end(support="anchor")
 
-model.define_load_case(
+model.define_operation(
     "Operating",
     gravity=True,
     pressure=1.5e6,
     temperature=150.0,
     ref_temperature=20.0,
 )
-model.validate()
+verification = model.verify()
+if not verification.passed:
+    raise RuntimeError("\n".join(verification.errors))
 
 solver = CodeAsterSolver(work_dir=str(work_dir))
 study = solver.export_analysis_study(model, "Operating", work_dir)
@@ -133,9 +135,22 @@ Selecting a support highlights its defining call in the displayed `model.py`
 when source metadata is available. The **Defined by** entry and restraint link
 use the support definition, including `pipe.end(support="anchor")`.
 
-The browser rail is one column of sections, not a set of tabs; see [visualization architecture](architecture/visualization.md) for what each holds. What colours the scene - a model property or a solver field - is chosen from the pinned **Colour by** control, above the result refinements, the layer list, and the issue list. The review's tables live in the generated report that the header links to.
+In **Review**, choose a model property or solver field with **Colour by** in
+the left rail. Its refinements select the case, result component, thresholds
+and deformation. The viewport legend states the units and result basis.
 
-Those controls live in three places, not in a section of their own. Load-case and result-component selection, and physical or visual deformation, are with the result refinements. Camera presets and zoom sit on the viewport itself, beside the orientation gizmo. Cutting the model open is **Display → Cut view**: *Off*, *Around selection* (a box fitted to the selection plus 10 %), or *Custom* (one two-handle range per axis; click a readout to type an exact value). Right-click a selection and choose **Cut view around selection** for the same box. The box clips geometry that crosses it, and hides objects that lie wholly outside it.
+Use **Display** over the viewport for geometry, mesh, sub-points, supports,
+loads, vectors and layer visibility. **Display → Cut view** offers *Off*,
+*Around selection* (a box fitted to the selection plus 10 %) and *Custom*
+(one two-handle range per axis; click a readout to type an exact value).
+Right-click and choose **Cut view around selection** for the same box. It clips
+geometry that crosses it and hides objects wholly outside it.
+
+Open **Tables & issues** below the viewport for support reactions, hotspots,
+issues and diagnostics. **Report** opens the generated printable tables.
+Camera presets and zoom are on the viewport; **Help** lists the workflow and
+shortcuts, including `B` for Build and `R` for Review. See
+[visualization architecture](architecture/visualization.md) for the display contract.
 
 [Open the Code_Aster review scene](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
 
@@ -163,13 +178,10 @@ The tutorial is complete only when Code_Aster has produced result artifacts and 
 
 ## The notebooks
 
-There were fourteen. Twelve taught what this page, [Modeling](modeling.md),
-[Autorouting](autorouting.md) and the [Examples](examples.md) gallery already
-teach better - several by hand-copying a gallery model and reading that
-gallery's own evidence, so one geometry change had to be chased through three
-copies. Two remain, because nothing else in the repository runs what they run.
-
-The shared environment includes the notebook dependencies.
+Two notebooks cover export and exchange workflows. Model authoring and ordinary
+result review are covered by this tutorial, [Modeling](modeling.md),
+[Autorouting](autorouting.md) and the [Examples](examples.md) gallery. The shared
+environment includes the notebook dependencies.
 
 | Notebook | What it runs that nothing else does |
 | --- | --- |

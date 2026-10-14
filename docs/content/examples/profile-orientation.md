@@ -1,6 +1,6 @@
 # Profile orientation: the same force at 0, 45 and 90 degrees
 
-[Open the solved comparison](../../gallery/profile-orientation-review/index.html)
+[Open the solved comparison](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
 
 One model contains three disconnected, identical 3 m IPE100 cantilevers with
 0, 45 and 90 degree section roll. All roots are anchored. Gravity is disabled;

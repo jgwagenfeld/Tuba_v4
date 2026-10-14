@@ -1,6 +1,6 @@
 [project]
 site_name = "Tuba v4"
-site_description = "Code_Aster-backed piping engineering and result review"
+site_description = "Python modeling of piping and supporting structures, Code_Aster analysis and result review"
 site_url = "https://jgwagenfeld.github.io/Tuba_v4/"
 repo_url = "https://github.com/jgwagenfeld/Tuba_v4"
 docs_dir = "docs/content"
@@ -18,6 +18,8 @@ nav = [
     { "Workflow" = "workflow.md" },
     { "Share a project" = "project-sharing.md" },
     { "Autorouting" = "autorouting.md" },
+    { "Retained piping search" = "piping-search.md" },
+    { "Process networks and P&ID" = "process-networks.md" },
     { "Examples" = "examples.md" },
     { "Developer" = "developer.md" },
     { "Reference" = [

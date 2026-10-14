@@ -10,7 +10,7 @@ The model is `examples/native-friction-review/model.py`; the load path, solver s
 python -m tuba.cli_studio examples/native-friction-review
 ```
 
-Build shows `model.py` beside the scene. Solve reuses the committed evidence while it still matches the model, and runs Code_Aster once an edit changes the solver input. In Review, use Controls and Results to step through the shared converged history. The scene labels identify **Without friction - mu = 0** and **With friction - mu = 0.3**.
+Build shows `model.py` beside the scene. Solve reuses the committed evidence while it still matches the model, and runs Code_Aster once an edit changes the solver input. In Review, use **Colour by** to select a field and **Load path** to step through the shared converged history. **Display** controls the drawn geometry and vectors; **Tables & issues** contains the contact tables and findings. The scene labels identify **Without friction - mu = 0** and **With friction - mu = 0.3**.
 
 A load path is a sequence, so the review reads as one. **Load path** offers the stages - `Reference`, `Cold`, `Hot`, `Cold`, `Lift`, `Reseat` - and each jumps to the converged increment that stage ended on, with a chip marking the stages where a shoe moved. The contact panel opens with a sentence per event in load-path order (which shoe slid, from which stage through which; which lifted clear and by how much; which reversed; which reseated), then the per-shoe table, where a column per stage lets a shoe's whole cycle be read across one row. A stage column reports what the shoe did *anywhere* in that stage, not what it ended on, so a shoe that slid for nine of ten increments and re-stuck does not read as stuck. Selecting a shoe plots its force against travel with the Coulomb envelope.
 

@@ -1,6 +1,10 @@
 # Examples
 
-Follow the piping workflow: author Python, solve with Code_Aster, then inspect the processed results. The first eight examples form a learning path; the later studies cover specialized applications.
+Author piping and supporting structures in Python, solve with Code_Aster, then
+inspect the processed results. The [home page](index.md#examples) and README
+feature larger plant/rack layouts and structural studies. The sequence below
+starts with individual modeling and result-review concepts; later examples
+cover specialized applications.
 
 [Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
@@ -138,12 +142,10 @@ activated environment, replacing `<name>` with its filename without `.py`:
 python -m examples.<name>
 ```
 
-Tuba-owned benchmark and review outputs default to `.build/`. When no Tuba
-command is running, remove all ignored Tuba build output with:
-
-```powershell
-git clean -fdX -- .build
-```
+Tuba-owned benchmark and review outputs default to `.build/`. Keep generated
+output out of source control. After a run finishes, remove only its owned
+output directory when it is no longer needed; preserve active jobs, authored
+projects, retained failure evidence and unrelated build output.
 
 Committed Code_Aster evidence is never a cleanup target: each solved gallery
 project keeps its own under `examples/<project>/evidence/<operation>/`. One
@@ -236,6 +238,22 @@ python -m examples.autoroute_expansion_loop
 Default outputs under `.build/routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
 
 See [Autorouting](autorouting.md) for the request fields, grid behavior, solver-loop options, U-loop limit, and acceptance boundary.
+
+## Process networks and retained search
+
+These are local authored workflows, separate from the published gallery:
+
+- [`examples/process_network`](https://github.com/jgwagenfeld/Tuba_v4/tree/main/examples/process_network)
+  binds a typed water circuit to a parametric route, evaluates pandapipes,
+  and maps passing hydraulic evidence into Code_Aster. Studio shows the linked
+  P&ID and retains hydraulic rejection without inventing structural results.
+  Follow [Process networks](process-networks.md) for installation and execution.
+- [`examples/piping-search`](https://github.com/jgwagenfeld/Tuba_v4/tree/main/examples/piping-search)
+  evaluates a bounded hot-line parameter grid with Code_Aster, retaining
+  rejected layouts and accepted alternatives. Follow
+  [Retained piping search](piping-search.md) to run, inspect and export reviews,
+  replay and film. Replays and films display retained evidence; they do not
+  qualify a new layout or perform a new solve.
 
 ## Local postprocessing
 

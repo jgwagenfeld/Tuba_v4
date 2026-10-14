@@ -1,12 +1,16 @@
-# Tuba Piping Engineering
+# Tuba v4 engineering workflow
 
-Tuba is a Python-first, pipe-native engineering context for piping and stress engineers who define piping systems, evaluate them with Code_Aster, and review traceable results.
+Tuba is an open-source Python library for modeling piping systems and their
+supporting structures, running Code_Aster analyses, and reviewing the results.
+Studio, CLI and MCP use the same authored project files. Ongoing development
+aims to automate parts of model building.
 
 ## Language
 
 **Authoring engineer**:
-The primary Tuba user: a Python-capable piping or stress engineer with access to a Code_Aster runtime.
-_Avoid_: General FEA user, non-technical reviewer
+The primary Tuba user: a Python-capable engineer authoring piping or supporting
+structures, with access to a Code_Aster runtime for new analyses.
+_Avoid_: Treating a review consumer as the model author
 
 **Core Tuba workflow**:
 The complete path from a validated piping model through Code_Aster evaluation to traceable engineering review.

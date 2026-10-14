@@ -7,36 +7,42 @@ separate authored inputs connected by stable route and component IDs. The graph
 also supplies a P&ID with declared equipment and instruments, linked to the same
 route and results.
 
-```mermaid
-flowchart LR
-    P[Process graph and operating requirements] --> B[Bind to authored Tuba routes]
-    P --> D[P&ID with declared equipment and instruments]
-    G[3D geometry and pipe sections] --> B
-    B --> M[pandapipes steady flow]
-    M --> C{Velocity, delivery and pressure checks}
-    C -->|Fail| R[Retained reasons and fluid fields]
-    C -->|Pass| L[Verified operating load mapping]
-    L --> A[Code_Aster]
-    A --> R
-    D --> R
-```
+| Stage | Output |
+| --- | --- |
+| Author process graph, requirements and mechanical route | Stable associations between circuit components and physical pipe geometry |
+| Declare equipment and instruments | Linked P&ID from the same graph |
+| Bind and run pandapipes | Steady hydraulic results with velocity, delivery and pressure checks |
+| Hydraulic checks fail | Retained fluid fields and failure reasons; structural results remain unevaluated |
+| Hydraulic checks pass | Verified operating loads mapped onto a mechanical model copy |
+| Run Code_Aster and import artifacts | Structural results reviewed alongside the hydraulic evidence and P&ID |
 
 ## Open the authored project in Studio
 
-The [authored model](../../examples/process_network/model.py) and
-[study](../../examples/process_network/study.py) form an ordinary Studio
+The [authored model](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/process_network/model.py) and
+[study](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/process_network/study.py) form an ordinary Studio
 project. Install the optional `process` dependency in the same Python
 environment as Tuba and configure the existing Code_Aster runtime as described
-in [Setup](setup.md). From the checkout:
+in [Setup](setup.md). In the recommended shared Linux/WSL environment, from the
+checkout:
 
-```powershell
+```bash
+conda activate tuba
 python -m pip install '.[process]'
 python -m tuba.solver.code_aster_doctor --check
+python -m tuba.cli_studio examples/process_network \
+  --out "$HOME/tuba-runs/my-process-studio"
+```
+
+For the separate Windows Tuba/WSL solver setup, use that Tuba environment
+instead. With its dependencies installed and runtime selected, launch from
+PowerShell:
+
+```powershell
 python -m tuba.cli_studio examples/process_network `
   --out 'D:\tuba-runs\Tuba_v4\my-process-studio'
 ```
 
-Keep the output outside the checkout. For a separate working project, copy
+Keep the output outside tracked source. For a separate working project, copy
 only `model.py` and `study.py` to a new folder and launch that folder with the
 same command. These two source files depend only on installed Tuba; they need
 no import from the checkout's `examples` package. Solver evidence belongs to
@@ -74,12 +80,12 @@ global is a `BoundProcessNetwork`; its scenario ID matches the study's single
 `TUYAU_3M` and
 `WALL_TEMPERATURE_MODEL = "bulk-fluid-equals-wall-steady"`. This is a
 caller-declared steady approximation, not a pipe-wall heat-transfer solve.
-The [Studio integration plan](../architecture/studio-process-integration.md)
+The [Studio integration plan](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/studio-process-integration.md)
 records the lifecycle and acceptance checks.
 
 ## Run the retained-candidate campaign
 
-The [authored model](../../examples/process_network/model.py) starts with no
+The [authored model](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/process_network/model.py) starts with no
 external P&ID file. It defines a mass-flow source, an offset pipe, a downstream
 restriction and a pressure sink. Explicit P&ID declarations identify the
 boundaries as tanks and the restriction as a control valve at an illustrative
@@ -88,19 +94,17 @@ response are not simulated. The valve is outside the mechanical pipe's outlet
 anchor; its body mass, stiffness and equipment loads are outside this structural
 study.
 
-```powershell
-python -m pip install '.[process]'
-$env:TUBA_CODE_ASTER_EXEC_METHOD = 'wsl'
-$env:TUBA_CODE_ASTER_WSL_DISTRO = 'Ubuntu'
-python -m examples.process_network.run `
-  --output 'D:\tuba-runs\Tuba_v4\my-process-study'
+```bash
+python -m examples.process_network.run \
+  --output "$HOME/tuba-runs/my-process-study"
 ```
 
+Run this from the checkout in the activated, configured environment above.
 Use a new output directory outside the checkout. The `process` extra installs
 the pinned pandapipes Python dependency; a packaged application can include it.
 No external hydraulic compiler or OpenModelica installation is required.
-Code_Aster uses Tuba's existing runtime configuration; the WSL distribution
-above is a local installation choice.
+Code_Aster uses Tuba's existing runtime configuration. The Windows developer
+alternative selects its WSL runtime as described in [Setup](setup.md).
 
 For the optional OpenModelica comparison, pass `--backend openmodelica`. It
 requires an installed compiler and MSL 4.1.0. `--omc PATH`, `TUBA_OMC` and PATH
@@ -115,8 +119,8 @@ measured fluid results and leaves structural checks unevaluated.
 
 Open `replay/search_replay.json` with Tuba's existing search viewer:
 
-```powershell
-python -m tuba.visualization.viewer 'D:\tuba-runs\Tuba_v4\my-process-study\replay'
+```bash
+python -m tuba.visualization.viewer "$HOME/tuba-runs/my-process-study/replay" --open
 ```
 
 The review offers fluid velocity, mean absolute pressure, element pressure drop
@@ -213,13 +217,13 @@ This reuses the archived solver evidence; it is not a new hydraulic or
 Code_Aster evaluation. P&ID declarations participate in the bound input
 fingerprint: authoring or changing them requires a new candidate, rather than
 adding tags to a sealed old run. New geometry or operating inputs also require
-new solves. See the [review vision](../architecture/process-model-review-study.md)
-and [implementation plan](../architecture/process-pid-implementation-plan.md).
+new solves. See the [review vision](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/process-model-review-study.md)
+and [implementation plan](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/process-pid-implementation-plan.md).
 
 ## Import one real P&ID connection
 
 The optional adapter reads **DEXPI XML 2.0.1**. The bundled, unmodified
-[official reference fixture](../../examples/process_network/dexpi_reference/README.md)
+[official reference fixture](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/process_network/dexpi_reference/README.md)
 contains a suitable connection: line `47122`, segment `PipingNetworkSegment2`,
 pipe `Pipe2`, between pump `P4711` and heat exchanger `H1007`.
 
@@ -366,4 +370,4 @@ valve sizing, a graphical P&ID editor and SVG-to-model round-tripping are outsid
 the current instrumented drawing subset. Compare bounded LLM proposal policies
 with recorded provider/model/version/costs. Modelica/FMU integration, transients and wall
 thermal dynamics remain optional later stages. See the
-[roadmap](../architecture/process-network-and-code-aster-roadmap.md).
+[roadmap](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/process-network-and-code-aster-roadmap.md).

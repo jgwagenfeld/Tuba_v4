@@ -2,7 +2,12 @@
 
 Tuba is split by ownership: model authoring, Code_Aster export/execution/import, solver evidence, reporting, and the two result-display paths. Put changes at the lowest shared boundary that owns the behavior.
 
-Viewer and Pages development uses Node 24 LTS; run `npm ci` in `viewer/` before building or running browser checks. CI uses the same Node version. The self-hosted Code_Aster runner must use Actions Runner [2.327.1 or later](https://github.com/actions/checkout#checkout-v5) for the actions' Node 24 runtime.
+Viewer and Pages development uses Node 24 LTS. Install dependencies with
+`npm ci` in `viewer/` when they are absent or its lockfile changes; reuse a
+compatible installation for worktree checks. CI uses the same Node version.
+The self-hosted Code_Aster runner must use Actions Runner
+[2.327.1 or later](https://github.com/actions/checkout#checkout-v5) for the
+actions' Node 24 runtime.
 
 ## Module map
 
@@ -14,6 +19,9 @@ Viewer and Pages development uses Node 24 LTS; run `npm ci` in `viewer/` before 
 | `tuba.validation` | Pre-export model invariants |
 | `tuba.schema` | Model and patch JSON schemas |
 | `tuba.routing` | Requests, grid search, expansion candidates, solver-loop review, reports |
+| `tuba.search` | Retained proposals, bounded campaigns, native solver evaluations, decisions, replay and film |
+| `tuba.process` | Typed process graphs, route binding, pandapipes/OpenModelica adapters, verified load mapping and P&ID |
+| `tuba.project`, `tuba.studio`, `tuba.mcp` | Shared authored project loading, verification, evidence and execution services |
 | `tuba.solver.aster` | Code_Aster study export, external execution, and result parsing |
 | `tuba.solver.aster_mesh` | `study.mail` mesh generation and mesh provenance |
 | `tuba.solver.aster_comm` | `study.comm` command generation |
@@ -39,9 +47,12 @@ Routing proposes geometry; `tuba.routing.adapter` owns explicit model mutation. 
 
 ## Browser geometry preview
 
-`viewer/src/browserPreview.js` starts a fresh Pyodide worker for each run.
+`viewer/src/browserPreview.js` reuses its Pyodide worker after successful runs.
+Stopping a run or a worker failure terminates it; the next update creates one.
 `browserPython.worker.js` executes the authored `model.py` through the real Tuba
 Python APIs and returns a geometry-only scene to the existing renderer.
+Each run reloads Tuba/project modules and uses a temporary working directory,
+while retaining the interpreter and downloaded packages.
 `scripts/build_browser_runtime.py` packages the Python sources as
 `tuba-browser.zip`; the Vite build emits it alongside the viewer. Rebuild the
 viewer after changing Python code used by the browser.
@@ -123,9 +134,16 @@ Run the smallest focused test first, then the affected suite:
 
 ```powershell
 uv run python -m pytest tests\test_tuba_core.py -q
-uv run python -m pytest tests\test_code_aster_docs.py tests\test_static_site_docs.py -q
+uv run python -m pytest tests\test_code_aster_docs.py tests\test_static_site_docs.py tests\test_current_api_docs.py -q
 uv run --group docs zensical build --clean --strict
 ```
+
+Re-run `tests/test_current_api_docs.py` after the build to check the generated
+API signatures. Docs-only changes need the strict documentation build and
+affected documentation checks; they do not require a gallery rebuild or fresh
+solver evidence. The site is generated from `docs/content/`, with navigation
+in `zensical.toml`; keep its introduction and featured examples aligned with
+the README. Keep build output under the ignored `.build/` directory.
 
 Viewer changes require the viewer suite and browser-visible checks:
 

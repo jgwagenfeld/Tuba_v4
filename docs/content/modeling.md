@@ -2,6 +2,44 @@
 
 A Tuba model is a typed engineering graph. Materials and cross-sections define elements; nodes and elements define geometry; supports and operations define boundary conditions and loads. Validation checks that graph before a Code_Aster study is written.
 
+## Author in Python
+
+Keep the engineering definition in a readable, procedural `model.py`: named
+dimensions, `with model.pipe(...) as pipe:`, functions and loops. Studio, CLI
+and MCP load that same source. Authored scripts are executed as-is and are
+preserved by generated-script tools. Serialized node/element records describe
+compiled model state; they are not the preferred authoring format.
+
+Reusable project structures belong in construction functions in the leading
+definitions of `model.py`, or in `units/<name>.py`. Apply separate functions
+for a rack, pipe and load configuration rather than copying their bodies.
+Make `model` the first parameter, document dimensions and assumptions, and
+pass varying sections, materials, sizes and counts as JSON-serializable
+parameters. Validate inputs with explicit errors.
+
+Use `assemble(model, "units.frame:build", ...)` to retain a unit's parameters
+and created groups. Prefer existing assemblies such as `tuba.assemblies.RackRow`
+for reusable geometry. Project-specific construction stays in project units;
+MCP's `save_unit` validates them and `apply_unit` applies recorded calls.
+After a clash, inspect the groups and unit calls, revise their parameters or
+unit code, then verify again before solving.
+
+## Verify before solving
+
+`model.verify()` combines structural validation, join-aware cold-model clashes
+and rules into one report. `model.validate()` is the structural subset:
+
+```python
+verification = model.verify()
+if not verification.passed:
+    raise RuntimeError("\n".join(verification.errors))
+```
+
+Read `verification.warnings` for advisories. The Studio, CLI and MCP project
+solve paths apply the same verification gate and report script-style findings.
+Cold verification has no operating displacement; operating-state checks need
+imported Code_Aster results. See the [workflow](workflow.md).
+
 ## Cross-sections
 
 ![Dimensioned pipe, bar, cable, rectangular, and I-beam sections.](assets/figures/sections.svg)
@@ -247,6 +285,7 @@ round_tripped.validate()
 | --- | --- | --- |
 | Schema shape | `validate_model_dict(data)` | Missing block or unsupported record type |
 | Model semantics | `model.validate()` | Missing reference, zero-length element, invalid operation field |
+| Cold verification | `model.verify()` | Hard clash or blocking engineering rule |
 | Solver runtime | `solve_exported_study(...)` | Code_Aster missing or execution failed |
 | Artifact import | `parse_result_artifacts(...)` | Missing or empty required result table |
 
@@ -293,11 +332,12 @@ Active profile data lives under `tuba/sections/data`. The runtime package no
 longer carries the old vendored Euclid geometry code or the Salome
 section-generation scripts.
 
-## Reusable fragments and agent workflows
+## Reusable fragments and model edits
 
 Reusable local-coordinate assemblies are represented as `ModelFragment` objects
 and placed into parent models with `CoordinateSystem`. This supports templates,
-repeated subassemblies, GUI groups, and safer agent-generated model changes.
+repeated subassemblies and transactional model changes. Construction units
+retain project-level recipes; fragments retain reusable model records.
 
 Generated edits can be validated as `ModelPatch` payloads and applied through
 `ModelTransaction`, so a rejected edit rolls back rather than half-applying.

@@ -93,6 +93,8 @@ class TestStaticSiteDocs(unittest.TestCase):
             "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
             "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
             "autorouting.md": ["# Autorouting", "SolverAcceptanceCriteria", "Current limitations"],
+            "piping-search.md": ["# Retained piping search", "Recorded search film", "Code_Aster"],
+            "process-networks.md": ["pandapipes", "Open the authored project in Studio", "Run hydraulics"],
             "examples.md": ["Local examples", "Code_Aster results", "Autorouting example outputs"],
             "developer.md": ["Module map", "Solver file map", "How to extend autorouting", "CONTRIBUTING.md"],
         }
@@ -101,6 +103,20 @@ class TestStaticSiteDocs(unittest.TestCase):
             text = (CONTENT / name).read_text(encoding="utf-8")
             for phrase in phrases:
                 self.assertIn(phrase, text, name)
+
+        config = tomllib.loads((ROOT / "zensical.toml").read_text(encoding="utf-8"))
+
+        def destinations(items):
+            for item in items:
+                for value in item.values():
+                    if isinstance(value, list):
+                        yield from destinations(value)
+                    else:
+                        yield value
+
+        linked = set(destinations(config["project"]["nav"]))
+        for page in CONTENT.glob("*.md"):
+            self.assertIn(page.name, linked, f"manual page {page.name!r} is missing from navigation")
 
     def test_setup_uses_the_documented_development_checkout(self):
         text = (CONTENT / "setup.md").read_text(encoding="utf-8")
@@ -204,6 +220,12 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertTrue(figure.is_file())
         self.assertIn("docs/content/assets/figures/code_aster_review.png", readme)
         self.assertIn("assets/figures/code_aster_review.png", home)
+        bundle_links = r"viewer/\?bundle=([a-z0-9_-]+)"
+        self.assertEqual(
+            set(re.findall(bundle_links, readme)),
+            set(re.findall(bundle_links, home)),
+            "README and documentation home must feature the same reviews",
+        )
         for page, text in (("README.md", readme), ("index.md", home)):
             self.assertIn("Tuba_v4/viewer/", text, f"{page} must link the review gallery")
             for gallery in OFFICIAL_GALLERIES:

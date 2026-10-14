@@ -1,435 +1,231 @@
 # Visualization architecture
 
-Tuba has exactly two visualization paths. Both can display processed Code_Aster results, but they serve different review needs. Do not add a third path or mix both paths in one example.
+Tuba has exactly two visualization paths. Both display processed Code_Aster
+results, with different uses. Choose one path per notebook or example.
 
 ## Two supported paths
 
 | Path | Use it for | Result boundary |
 | --- | --- | --- |
-| `tuba/plotting/` | PyVista quick-look in notebooks, interactive inspection, screenshots, PLY, glTF, and Blender export | `FEAResults.plot_*()` reads real parsed Code_Aster/RMED artifacts |
-| `tuba/visualization/` + `viewer/` | A reviewable web scene that can be published, shared, embedded, and paired with engineering-review records | `build_visualization_scene()` creates the semantic contract; `write_scene_bundle()` writes the browser bundle |
+| `tuba/plotting/` | PyVista notebook inspection, quick-look, screenshots, PLY, glTF and Blender export | `FEAResults.plot_*()` reads parsed Code_Aster/RMED artifacts |
+| `tuba/visualization/` + `viewer/` | Shareable browser reviews paired with engineering records | `build_visualization_scene()` creates the scene contract; `write_scene_bundle()` writes the bundle |
 
-A geometry-only scene may be used for model review when it is visibly labelled as having no solver results. Stress, displacement, reaction, compliance, or operating-state claims require imported Code_Aster artifacts.
+A geometry-only scene is labelled as unsolved. Stress, displacement, reaction
+and operating-state claims require imported Code_Aster artifacts. FE stress
+does not establish piping-code compliance.
 
 ## Shared Gallery and Studio workspace
 
-Gallery and Studio use the same viewer and Profiles dialog. The standard
-catalogue comes from Python's `SectionCatalog`, exported by
-`scripts/build_profile_catalog.py` into the packaged `profiles.json`. Browsing
-profiles requires no Studio API. In Build, the dialog inserts a section
-definition into the existing Python editor; Python remains the authored model.
+Gallery and local Studio use the same Three.js viewer, with **Build** and
+**Review** stages. Studio saves and executes authored `model.py` locally.
+Gallery runs geometry previews in browser Python and offers script downloads.
+Review retains the published or locally imported Code_Aster evidence;
+changed inputs mark dependent results outdated.
 
-Each scene includes a complete `sections` snapshot, including definitions with
-no assigned members. Build uses the latest native model run or browser geometry
-preview; Review uses its displayed Code_Aster scene's snapshot in both hosts.
-Source links apply only while the editor matches that snapshot. An external
-Studio reload closes the dialog so reopened links use the refreshed definitions.
+The **Profiles** dialog is opened with **Tools & files → Section profiles**.
+Its catalogue comes from Python's `SectionCatalog`, exported by
+`scripts/build_profile_catalog.py` into packaged `profiles.json`. Browsing
+requires no Studio API. In Build, insertion adds a section definition to the
+Python editor.
 
-The runtime determines saving and execution: Studio saves and runs `model.py`
-locally, while Gallery previews geometry in browser Python and downloads edits.
-Browser previews contain no solver results. Review retains the published
-Code_Aster evidence, and changed models require a new Code_Aster solve.
+Every scene carries a complete `sections` snapshot, including definitions
+with no assigned members. Build uses the latest native run or browser preview;
+Review uses its displayed Code_Aster scene. Source links apply only while the
+editor matches the snapshot. An external Studio reload closes the dialog so
+reopened links use refreshed definitions.
+
+Projects with a bound process network also use the existing viewer's **P&ID**
+dialog. **Run hydraulics** evaluates the current graph and route; passing,
+current hydraulic evidence gates structural **Solve**. Declared instruments
+and signals are drawing/model records, not simulated controls. See
+[Process networks](../process-networks.md).
 
 ## Web-scene contract
 
-`VisualizationScene` is the renderer-independent boundary. It carries scene objects, geometry assets, explicit layers, result fields, overlays, issues, review records, diagnostics, and saved view state. Ordinary geometry is stored directly in the manifest; only dense stress glyphs use separate payload files. Asset hashes cover the full geometry in either form, and older bundles with individual payload files remain readable. The Three.js viewer renders that contract rather than reconstructing engineering meaning from filenames.
+`VisualizationScene` carries objects, geometry assets, layers, fields,
+overlays, issues, review records, diagnostics and saved view state. Ordinary
+geometry is embedded in the manifest; dense stress glyphs use separate
+payloads. Hashes cover geometry in either form, and older bundles with
+individual payload files remain readable. The viewer renders this contract
+without reconstructing engineering meaning from filenames.
 
-The four layer categories answer what is drawn:
-
-- **Design:** authored pipes, fittings, supports, loads, envelopes, imported components, and context.
-- **Analysis mesh:** the nodes, elements, groups, and Code_Aster modelisations handed to the solver.
-- **Results:** deformed geometry and solver-returned field or vector geometry.
-- **Annotations:** issues, clashes, rules, route candidates, proposals, review markers, and world-anchored text labels.
-
-A volume-meshed element is drawn once. Its mesh skin is the discretisation of
-the `VolumeGeometry` the element was meshed from, so the scene carries the skin
-alone and no second display sweep that could drift from it. Build therefore
-keeps the analysis mesh visible, because a volume review has no procedural
-design geometry to fall back on, and drops only the result and annotation
-overlays. Every preset, Build included, follows `default_visible`, so a layer a
-bundle declared hidden is never revived by a preset.
-
-### Bodies: the composited result view
-
-The display strip groups the scene into four **bodies**: geometry, analysis
-mesh, sub-points, and deformed shape. These groups have separate display
-controls. Sub-points and deformed shape both belong to the Results category.
-
-Each body has a visibility control. Geometry, analysis mesh, and sub-points
-also have opacity controls. Deformed shape applies a transform to the mesh.
-Body opacity caps the layer opacity rather than multiplying it, preserving
-the transparency of the undeformed reference.
-
-Result vectors and annotations remain accessible through the layer tree.
-Empty bodies are omitted from the display strip.
-
-### Mesh identity and the discretisation check
-
-`SceneLayer.extra["mesh_identity"]` describes the mesh rather than drawing it:
-its modelisations, topological dimension, node and element counts, and the
-element families the connectivity actually has (`SEG2`, `SEG3`), which
-`MODELISATION` alone cannot state.
-
-When the mesh was built from bends it also carries a **bend-chord discretisation
-check** (`tuba/analysis/mesh_quality.py`): the number of elements per arc and
-the deviation of each straight chord from the arc. The criterion is a declared
-fraction of the bend radius, displayed beside the result. This is a geometric
-check, not a piping-code check. It is omitted for meshes without bends.
-
-### TUYAU sub-points
-
-`TUYAU_3M` is a 1D mesh whose stress recovery lives at sub-points around and
-through the wall. `tuba/analysis/tuyau.py` is the single home for that indexing
-convention - `NSEC` circumferential divisions give `2·NSEC+1` angular stations,
-`NCOU` layers give `2·NCOU+1` radial stations, and sub-points run angle-fastest.
-Both the solver reader, which places the display glyphs, and the scene builder,
-which decodes where a peak sits in the wall, read it from there.
-
-### 3D scene labels
-
-`add_scene_label(scene, text, position, *, label_id, height=0.18)` adds world-anchored, camera-facing text badges to the scene:
-
-- **Metric height:** The `height` argument defines the badge height in world metres (e.g. `0.18` = 180 mm).
-- **Automatic aspect ratio:** Width scales dynamically with text length to preserve character proportions without distortion.
-- **Camera billboarding:** Labels render as `THREE.Sprite` instances that face the camera during orbit, pan, and tilt.
-- **Layering & occlusion:** Labels render without depth clipping over geometry and belong to the `annotations:labels` layer, toggleable in the viewer's Overlays panel.
-
-The sub-point overlay therefore carries a `section_profile` (the grid on one
-element node) and a `peak` decoded into a wall position. Only the two radial
-extremes are named - bore and outer surface - because calling a sector
-"intrados" would need an orientation the scene does not carry.
-
-## Review rail and evidence
-
-The rail is one scrollable column of sections, not a set of tabs. Nothing swaps, so nothing is hidden to make room: layer visibility is owned by the pinned display strip, the colouring channel by the pinned **Colour by** control, and the issue list sits with the scene so a clash row and a result field are read together.
-
-| Section | Holds |
+| Layer category | Contains |
 | --- | --- |
-| Colour by | The colouring channel: a model property or a solver field |
-| Result refinements | Case, component, deformation, thresholds, legend scale, vectors and hotspots |
-| Bodies / Overlays / All layers | What is drawn |
-| Issues | Diagnostics and issue-focused geometry |
+| Design | Authored pipes, fittings, supports, loads, envelopes and imported context |
+| Analysis mesh | Nodes, elements, groups and Code_Aster modelisations |
+| Results | Deformed geometry and solver-returned fields or vectors |
+| Annotations | Clashes, rules, route candidates, review markers and scene labels |
 
-The review's tables live in the generated report that the header links to.
+A volume-meshed element is drawn once, as its mesh skin. Build keeps that
+analysis mesh visible because there is no separate procedural design sweep
+for the volume. Presets respect `default_visible`; a bundle's hidden layer
+is not revived by a preset.
+
+### Bodies and layer visibility
+
+**Display** over the viewport groups geometry, analysis mesh, sub-points and
+deformed shape. Sub-points and deformed shape belong to Results. Geometry,
+mesh and sub-points have opacity controls; deformed shape transforms the mesh.
+Body opacity caps layer opacity rather than multiplying it, preserving the
+undeformed reference's transparency.
+
+Supports, loads and vectors have their own controls; **All layers** exposes
+individual layers. Empty bodies are omitted.
+
+### Mesh identity and TUYAU sub-points
+
+`SceneLayer.extra["mesh_identity"]` records modelisations, topological
+dimension, node/element counts and actual connectivity families such as
+`SEG2` and `SEG3`. For bends, `tuba.analysis.mesh_quality` records chord
+counts and chord-to-arc deviation against a declared fraction of bend radius.
+This is a geometric discretization check.
+
+`TUYAU_3M` uses a 1D mesh with stress recovery around and through the wall.
+`tuba.analysis.tuyau` owns the indexing: `NSEC` gives `2·NSEC+1` angular
+stations; `NCOU` gives `2·NCOU+1` radial stations; angle runs fastest.
+The section overlay carries the grid and a peak decoded into a wall position.
+Only bore and outer surface are named; intrados/extrados labels would require
+an orientation that this scene record does not carry.
+
+### Scene labels
+
+`add_scene_label(scene, text, position, *, label_id, height=0.18)` creates
+world-anchored, camera-facing labels. Height is in metres, width follows text
+length, and sprites face the camera during navigation. Labels are in
+`annotations:labels`; visibility follows the layer controls. They render over
+geometry without depth clipping.
+
+## Review controls and evidence
+
+The left rail contains result and object controls. Visibility, findings and
+file actions are in the following places:
+
+| Location | Controls or information |
+| --- | --- |
+| Colour by | Model property or solver field used to colour the scene |
+| Result refinements | Case, component, deformation, filters, legend scale and field details |
+| Objects | Search and selection by object, material or route |
+| Display, over the viewport | Bodies, supports, loads, vectors, all layers and Cut view |
+| Tables & issues, below the viewport | Support reactions, run diagrams, hotspots, issues, Diagnostics & provenance |
+| Selection inspector | Definition, source link and available result evidence for the selection |
+| Report | Printable engineering tables |
+| Status strip | Evidence state, solver identity, analysis information and displayed units |
+| Tools & files | Profiles, geometry import, files/export and technical details |
+| Help | Workflow guidance and keyboard shortcuts |
+
+The camera controls and orientation gizmo are on the viewport. `B` and `R`
+switch Build and Review. Selecting a component can reveal its defining source
+call when matching source metadata is available. The [Tutorial](../tutorial.md#review-controls)
+provides the user walkthrough.
 
 ## Result and deformation selection
 
-The coloring channel is load case × result field × component. The pinned **Colour by** control chooses which channel tints the scene: a model property (role, section, material, group, insulation) or a solver field. Because it is pinned above the layer list, the choice does not depend on where you are reading. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
-
-The result refinements control the chosen field: load case, component, thresholds, legend scale, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
-
-There are two deformation settings:
-
-- **Physical deformation** is the engineering geometry state at 1× displacement. Its scale is not a display control.
-- **Visual deformation** is explicitly display-only and may use an exaggerated scale to make small movement visible.
-
-Only the matching geometry assets render for the active physical or visual deformation state. Untagged reference context remains available for orientation.
-
-## Display units
-
-The scene stores values in SI base units: metres, pascals, and newtons.
-`viewer/src/units.js` converts displayed values and user inputs. For example,
-a threshold entered in MPa is stored and compared in pascals. The unit selector
-offers engineering units (`mm · MPa · kN`, the default) and SI base units
-(`m · Pa · N`).
-
-The selection applies to the legend, ticks, hotspots, body metrics, sub-point
-peak, and bend-chord deviation. Conversion follows two rules:
-
-- **Only known units convert.** Unrecognised units retain their stored values
-  and labels. Temperatures and ratios are unchanged.
-- **Raw scene data is shown as stored.** The inspector prints object metadata
-  verbatim, where a key like `radius_m` names its own unit. Converting there
-  would make the property panel disagree with the bundle it came from.
-- **Derived readouts convert.** The evidence panel's own sections - the
-  restraint strip, Definition, Reactions and Contact - are not metadata rows.
-  They are computed for the reader, name no stored key, and follow the unit
-  chip like every other readout, so a reaction reads `3.989 kN` rather than
-  `3988.7852930479976`. The distinction is the presence of a key: a row
-  labelled with a scene key is verbatim, a row labelled in words is derived.
-
-The `numeric()` guard displays missing values as empty, preventing JavaScript's
-`Number(null)` conversion from displaying them as zero.
-
-## Legend scale
-
-The colour ramp reads the field's own range by default and is continuous. A reviewer
-can band it and type its bounds, in **Filters & vectors** in the results rail.
-
-Two constraints keep this from becoming the thing this review of the competitors
-criticised:
-
-- **Bands are a control, never a constant.** AutoPIPE's six hard-coded bands are the
-  most-cited complaint in the piping category, and the reason is not that six is the
-  wrong number — it is that 0.15 and 0.25 got different colours while 0.85 and 0.95 got
-  the same one, spending resolution where nothing happens and taking it away from
-  where acceptance limits live.
-- **Bounds round.** A step is the *nearest* 1/1.5/2/2.5/3/4/5/6/8/10 × 10ⁿ value, and
-  the top edge extends to a whole band so a value is never quietly clipped. Rounding
-  *up* was the first implementation and it was wrong twice over: a request for 6 bands
-  never yielded 6, and `0.105` snapped to `0.15`.
-
-The band count follows the reviewer between fields; the bounds do not, because a limit
-typed for 0–500 MPa is meaningless against a millimetre-scale displacement.
-
-Every colour in the product — the 3D tint, the hotspot swatch, the legend gradient and
-its tick labels — resolves through one `rampRatio`, so the picture and the bar beside
-it cannot describe different scales. The legend restates the scale it is reading, and
-marks it "(set by you)" once overridden, so a screenshot carries its own range.
-
-## Trust facts
-
-Two facts a reviewer should never have to go looking for, both stated at the weight
-they deserve and both **evidenced, never verdicts**.
-
-**Reaction and load consistency**, in the status strip's Analysis disclosure beside the
-mesh check. The reactions are summed against the **authored nodal loads only**, with
-the applied forces carried to the same origin for the moment balance — summing nodal
-moments alone would leave the moment arm out and call the result a residual.
-
-Self-weight, pressure, line loads and authored fields are assembled inside Code_Aster
-and never reach the bundle, so they are **named as excluded** rather than silently
-dropped. A small residual the reader can account for is useful; the same residual with
-no explanation is the failure mode this exists to prevent — AutoPIPE zeroes the ASME NB
-eq-10 ratio when eq 12/13 govern, omits KHK L2 bends from the plot, and CAESAR II
-reports an allowable of 0 for B31.1 operating cases. Nothing in this product reports
-pass or fail, because there is no code in the number.
-
-**Value basis**, in the rail's Field details: what population the field's number is a
-maximum over. Averaging is the display setting that changes the answer — Nastran's own
-documentation notes Simcenter averages components before forming von Mises while Femap
-does the reverse, so the same model gives different numbers in the two tools — and
-neither puts it in front of the reader. The cell stress field states that it is an
-element-end maximum; a sub-point field states what was measured and that the wall
-between points is interpolated.
-
-## Walking the findings
-
-`n` and `N` step through the findings the scalar field is colouring, worst first:
-select, frame the spot, fill the inspector, and report "7 of 40" on the active row.
-The keys live in the shared `SHORTCUTS` table, so they inherit the modifier and
-typing-target guards and are listed in the `?` overlay.
-
-`n` rather than `Tab`, deliberately: `Tab` is focus traversal, and a review shortcut in
-its way costs more than the walk saves. The walk indexes by object id rather than by
-position, so moving a threshold cannot strand it on a finding that no longer exists. The
-camera is clamped to a window about the selection's centre, because fitting a
-twenty-metre straight run whole puts the camera outside the model with the hot spot
-somewhere in the middle of it.
-
-**Select *n* findings** in the filters drawer turns the current thresholds into a
-selection, so the filtered set can scope the review tables as well as the list. Without
-that, the threshold and the report are two independent decisions about one question.
-
-## The envelope
-
-Every tool in the piping category has one and this viewer had none: AutoPIPE
-reviews an envelope of its code combinations, CAEPIPE takes the maximum across
-all cases at each node, and PrePoMax, SCIA and SOFiSTiK all carry an envelope
-result type. A reviewer with several load cases and a dropdown wants the worst of
-them, and stepping the dropdown by hand and remembering the answer is the one
-thing a dropdown cannot do.
-
-The envelope is **one more field in the one "colour by" selector**, which is what
-ADR 0006 requires — not a second ramp or a second surface. It appears only when
-the active load case published more than one result step, and it spans every
-step that load case published rather than a reviewer-selected subset.
-
-Two properties make it a review answer rather than a filter:
-
-- **It records which step won.** `winners` maps each object to the result state
-  that produced its value, and the hotspot list prints it beside the number. A
-  maximum with no provenance is a number the reviewer has to re-derive.
-- **It says it is derived.** An envelope is arithmetic over results the solver
-  produced, never a solver result, and it takes a `compliance_role` so the
-  disclaimer travels with it into the viewport legend, the status strip and the
-  field details.
-
-A tie is credited to the **earlier** step: a tie in a staged run usually means
-the increment added nothing, and naming the later step would credit it with a
-value it did not produce. Envelopes never span load cases — mixing cases is a
-combination, and the load-case algebra exists to keep that explicit.
-
-When the load case published several steps but only one carries the quantity, the
-field says **"Only one result step carried this quantity, so no maximum was taken
-across steps"** rather than presenting a single result as an envelope.
-
-## Reference stress
-
-The peak is not a number anyone can act on. In a linear analysis a stress
-singularity grows with every refinement — the same sharp corner gives 41.6, 48.6
-and 65.6 MPa on three meshes — and the folklore workaround of reading the next
-contour down makes the answer depend on the mesh.
-
-The reference stress is the same wall-point population asked a question that
-survives that: **the value a fixed fraction of the population exceeds.** It is
-offered for the sub-point field only, because that is the only field whose
-population reaches the viewer at all — the cell FE field's values are one number
-per element, already reduced to a maximum, so a percentile of them would be a
-percentile of maxima.
-
-Nearest-rank, with no interpolation: the population is a set of measured points,
-and inventing values between two of them is the same smoothing mistake as
-interpolating a piecewise-constant stress field into a continuous space.
-
-Three things it refuses:
-
-- **No extrapolation.** A payload carrying fewer sub-points than the bundle
-  declares is a **truncated population**, and the note says so with both counts.
-- **No peak as a criterion.** The percentile is for reading the result, and the
-  threshold filter next to it still works, so a reviewer can scope a review to
-  what the percentile allows rather than to one point.
-- **No claim of adequacy.** A reference stress below a limit is not a code check
-  and the note does not become one.
-
-## The station diagram
-
-**Where along a run does it go bad?** A contour says an element is hot, and an
-element can be a metre of straight pipe. A station diagram says the moment peaks
-four metres from the anchor and falls to nothing at the bend, which is the
-sentence an engineer has to write before they can size anything.
-
-This is the plot the piping category does not have and the FEA category cannot do
-without. AutoPIPE, CAESAR II, CAEPIPE and PASS/START-PROF all review in 3D and in
-tables and have **no path or station plot at all**. ANSYS, Abaqus, COMSOL, SALOME
-and Code_Aster's own `POST_RELEVE_T` treat the X–Y diagram as primary. SALOME's
-curve mode is the closest precedent: one path, every result step overlaid.
-
-It needs no new data:
-
-| Requirement | Where it already is |
-| --- | --- |
-| Station along the run | `generation_config.points` on each element's geometry asset — two points for a straight member, sixteen for a bend |
-| Which members form a run | `metadata.nodes` on the element object, walked as a graph |
-| An ordinate at each end | `element_results[...].forces_n1` / `forces_n2`, six components in Code_Aster's `EFGE_ELNO` order |
-
-A **bend contributes its arc, not the chord** between its nodes. A 90° bend on a
-0.3 m radius is 0.47 m of pipe, not 0.42 m, and using the chord would
-systematically understate every station downstream of the first bend. The sampled
-centreline is the authority.
-
-Four things it refuses:
-
-- **A single member is not a run.** Two is the smallest that can show a peak
-  between its ends, and one pair of ordinates is not a diagram.
-- **A standing-in object is not a member.** A tee whose display geometry is an
-  idealised joined wall would put a fabricated ordinate on a real station axis.
-- **A half diagram is not a diagram.** A component is offered only where both
-  ends of every member carry it, because a plot that stops where the far end runs
-  out reads as the load vanishing.
-- **No interpolation across a gap.** A member with no end forces is left as a gap
-  and counted, because drawing through it would assert a load path the solve
-  never reported.
-
-The value axis always **spans zero**, because all six components are signed and a
-diagram without a zero line cannot tell a reversal from a rise.
-
-The SVG is emitted as a string from pure data, so the shape of the diagram is
-testable without a canvas — the same reason the report layer emits CSV and HTML
-from pure data. It is an inline plot in the review drawer, closed by default,
-opened from the inspector's **Plot this run** or the `d` shortcut. No run picker:
-the run is whatever the reviewer just clicked.
-
-## The review record
-
-**What the engineer decided, and who decided it.**
-
-No tool in the piping category can do this. AutoPIPE has node annotations — a
-label attached to a point — and an image gallery. CAEPIPE has a `QA Block`, which
-is a report section rather than a workflow. Codeware generates a deficiency summary
-nobody authored. Nothing in the benchmark can mark an item *under review*, *fixed*,
-*accepted* or *waived*, attach a reason, record who did it, or hand the result to
-anyone. E3D and Tekla get closest by diffing two model versions and marking
-changed/new/deleted — tied to CAD objects, not to stress results.
-
-What already existed here was a status select and a comment box on the active
-issue. **That is an opinion.** Three things turn it into a record:
-
-| | |
-| --- | --- |
-| **Attribution** | A disposition with no author and no date is a shrug. The reviewer name is remembered for the session. |
-| **History** | Overwriting `status` loses the fact that an item was examined and then re-opened, which is usually the interesting part. |
-| **A way out** | Dispositions that die with the tab answer no one's question. **The export is the deliverable; the checkbox is not.** |
-
-The statuses are `open · reviewing · resolved · accepted · waived`, and the list
-is ordered as a progression. `waived` **requires a justification**, and it is the
-only one that does: accepting a condition is a decision to live with it, and
-waiving one is a decision to ignore it. A waived clash is still a clash, and the
-reason is the only thing that survives review of the review.
-
-Two things it deliberately does not claim:
-
-- **The author is self-declared**, and the exported record says so
-  (`author_is_self_declared: true`). This is a static bundle with no
-  authentication; a record implying a signed identity would be claiming something
-  the viewer cannot support.
-- **A waiver with a blank reason is refused, and state is left untouched** rather
-  than writing a half-valid record. The refusal is stated where the reviewer is
-  already looking, not as a validator that appears after a save to undo.
-
-An **untouched issue is not an `open` disposition** — it is untriaged, and
-conflating the two would overstate how much review has happened. The tally reports
-`touched` separately for that reason.
-
-The disposition rides on the issue list row as a chip, because an untriaged issue
-and one someone waived look identical in a list of forty.
-
-**Export.** CSV for the review meeting, because a spreadsheet is what is already
-open in it; JSON beside it, carrying the transition history the spreadsheet cannot
-hold. The CSV is quoted per RFC 4180 and tested with a real reader rather than a
-comma count — a waiver reason is free text and will contain a comma, often a
-quote, and sometimes a line break typed into a comment box. A record that loses a
-column to unescaped text is worse than no record.
-
-## The user reference ratio
-
-**The element's FE von Mises divided by the allowable stress schedule the user
-entered on that element's material.** ADR 0007 governs it; `docs/adr/0007-user-reference-ratio-is-not-a-code-check.md`
-is the decision record.
-
-It exists because every tool in the piping category makes a stress plot readable
-by comparison, and a picture with no denominator is a picture. It is one
-division, and the number on the other side of it is a number the user typed.
-
-It is not a code check, and the interface never contains the words *allowable*,
-*utilization* or *compliance* in connection with it. The field's
-`compliance_role` places that notice beside the number in the viewport legend, the
-status strip and the field details with no viewer code restating it — which is the
-whole argument for putting the disclaimer in the field rather than in a panel:
-**it travels.**
-
-It is an ordinary `solver_result` overlay, so it needs no special case anywhere in
-the viewer: `build_result_fields` catalogues whatever an overlay carries, and the
-ratio arrives as one more field in the existing colouring selector, which is what
-ADR 0006 requires.
-
-Four refusals, each the reason it can be trusted:
-
-| | |
-| --- | --- |
-| **No schedule, no ratio** | A material with no allowable is absent from the field entirely, never shown as zero or infinity. The *materials* report table already shows the schedule as empty, which is where someone looking for it will look. |
-| **No extrapolation** | A case temperature outside the schedule's span is unavailable with the span named. Clamping to an endpoint is a quiet guess, and a number outside the domain of the calculation is indistinguishable from one the tool invented. |
-| **No spatial temperature** | When the case declares a temperature field, **no ratio is published at all** — see below. |
-| **No volume runs** | A volume result's stress is a surface field on a different mesh, and a ratio that quietly changed denominator between fields would be exactly the mislabel this refuses. |
-
-**On spatial temperature.** The uniform case temperature is not the metal
-temperature at the hot spot, and evaluating the schedule there would understate
-the ratio precisely where a reviewer would use it. Per-node temperatures exist in
-the solver path but do not reach the bundle, so the honest answer is unavailable
-rather than a number that is quietly wrong. This means a thermal-split case gets
-**no ratio** — the feature's absence is self-explaining, not silent.
-
-That refusal nearly shipped broken. The first guard looked for `field` and `kind`
-on an authored load field, but an `OperationField` serialises to `quantity` — so
-the guard never fired, the ratio was published, and it looked honestly evaluated
-while being wrong. A guard that silently does nothing is worse than no guard,
-because it is indistinguishable from one that did its job.
-
-The denominator is published **per element** alongside the ratio, so a reader can
-divide it back out and recover the FE stress they started from.
+The colouring channel is load case × field × component. **Colour by** selects
+a model property (role, section, material, group or insulation) or a solver
+field. Scalar fields expose magnitude; vector fields expose their components
+and magnitude. Selecting a case keeps the field and geometry state coherent.
+Field selection changes colours and the legend, while visibility remains with
+Display.
+
+The viewport legend and field details retain the result basis and compliance
+caveat. Two deformation settings are distinct:
+
+- **Physical deformation** is the engineering state at 1× displacement.
+- **Visual deformation** uses an explicitly display-only scale to make small
+  movements visible.
+
+Only geometry matching the selected state is drawn. Untagged reference
+context remains available for orientation.
+
+## Display units and colour scales
+
+Scene values use SI: metres, pascals and newtons. `viewer/src/units.js`
+converts known displayed values and inputs. The unit selector offers
+`mm · MPa · kN` (default) and `m · Pa · N`. Unknown units remain as stored;
+temperatures and ratios are unchanged.
+
+Legends, ticks, hotspots, reaction/contact readouts, sub-point peaks and
+bend-chord deviations follow the selection. Raw metadata remains verbatim:
+a key such as `radius_m` retains its stored unit. Missing values stay empty;
+they are never coerced to zero.
+
+Colour ranges default to the active field's range. **Filters & vectors**
+allows band count and explicit bounds. The band count persists between fields;
+bounds do not. Bands use rounded steps and extend the top edge to cover the
+range. The scene, swatches and legend use the same ramp; overridden bounds are
+labelled as set by the reviewer.
+
+## Result basis and load consistency
+
+Field details state the measured population. Cell FE stress is an element-end
+maximum; a sub-point field describes its measured wall points and interpolation.
+
+The viewer's reaction/load consistency disclosure compares imported reactions
+with authored nodal loads only, including their moment arms about the origin.
+It lists gravity, pressure, line loads and authored fields as excluded.
+This limited viewer disclosure is separate from the report's broader
+[solver-backed equilibrium checks](../workflow.md#engineering-review-records).
+Read each check's coverage before interpreting its residual.
+
+## Findings, envelopes and reference stress
+
+`n` and `N` step through scalar-field findings, worst first, selecting and
+framing each location. The shortcuts respect typing and modifier guards.
+**Select n findings** turns the current filter into a selection for review
+tables.
+
+An envelope field appears when a case publishes multiple result steps. It
+spans those steps within that case, records the winning state for each object,
+and is labelled as derived arithmetic over solver results. Ties use the
+earlier step. It never combines load cases. If only one step carries the
+quantity, the field states that no maximum across steps was taken.
+
+Reference stress uses a nearest-rank percentile of the measured TUYAU
+sub-point population without interpolating new values. It is available only
+for that field. A truncated payload states the available and declared counts.
+The percentile supports review and filtering; it is not an adequacy criterion.
+
+## Station diagrams
+
+**Plot this run** in the inspector, or `d`, opens the selected run's diagram
+in **Tables & issues**. Stations follow the published centerline, including
+bend arcs. Ordinates use the imported element-end section forces, in
+Code_Aster's `EFGE_ELNO` component order.
+
+A run needs at least two members. Unsupported geometry is excluded and absent
+end forces remain gaps. A component is offered only with coverage at both
+ends of the relevant members. Signed value axes include zero.
+
+## Review records
+
+Issues support `open`, `reviewing`, `resolved`, `accepted` and `waived`
+dispositions. A waiver requires a nonblank justification. Changes retain the
+self-declared reviewer name, timestamp and transition history; the export
+identifies attribution as self-declared, without authentication.
+
+An untouched issue is untriaged, not a recorded open disposition. Tallies
+distinguish touched issues. CSV exports current dispositions; JSON also carries
+transition history. A disposition changes the review record, not the solver
+evidence or clash result.
+
+## User reference ratio
+
+The user reference ratio divides an element's FE von Mises stress by the
+user-entered material stress schedule. The denominator is published per
+element so the ratio can be inspected. See
+[ADR 0007](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/adr/0007-user-reference-ratio-is-not-a-code-check.md).
+
+A missing schedule, temperature outside its range, spatial temperature field
+or volume run leaves the ratio unavailable. Values are not extrapolated or
+filled with zero. The field carries its disclaimer into the legend, status
+strip and field details. This is a user reference, not a piping-code check.
 
 ## True clipping
 
-Cut view (Display → Cut view: Off, Around selection, Custom; or **Cut view around selection** in the right-click menu) performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. Objects whose bounds lie wholly outside the box are hidden, and labels and value badges are never sliced: one whose anchor is outside the box is hidden whole. A thin outline marks the box, so the cut can be understood and switched off.
+**Display → Cut view** offers *Off*, *Around selection* and *Custom*, also
+reachable through **Cut view around selection** in the right-click menu.
+Six renderer planes perform true clipping: a pipe crossing the box shows only
+its interior fragment; objects wholly outside it are hidden. Labels and badges
+are hidden whole when their anchor is outside. An outline marks the box.
 
-[Open the published Code_Aster review viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
+[Open the published Code_Aster review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).

@@ -32,6 +32,8 @@ export/solve, so mutation after construction does not bypass these checks.
       members_order: source
       members:
         - pipe
+        - validate
+        - verify
         - add_support
         - define_load_case
         - define_operation
@@ -54,6 +56,11 @@ export/solve, so mutation after construction does not bypass these checks.
         - from_json
 
 The pipe context returns the current fluent builder.
+
+`model.verify()` is the cold-model gate used by the project solve surfaces.
+It combines structural validation, join-aware clashes and rules; check its
+`passed`, `errors` and `warnings` fields. `model.validate()` checks structural
+invariants only. See [Modeling](../modeling.md#verify-before-solving).
 
 Reusable frames, piping routes and imported fittings belong in parameterized
 construction units in `model.py` or `units/`. Apply them with

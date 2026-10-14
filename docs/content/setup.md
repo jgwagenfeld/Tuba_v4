@@ -8,8 +8,10 @@ Windows browser:
 Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 ```
 
-Code_Aster is required for production stress, displacement, reaction,
-compliance, operating-state clash, and result visualization workflows.
+New stress, displacement, reaction and operating-state results require a
+completed Code_Aster solve and imported artifacts. You can view preserved
+Code_Aster results without a local solver. Export-only studies and browser
+geometry previews are incomplete for engineering evaluation.
 
 ## Recommended: one environment
 
@@ -110,7 +112,7 @@ a Windows `.venv`.
 The following setup keeps Tuba on Windows and Code_Aster in a separate Linux
 environment. **uv installs Tuba, not Code_Aster.**
 
-## Prerequisites
+### Prerequisites
 
 | Requirement | Detail |
 | --- | --- |
@@ -119,7 +121,7 @@ environment. **uv installs Tuba, not Code_Aster.**
 | Operating system | Tuba is OS-independent; the tested solver path is native Linux or Windows with WSL2 Ubuntu |
 | Code_Aster | Required for solving; authoring, export inspection, and preserved-artifact review can run without it |
 
-## Install Tuba from source
+### Install Tuba from source
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) first.
 `uv sync` downloads the Python version selected by `.python-version` and creates
@@ -156,7 +158,7 @@ range applies to Tuba's own environment, not to this external solver environment
 
 Run the doctor and real solver smoke test below after installing or updating.
 
-## Windows: install Code_Aster in WSL2 Ubuntu
+### Windows: install Code_Aster in WSL2 Ubuntu
 
 Install Ubuntu, restart if requested, then launch it once to create a Linux user:
 
@@ -209,7 +211,7 @@ Expected: `run_aster` resolves below `/home/<user>/bin` and reports the solver v
 
 References: [Microsoft WSL installation](https://learn.microsoft.com/windows/wsl/install), [Miniforge](https://github.com/conda-forge/miniforge), [conda-forge Code_Aster](https://anaconda.org/conda-forge/code-aster), and the official [`run_aster` guide](https://codeaster.readthedocs.io/en/latest/devguide/run_aster/run_aster.html).
 
-## Select and check the runtime
+### Select and check the runtime
 
 From the Windows checkout:
 
@@ -224,7 +226,7 @@ If the check reports `blocked`, do not set `RUN_CODE_ASTER = True` in notebooks 
 
 Do not set `TUBA_CODE_ASTER_PYTHON` to a Linux path when Tuba runs from Windows; Windows cannot execute that binary directly.
 
-## Run the real solver smoke test
+### Run the real solver smoke test
 
 ```powershell
 $env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
@@ -235,7 +237,7 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 
 `OK` proves that Tuba exported a study, executed Code_Aster, read the displacement, internal-force, reaction, and stress tables, and returned a verified `AnalysisRun`.
 
-## Native Linux x86_64: separate developer environments
+### Native Linux x86_64: separate developer environments
 
 Keep Tuba in its virtual environment and Code_Aster in a separate conda environment:
 
@@ -279,7 +281,7 @@ Open a [gallery example](examples.md), choose **Build**, edit `model.py`, and
 click **Update geometry** (Ctrl+Enter). Python runs on your computer inside the
 browser; no Tuba installation or server account is required. The first run
 downloads the Python runtime; successful updates reuse it for the rest of the tab's session.
-**Stop** cancels a run. **Tools & files → Files & export → Example actions → Reset example** restores the
+**Stop** cancels a run. **Tools & files → Files & export → Reset example → Discard edits** restores the
 published example, and **Tools & files → Files & export → Download model.py** saves your script.
 
 The preview contains geometry only. **Review** continues to show the published
@@ -319,6 +321,19 @@ Both load preserved Code_Aster artifacts by default. Set a notebook to solve onl
 
 ## Optional surfaces
 
+The [process-network and P&ID workflow](process-networks.md) needs the `process`
+extra. In the activated shared conda environment, install it from the checkout:
+
+```bash
+python -m pip install '.[process]'
+```
+
+This adds pandapipes; it does not require OpenModelica. In the separate uv
+developer environment, preserve the extras you use when adding it:
+
+```powershell
+uv sync --extra course --extra mcp --extra process --locked
+```
 
 For the Windows developer alternative, add review and exchange extras to the
 source installation. The shared conda environment already includes them:

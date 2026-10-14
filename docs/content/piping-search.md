@@ -5,20 +5,16 @@ Code_Aster evaluation and processed-result review. It retains rejected layouts
 and their reasons so the search can be reviewed and improved later. The initial
 strategy is a deterministic sequential parameter grid.
 
-```mermaid
-flowchart LR
-    P[Recorded proposal] --> M[Authored build_model]
-    M --> C[Cold verification]
-    C --> A[Code_Aster operations]
-    A --> I[Imported verified results]
-    I --> K[Declared constraint checks]
-    K --> D[Recorded decision and comparison]
-    C --> H[Permanent history and artifacts]
-    A --> H
-    D --> H
-    H --> R[CLI inspection and existing viewer]
-    H --> E[Replay JSON and ordered events]
-```
+| Stage | Retained record |
+| --- | --- |
+| Propose parameters and call authored `build_model` | Proposal, source identity and built geometry, or build failure |
+| Verify the cold model | Structural, clash and rule findings; blocking findings prevent solving |
+| Evaluate Code_Aster operations and import results | Native artifacts and verified result lineage, or runtime/solver failure |
+| Apply declared checks and compare candidates | Constraint outcomes, recorded decision and objective comparison |
+| Inspect or export | CLI history, native review bundles, ordered replay events and recorded film |
+
+Failures remain in the history alongside successful evaluations. Replay and
+film read retained evidence; they do not run a new analysis.
 
 ## Author a search project
 
@@ -162,7 +158,7 @@ not a self-contained copy; native review bundles are complete handoffs.
 
 M1 provides these records and candidate reviews. M2 adds interactive replay in
 the existing viewer. Film rendering, richer autorouting strategies and learned
-proposal policies remain [roadmap milestones](../architecture/piping-search-roadmap.md).
+proposal policies remain [roadmap milestones](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/piping-search-roadmap.md).
 
 ## Interactive replay
 
@@ -252,7 +248,7 @@ in `qualification.json` and `validation/`. Proposal `intent` remains inspectable
 in the archive; displaying it directly in the panel is deferred presentation
 polish. Every recorded rejection/check/decision explanation is available.
 
-The [hot-line example](../../examples/piping-search/README.md) provides the
+The [hot-line example](https://github.com/jgwagenfeld/Tuba_v4/blob/main/examples/piping-search/README.md) provides the
 bounded authored benchmark and opt-in real Code_Aster qualification test.
 
 ## Recorded search film (M3)
@@ -364,6 +360,6 @@ and qualified separately above.
 
 For the corrected drawing layout, on-drawing failure annotations and native
 reaction/section-force/displacement views, see
-[film readability](../architecture/piping-search-film-readability.md).
+[film readability](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/architecture/piping-search-film-readability.md).
 Use `--events iterations --hold-seconds 8` for the iteration-first movie.
 Use `--events review --hold-seconds 5` for a detailed result-field review.

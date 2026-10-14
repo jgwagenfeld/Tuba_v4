@@ -1,70 +1,92 @@
-# Agent Model Workflow
+# Agent model workflow
 
-Work against a local project folder shared with Studio and the CLI. For received
-projects, extract the archive, retain every imported helper and CAD/data file,
-then bind MCP with `init_session(file_path="/path/to/project/model.py", load_existing=True)`.
-The [project sharing guide](content/project-sharing.md) explains folder opening,
-generated meshes, saved Code_Aster evidence and complete review bundles.
+Work in the same authored project folder as Studio and the CLI. For a received
+project, extract it with all referenced Python helpers, CAD and data. See
+[Share and open a project](content/project-sharing.md).
 
-Agents should not mutate `TubaModel` by directly calling low-level model methods.
+## Procedural authoring first
 
-Preferred workflow:
+Write readable, parametric `model.py` using engineering constants, functions,
+loops and `with model.pipe(...) as pipe:`. Use `study.py` for operations,
+solver settings and review configuration. Avoid hand-authored flat node/element
+dumps or long sequences of geometry RPC calls. Authored Python is executed as-is;
+Studio and generated-script tools preserve it.
 
-1. Generate or select a `ModelFragment` in local coordinates.
-2. Generate a `CoordinateSystem` describing placement in the parent model.
-3. Build a `ModelPatch`.
-4. Validate the patch payload against schema.
-5. Apply the patch through `ModelTransaction`.
-6. Validate the resulting `TubaModel`.
-7. Render or export from the validated model.
+Construction units belong in the leading definitions of `model.py`, before
+the model assignment, or in `units/<name>.py`. Each unit builds one structure,
+takes `model` first, and exposes varying dimensions, sections, materials and
+other choices as JSON-serializable parameters. Document and validate inputs.
+Compose rack, pipe and load units rather than copying bodies.
 
-Example:
+Prefer existing reusable geometry such as `tuba.assemblies.RackRow`.
+Project-specific geometry belongs in project units. MCP's `save_unit`
+validates unit code and `apply_unit` retains its invocation. General library
+changes need the corresponding tests.
 
-```python
-from tuba import Model
-from tuba.coordinates import CoordinateSystem
-from tuba.fragments import ModelFragment
+## Inspection, verification and solving
 
-fragment = ModelFragment("rack_template")
-fragment.model.add_material("Steel", E=2.0e11, nu=0.3)
-fragment.model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+Start the MCP stdio server with the project environment's Python:
 
-with fragment.pipe(section="PipeSec", material="Steel") as b:
-    b.start([0.0, 0.0, 0.0]).run(2.0)
-
-model = Model("Plant")
-model.add_material("Steel", E=2.0e11, nu=0.3)
-model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
-
-model.place_fragment(
-    fragment,
-    CoordinateSystem(origin=(10.0, 20.0, 0.0)),
-    name="rack_A",
-)
-
-model.validate()
+```bash
+python -m tuba.mcp.server
 ```
 
-The fragment remains editable as a local object. The parent model stores a named group for GUI selection and solver export remains based on ordinary nodes and elements.
+1. Bind the intended folder explicitly with
+   `init_session(file_path="/path/to/project/model.py", load_existing=True)`.
+2. Edit authored Python, then reload the session. Use `inspect_model` to
+   inspect routes, groups and assembly calls.
+3. Run `verify_model` / `model.verify()` and `check_clashes` as needed.
+   The shared verification gate includes structural validation, join-aware
+   cold-model clashes and rules. `model.validate()` alone is a subset.
+4. Resolve a clash by changing the originating unit's parameters or code.
+   Inspect again and clear blocking findings before solving.
+5. Use `solve_model` or the project CLI to evaluate the study with real
+   Code_Aster. Process projects also require passing, current hydraulic evidence.
+6. Review imported results and their lineage in Studio or an exported review
+   bundle. Exported `.comm`, `.mail` and `.export` inputs are an incomplete
+   handoff until Code_Aster runs and result artifacts are imported.
 
-## IFC-Style Placement Frames
+Inspection refreshes changed source, helpers and CAD but does not authorize
+overwriting externally edited files. Rebind before applying a mutation.
+Generated-script edit tools cannot rewrite an authored unit call; edit its
+Python source.
 
-Placed fragments may also create a named `PlacementFrame`. The parent model still stores node coordinates in model-global Cartesian coordinates, but the frame is retained for GUI selection, IFC export, import provenance, and repeatable local editing.
+MCP and CLI use the same `study.py`, verification gate and evidence.
+`solve_model(load_case=...)` validates the named operation and evaluates the
+study's operations together. Matching attested evidence may be reused;
+`force=True` requests a fresh solve and does not bypass blocking verification.
+A blocked runtime or missing result artifacts stop evaluation without fabricated
+stress, displacement or reactions.
 
-Use explicit frames when authoring local coordinates:
+See the [CLI and MCP guide](content/workflow.md#projects-in-studio-the-cli-and-agents).
+For retained candidate campaigns, use [piping search](content/piping-search.md);
+for graph/P&ID and hydraulic-to-structural coupling, use
+[process networks](content/process-networks.md).
 
-```python
-frame = model.placement_frames["rack_A"]
-global_point = model.to_global_point((1.0, 0.0, 0.0), frame="placement_frame:rack_A")
-```
+## Fragments, placements and transactional edits
 
-Do not assume node coordinates are local just because a placement assignment exists.
+`ModelFragment` and `CoordinateSystem` remain useful for reusable model
+records and explicit local-to-global placement. Construction units retain the
+authored recipe; fragments contain the compiled records.
 
-## Contracts
+Placed fragment nodes are stored in model-global Cartesian coordinates.
+A retained `PlacementFrame` supports source provenance and local editing;
+it does not make stored node coordinates local.
+`model.to_global_point(point, frame="placement_frame:rack_A")` converts an
+explicit local point.
 
-- Placement names are unique. Reusing a group name raises `ValueError` and rolls the parent model back.
-- Fragment material and section names must either be absent from the parent model or match exactly. Name collisions with different properties raise `ValueError`.
-- Group metadata stores placed node IDs, element IDs, support indexes, the fragment name, the placement coordinate system, and a copy of fragment metadata for GUI selection/provenance.
-- Patch payloads should be validated with `validate_patch_dict()` before applying them. Full model payloads should be validated with `validate_model_dict()` before loading.
-- `AddNode` reuses existing coincident nodes by default. Set `reuse_existing=False` when a GUI or agent intends to create a distinct node at the same coordinate.
-- `ModelTransaction` is the mutation boundary. Direct low-level mutation is still possible for hand-authored scripts, but generated changes should go through patches so rollback and validation run consistently.
+For generated record edits, use `ModelPatch` and `ModelTransaction` so
+validation and rollback run consistently. Validate patch payloads with
+`validate_patch_dict()` and full model payloads with `validate_model_dict()`.
+
+- Placement names are unique; an existing name raises `ValueError` and rolls
+  back the placement.
+- Fragment material and section names must be new or match the parent's
+  definitions exactly.
+- Group metadata retains placed nodes, elements, supports, fragment identity
+  and placement for inspection.
+- `AddNode` reuses coincident nodes by default. Use `reuse_existing=False`
+  only when a distinct node at the same location is intended.
+
+These APIs support record editing. Procedural Python remains the preferred
+definition for complex piping and supporting structures.

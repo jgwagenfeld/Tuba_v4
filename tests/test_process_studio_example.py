@@ -90,10 +90,14 @@ def test_studio_guide_launches_the_shared_project_and_links_its_acceptance_plan(
     assert "python -m tuba.cli_studio examples/process_network" in studio_section
     assert "**P&ID**" in studio_section and "**Run hydraulics**" in studio_section
     assert "**Solve**" in studio_section and "**Review**" in studio_section
-    assert "**Not evaluated**" in studio_section and "**Run model.py**" in studio_section
+    assert "**Not evaluated**" in studio_section and "**Update geometry**" in studio_section
     assert 'PIPE_SIZE = "larger"' in studio_section and "OFFSET_M = 1.0" in studio_section
     assert "Code_Aster" in studio_section
     for target in re.findall(r"\]\(([^)]+)\)", studio_section):
+        if target.startswith("https://github.com/jgwagenfeld/Tuba_v4/blob/main/"):
+            target = target.removeprefix("https://github.com/jgwagenfeld/Tuba_v4/blob/main/")
+            assert (ROOT / target.split("#", 1)[0]).resolve().is_file(), target
+            continue
         assert (guide_path.parent / target.split("#", 1)[0]).resolve().is_file(), target
     plan = (ROOT / "docs" / "architecture" / "studio-process-integration.md").read_text(encoding="utf-8")
     assert "real pandapipes and Code_Aster" in plan
