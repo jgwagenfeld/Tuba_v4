@@ -53,12 +53,21 @@ export function textTextureSize(text, width, height = 100, budget) {
 
 export function validateJsonBudget(value, budget = { values: 0 }) {
   budget.values ??= 0;
-  const walk = (item, depth) => {
+  const walk = (item, depth, counted = false) => {
     limit("depth", depth);
-    budget.values += 1;
-    limit("values", budget.values);
+    if (!counted) limit("values", ++budget.values);
+    if (Array.isArray(item)) {
+      // Numerical payloads contain millions of primitive coordinates. Account
+      // for their depth and count once, then recurse only into nested objects.
+      if (item.length) limit("depth", depth + 1);
+      limit("values", budget.values += item.length);
+      for (const child of item) {
+        if (child && typeof child === "object") walk(child, depth + 1, true);
+      }
+      return;
+    }
     if (item && typeof item === "object") {
-      for (const child of Array.isArray(item) ? item : Object.values(item)) walk(child, depth + 1);
+      for (const child of Object.values(item)) walk(child, depth + 1);
     }
   };
   walk(value, 0);
@@ -76,13 +85,17 @@ export function validateSceneBudget(bundle = {}, generatedAssets) {
   const totals = { points: 0, faces: 0, instances: 0, generatedVertices: 0, generatedFaces: 0, texturePixels: 0 };
   let values = 0;
   const seen = new Set();
-  const walk = (item, depth = 0) => {
+  const walk = (item, depth = 0, counted = false) => {
     limit("depth", depth);
-    limit("values", ++values);
+    if (!counted) limit("values", ++values);
     if (!item || typeof item !== "object" || seen.has(item)) return;
     seen.add(item);
     if (Array.isArray(item)) {
-      for (const child of item) walk(child, depth + 1);
+      if (item.length) limit("depth", depth + 1);
+      limit("values", values += item.length);
+      for (const child of item) {
+        if (child && typeof child === "object") walk(child, depth + 1, true);
+      }
       return;
     }
     for (const [key, child] of Object.entries(item)) {

@@ -418,6 +418,12 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     return true;
   };
   const drawFrame = (graph) => {
+    // Camera updates can queue a redraw during a synchronous state render.
+    // This frame already includes that update; do not draw it again next tick.
+    if (redrawFrameId !== null) {
+      cancelAnimationFrame(redrawFrameId);
+      redrawFrameId = null;
+    }
     // This is shared by mouse/keyboard orbit, the gizmo, resize and state draws.
     // A fit may frame a tiny selection, but depth must still include the scene.
     updateCameraDepthRange(camera, graph.depthBounds ?? graph.bounds);

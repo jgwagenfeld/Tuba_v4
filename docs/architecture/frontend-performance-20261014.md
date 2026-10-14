@@ -81,3 +81,45 @@ screenshots, logs and a browser lifecycle receipt are retained under
 4. Investigate native Solver `.comm` generation separately. Its existing handler
    exports a study, potentially including meshing, for a file-tab request. Reuse
    or background compilation needs exact source, study and solver-option identity.
+
+## Follow-up: validation and redundant draws
+
+A second pass against `363dfaf` found that an empty selection still matched the
+connection-highlight check (`null === null`). It queued a second frame after
+the scene was already drawn. The check now requires an actual connection
+highlight, and synchronous draws cancel camera redraws they already satisfy.
+An actual-browser regression counted two complete draws per stage switch before
+the change and one after it; camera controls and canvas resizing still passed.
+
+JSON and scene validators now account array members in batches, recursing only
+into nested objects. Depth, total values, shared-reference accounting and every
+geometry/resource limit remain enforced. The retained review contains 1,502,022
+JSON values; old and new counts and scene totals matched. Independent review
+also compared 2,000 edge cases with zero acceptance or successful-count changes.
+
+A paired browser run restored the original three changed modules for its
+baseline, then measured the new source with the same backend, viewport and
+model. Three warm round trips produced:
+
+| Repeated switch | Before follow-up, median | After follow-up, median | Reduction |
+| --- | ---: | ---: | ---: |
+| Build | 607 ms | 481 ms | 20.8% |
+| Review | 1,080 ms | 765 ms | 29.2% |
+
+Both versions made zero warm scene requests and displayed matching model,
+result-state and rendered-object summaries. One cold page sample improved from
+12,988 to 10,769 ms; cold timings vary with shader compilation, development
+module loading and machine load, so this single pair is not a latency guarantee.
+The scene payload size has not changed.
+
+All 856 viewer tests passed, as did frontend-only compilation, the camera/resize
+browser regression, and cache invalidation/disconnection checks. Browser runs
+blocked API writes and preserved the authored source. This pass reuses the
+existing isolated worktree and dependencies. The source preview is updated;
+packaged viewer assets, backend code and solver artifacts are unchanged by this
+follow-up. No fresh Code_Aster evaluation or remote push was performed.
+
+Evidence and runnable profiling recipes are retained in
+`.tmp/frontend-performance-20261014/further/`. The largest next opportunity is
+still reducing the initial scene payload and the cost of transferring its
+parsed arrays from the worker to the UI thread.

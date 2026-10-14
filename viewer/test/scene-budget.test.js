@@ -3,7 +3,32 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { createThreeSceneGraph, disposeThreeSceneGraph } from "../src/renderer.js";
 import { createViewerState, getVisibleObjectIds, loadSceneBundleFromUrl } from "../src/sceneLoader.js";
-import { SCENE_LIMITS, readBoundedJson, textTextureSize, tubeTessellation, validateSceneBudget } from "../src/sceneBudget.js";
+import { SCENE_LIMITS, readBoundedJson, textTextureSize, tubeTessellation, validateSceneBudget, validateJsonBudget } from "../src/sceneBudget.js";
+
+test("JSON quotas count every primitive, nested array and repeated reference", () => {
+  const budget = { values: 10 };
+  const input = [1, null, [2, { x: 3 }], false];
+  assert.equal(validateJsonBudget(input, budget), input);
+  assert.equal(budget.values, 18);
+  const shared = [1, 2];
+  const repeated = { values: 0 };
+  validateJsonBudget([shared, shared], repeated);
+  assert.equal(repeated.values, 7, "JSON counts each occurrence, even when JS references are shared");
+  validateJsonBudget(Array(10).fill(0), { values: SCENE_LIMITS.values - 11 });
+  assert.throws(() => validateJsonBudget(Array(11).fill(0), { values: SCENE_LIMITS.values - 11 }), /values/);
+});
+
+test("primitive array fast paths still enforce depth and aggregate scene limits", () => {
+  const nest = (value, depth) => { for (let i = 0; i < depth; i++) value = [value]; return value; };
+  validateJsonBudget(nest(0, SCENE_LIMITS.depth));
+  validateJsonBudget(nest([], SCENE_LIMITS.depth));
+  assert.throws(() => validateJsonBudget(nest([0], SCENE_LIMITS.depth)), /depth/);
+  assert.throws(() => validateSceneBudget({ scene: { nested: nest(0, SCENE_LIMITS.depth) } }, []), /depth/);
+  const numbers = Array(SCENE_LIMITS.values - 5).fill(0);
+  validateSceneBudget({ scene: { numbers } }, []);
+  numbers.push(0);
+  assert.throws(() => validateSceneBudget({ scene: { numbers } }, []), /values/);
+});
 
 test("oversized tubes and total generated surfaces reject before renderer construction", () => {
   const asset = { id: "tube", format: "tube", generation_config: { points: Array.from({ length: 257 }, () => [0, 0, 0]), radius_m: .1 } };

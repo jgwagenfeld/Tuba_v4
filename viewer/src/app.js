@@ -4982,7 +4982,7 @@ function renderCanvas() {
   renderCameraControls();
   const graph = viewportRenderer.render(currentState);
   const result = graph;
-  if (connectionHighlightObjectId === selectedObjectId) {
+  if (connectionHighlightObjectId !== null && connectionHighlightObjectId === selectedObjectId) {
     applySelectionHighlight(graph, [...currentState.selectedObjectIds,
       ...getGeometryRelations(currentState, selectedObjectId).map(link => link.id)]);
     viewportRenderer.redraw();
